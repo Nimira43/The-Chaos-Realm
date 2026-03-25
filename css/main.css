@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Smooch+Sans:wght@100..900&display=swap');
+
+* {
+  font-family: 'Smooch Sans', sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #111;
+  color: #eee;
+  font-family: system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+canvas {
+  image-rendering: pixelated;
+  border: 2px solid #555;
+  background: #000;
+}
+
+.logo-text {
+  font-family: 'Kaushan Script', cursive;
+}
+
