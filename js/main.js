@@ -1,4 +1,5 @@
 import { CREATURES } from './creatures.js'
+import { SPELLS } from './spellbook.js'
 
 const MAP_WIDTH = 32
 const MAP_HEIGHT = 32
@@ -13,6 +14,7 @@ const terrainColours = {
 }
 
 console.log(CREATURES)
+console.log(SPELLS)
 
 const canvas = document.getElementById('map')
 canvas.width = VIEW_TILES * TILE_SIZE
