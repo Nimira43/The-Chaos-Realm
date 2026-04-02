@@ -1,5 +1,4 @@
-import { CREATURES } from './creatures.js'
-import { SPELLS } from './spellbook.js'
+import { PLAYER } from './player.js'
 
 const MAP_WIDTH = 32
 const MAP_HEIGHT = 32
@@ -13,8 +12,18 @@ const terrainColours = {
   water: '#1e90ff'
 }
 
-console.log(CREATURES)
-console.log(SPELLS)
+const terrainCost = {
+  grass: 2,
+  rough: 4,
+  water: 999 // impassable for now
+}
+
+let round = 1
+let isPlayerTurn = true
+
+function updateTurnCounter() {
+  document.getElementById('turn-counter').textContent = `Turn ${round} / 30`
+}
 
 const canvas = document.getElementById('map')
 canvas.width = VIEW_TILES * TILE_SIZE
@@ -22,7 +31,7 @@ canvas.height = VIEW_TILES * TILE_SIZE
 const ctx = canvas.getContext('2d')
 
 function wrap(n, max) {
-  return (n + max) % max;
+  return (n + max) % max
 }
 
 const map = []
@@ -45,7 +54,7 @@ function drawViewport() {
       const worldX = wrap(playerX + (vx - VIEW_RADIUS), MAP_WIDTH)
       const worldY = wrap(playerY + (vy - VIEW_RADIUS), MAP_HEIGHT)
 
-      ctx.fillStyle = terrainColours[map[worldY][worldX]];
+      ctx.fillStyle = terrainColours[map[worldY][worldX]]
       ctx.fillRect(
         vx * TILE_SIZE,
         vy * TILE_SIZE,
@@ -55,6 +64,7 @@ function drawViewport() {
     }
   }
 
+  // Draw player in centre
   ctx.fillStyle = 'white'
   ctx.fillRect(
     VIEW_RADIUS * TILE_SIZE,
@@ -65,13 +75,63 @@ function drawViewport() {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowUp') playerY = wrap(playerY - 1, MAP_HEIGHT)
-  else if (e.key === 'ArrowDown') playerY = wrap(playerY + 1, MAP_HEIGHT)
-  else if (e.key === 'ArrowLeft') playerX = wrap(playerX - 1, MAP_WIDTH)
-  else if (e.key === 'ArrowRight') playerX = wrap(playerX + 1, MAP_WIDTH)
+  if (!isPlayerTurn) return
+
+  let dx = 0
+  let dy = 0
+
+  if (e.key === 'ArrowUp') dy = -1
+  else if (e.key === 'ArrowDown') dy = 1
+  else if (e.key === 'ArrowLeft') dx = -1
+  else if (e.key === 'ArrowRight') dx = 1
   else return
+
+  const newX = wrap(playerX + dx, MAP_WIDTH)
+  const newY = wrap(playerY + dy, MAP_HEIGHT)
+
+  const terrain = map[newY][newX]
+  const cost = terrainCost[terrain]
+
+  if (PLAYER.ap < cost) {
+    console.log('Not enough AP')
+    return
+  }
+
+  PLAYER.ap -= cost
+  document.getElementById('ap-display').textContent = `AP: ${PLAYER.ap}`
+
+  playerX = newX
+  playerY = newY
 
   drawViewport()
 })
+
+document.getElementById('end-turn-btn').addEventListener('click', () => {
+  if (!isPlayerTurn) return
+
+  isPlayerTurn = false
+
+  alert('Enemy Wizard is moving...\nDone!')
+
+  // Reset AP
+  PLAYER.ap = PLAYER.max_ap
+  document.getElementById('ap-display').textContent = `AP: ${PLAYER.ap}`
+
+  // Next round
+  round++
+  updateTurnCounter()
+
+  if (round > 30) {
+    alert('Round 30 reached — game over!')
+    return
+  }
+
+  isPlayerTurn = true
+  drawViewport()
+})
+
+// Initialise UI
+updateTurnCounter()
+document.getElementById('ap-display').textContent = `AP: ${PLAYER.ap}`
 
 drawViewport()

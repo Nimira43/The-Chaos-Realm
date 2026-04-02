@@ -64,7 +64,7 @@ export const CREATURES = [
   },
   {
     name: '',
-    action_points_ground: 30,
+    action_points_ground: 336,
     action_points_flying: 0,
     stamina: 70,
     constitution: 40,
