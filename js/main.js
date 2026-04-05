@@ -1,5 +1,8 @@
 import { PLAYER } from './player.js'
 
+import { CREATURES } from './data.js'
+console.log(CREATURES)
+
 const MAP_WIDTH = 32
 const MAP_HEIGHT = 32
 const TILE_SIZE = 48
