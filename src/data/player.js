@@ -1,7 +1,9 @@
 export const PLAYER = {
+  x: 16,
+  y: 16,
   name: 'Player',
-  max_ap: 36,
-  ap: 36,
+  max_ap: 336,
+  ap: 336,
   stamina: 70,
   constitution: 40,
   combat: 10,

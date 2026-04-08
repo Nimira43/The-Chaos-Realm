@@ -353,7 +353,7 @@ export const CREATURES = [
     use_weapons: false,
     use_options: false,
     wood_type: false,
-    water_type: yes,
+    water_type: true,
     rock_type: false,
   },
   {
@@ -378,9 +378,9 @@ export const CREATURES = [
     rock_type: false,
   },
   {
-    name: 'Harpy]',
+    name: 'Harpy',
     action_points_ground: 28,
-    action_points_flying:v52,
+    action_points_flying: 52,
     stamina: 60,
     constitution: 28,
     combat: 22,
