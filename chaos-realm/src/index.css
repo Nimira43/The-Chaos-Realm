@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Smooch+Sans:wght@100..900&display=swap');
+
+* {
+  font-family: 'Smooch Sans', sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #111;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo-text {
+  font-family: 'Kaushan Script', cursive;
+}
+
+#game-container {
+  display: grid;
+  grid-template-columns: 400px auto 400px;
+
+  height: 100vh;
+  width: 100vw;
+}
+
+#left-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+#player-ui {
+  flex: 1;
+  background: #014101;
+  padding: 20px;
+  color: #fff;
+  font-size: 24px;
+}
+
+#ap-display {
+  margin-bottom: 20px;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+#end-turn-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 20px;
+  background: #333;
+  color: #fff;
+  border: 2px solid #555;
+  cursor: pointer;
+}
+
+
+#left-lower {
+  flex: 1;
+  background: #011843;
+}
+
+#middle-panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #111;
+}
+
+#right-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+#title-area {
+  flex: 0 0 120px;
+  background: #222;
+  color: #ff4500;
+  font-size: 48px;
+  text-align: center;
+  padding-top: 20px;
+}
+
+#right-middle {
+  flex: 1;
+  background: #614001;
+}
+
+#turn-counter {
+  font-size: 32px;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 40px;
+  color: #fff;
+}
+
+#right-lower {
+  flex: 1;
+  background: #5c0a02;
+}
+
+canvas {
+  image-rendering: pixelated;
+  border: 2px solid #555;
+  background: #000;
+}
