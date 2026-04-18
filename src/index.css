@@ -8,6 +8,7 @@
 :root {
   --main: #ff4500;
   --main-dark: #b73405;
+  --black: #000;
   --dark: #111;
   --light: #fffdfa;
   --grey-1: #333;
@@ -43,42 +44,107 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--dark);
 }
 
 #player-ui {
-  background: var(--main-dark);
+  background: var(--dark);
   padding: 20px;
-  font-size: 24px;
 }
 
 #ap-display {
   margin-bottom: 20px;
   font-size: 28px;
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 2px;
 }
 
 #end-turn-btn {
   width: 100%;
   padding: 12px;
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
-  background: transparent;
+  border-radius: 3px;
+  border: 1px solid var(--main);
+  background: var(--main-dark);
   color: var(--light);
-  border: 2px solid var(--light);
+  outline: none;
   cursor: pointer;
   transition: var(--transition);
 }
 
 #end-turn-btn:hover {
-  background: var(--light);
-  color: var(--main);
+  background: var(--main);
 }
 
 #left-lower {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   background: var(--dark);
+  padding: 10px;
+  overflow: hidden;
+}
+
+/* SPELLBOOK TITLE */
+.spellbook-title {
+  margin: 0 0 10px 0;
+  padding: 0;
+  font-size: 32px;
+  text-transform: uppercase;
+  text-align: center;
+  letter-spacing: 2px;
+}
+
+/* SCROLLABLE SPELL LIST */
+.spellbook-list {
+  flex: 1;
+  overflow-y: scroll;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: none;
+}
+
+.spellbook-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* SPELL ENTRY */
+.spell-entry {
+  background: var(--main-dark);
+  padding: 10px;
+  border: 1px solid var(--main);
+  border-radius: 4px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  transition: var(--transition);
+}
+
+.spell-entry:hover {
+  background-color: var(--main);
+}
+
+.spell-name {
+  color: var(--light);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex: 1
+}
+
+.spell-units,
+.spell-cost {
+  color: var(--light);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* MIDDLE PANEL */
@@ -86,7 +152,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #111;
+  background: var(--dark);
   height: 100%;
   width: 100%;
 }
@@ -96,7 +162,7 @@ canvas {
   width: 720px;
   height: 720px;
   image-rendering: pixelated;
-  background: #000;
+  background: var(--black);
 }
 
 /* RIGHT PANEL */
@@ -123,7 +189,7 @@ canvas {
 
 #turn-counter {
   font-size: 32px;
-  font-weight: bold;
+  font-weight: 700;
   text-align: center;
   margin-top: 40px;
 }
