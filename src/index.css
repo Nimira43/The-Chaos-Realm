@@ -228,7 +228,10 @@ canvas {
   justify-content: center;
   align-items: center;
 }
-
+#editor-middle canvas {
+  width: 600px !important;
+  height: 600px !important;
+}
 /* MAP EDITOR — TWO COLUMN TERRAIN GRID */
 .terrain-grid {
   display: grid;
