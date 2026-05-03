@@ -1,6 +1,7 @@
 export const CREATURES = [
   {
     name: 'Gold Dragon',
+    manaCost: 47,
     action_points_ground: 38,
     action_points_flying: 40,
     stamina: 86,
@@ -22,6 +23,7 @@ export const CREATURES = [
   },
   {
     name: 'Green Dragon',
+    manaCost: 39,
     action_points_ground: 32,
     action_points_flying: 36,
     stamina: 80,
@@ -43,6 +45,7 @@ export const CREATURES = [
   },
   {
     name: 'Red Dragon',
+    manaCost: 31,
     action_points_ground: 34,
     action_points_flying: 40,
     stamina: 90,
@@ -64,6 +67,7 @@ export const CREATURES = [
   },
   {
     name: 'Pixie',
+    manaCost: 7,
     action_points_ground: 34,
     action_points_flying: 0,
     stamina: 40,
@@ -85,6 +89,7 @@ export const CREATURES = [
   },
   {
     name: 'Dwarf',
+    manaCost: 8,
     action_points_ground: 26,
     action_points_flying: 0,
     stamina: 57,
@@ -106,6 +111,7 @@ export const CREATURES = [
   },
   {
     name: 'Goblin',
+    manaCost: 7,
     action_points_ground: 30,
     action_points_flying: 0,
     stamina: 45,
@@ -127,6 +133,7 @@ export const CREATURES = [
   },
   {
     name: 'Troll',
+    manaCost: 13,
     action_points_ground: 32,
     action_points_flying: 0,
     stamina: 88,
@@ -148,6 +155,7 @@ export const CREATURES = [
   },
   {
     name: 'Giant',
+    manaCost: 17,
     action_points_ground: 30,
     action_points_flying: 0,
     stamina: 48,
@@ -169,6 +177,7 @@ export const CREATURES = [
   },
   {
     name: 'Centaur',
+    manaCost: 10,
     action_points_ground: 48,
     action_points_flying: 0,
     stamina: 62,
@@ -190,6 +199,7 @@ export const CREATURES = [
   },
   {
     name: 'Unicorn',
+    manaCost: 10,
     action_points_ground: 56,
     action_points_flying: 0,
     stamina: 72,
@@ -211,6 +221,7 @@ export const CREATURES = [
   },
   {
     name: 'Pegasus',
+    manaCost: 12,
     action_points_ground: 46,
     action_points_flying: 56,
     stamina: 80,
@@ -232,6 +243,7 @@ export const CREATURES = [
   },
   {
     name: 'Grypthon',
+    manaCost: 19,
     action_points_ground: 42,
     action_points_flying: 52,
     stamina: 73,
@@ -253,6 +265,7 @@ export const CREATURES = [
   },
   {
     name: 'Elephant',
+    manaCost: 17,
     action_points_ground: 36,
     action_points_flying: 0,
     stamina: 55,
@@ -274,6 +287,7 @@ export const CREATURES = [
   },
   {
     name: 'Gorilla',
+    manaCost: 8,
     action_points_ground: 34,
     action_points_flying: 0,
     stamina: 56,
@@ -295,6 +309,7 @@ export const CREATURES = [
   },
   {
     name: 'Lion',
+    manaCost: 10,
     action_points_ground: 54,
     action_points_flying: 0,
     stamina: 64,
@@ -316,6 +331,7 @@ export const CREATURES = [
   },
   {
     name: 'Bear',
+    manaCost: 12,
     action_points_ground: 38,
     action_points_flying: 0,
     stamina: 70,
@@ -337,6 +353,7 @@ export const CREATURES = [
   },
   {
     name: 'Crocodile',
+    manaCost: 11,
     action_points_ground: 26,
     action_points_flying: 0,
     stamina: 52,
@@ -358,6 +375,7 @@ export const CREATURES = [
   },
   {
     name: 'Giant Bat',
+    manaCost: 5,
     action_points_ground: 24,
     action_points_flying: 62,
     stamina: 75,
@@ -379,6 +397,7 @@ export const CREATURES = [
   },
   {
     name: 'Harpy',
+    manaCost: 11,
     action_points_ground: 28,
     action_points_flying: 52,
     stamina: 60,
@@ -400,6 +419,7 @@ export const CREATURES = [
   },
   {
     name: 'Giant Spider',
+    manaCost: 22,
     action_points_ground: 44,
     action_points_flying: 0,
     stamina: 74,
@@ -421,6 +441,7 @@ export const CREATURES = [
   },
   {
     name: 'Zombie',
+    manaCost: 16,
     action_points_ground: 24,
     action_points_flying: 0,
     stamina: 90,
@@ -442,6 +463,7 @@ export const CREATURES = [
   },
   {
     name: 'Ghost',
+    manaCost: 14,
     action_points_ground: 36,
     action_points_flying: 36,
     stamina: 92,
@@ -463,6 +485,7 @@ export const CREATURES = [
   },
   {
     name: 'Vampire',
+    manaCost: 29,
     action_points_ground: 34,
     action_points_flying: 40,
     stamina: 85,
@@ -484,6 +507,7 @@ export const CREATURES = [
   },
   {
     name: 'Spectre',
+    manaCost: 29,
     action_points_ground: 38,
     action_points_flying: 0,
     stamina: 80,
@@ -505,6 +529,7 @@ export const CREATURES = [
   },
   {
     name: 'Demon',
+    manaCost: 40,
     action_points_ground: 30,
     action_points_flying: 0,
     stamina: 90,

@@ -3,6 +3,8 @@ export const PLAYER = {
   y: 16,
   name: 'Player',
   max_ap: 336,
+  max_mana: 200,
+  current_mana: 200,
   ap: 336,
   stamina: 70,
   constitution: 40,

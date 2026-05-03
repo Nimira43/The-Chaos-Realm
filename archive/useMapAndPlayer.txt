@@ -1,19 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { generateProceduralMap } from '../engine/map.js'
-import { TESTING_SPELLBOOK } from '../data/spellbook.js'
+import { generateProceduralMap } from './map.js'
 import { PLAYER } from '../data/player.js'
-import { tryMove } from '../engine/movement.js'
-import { drawViewport } from '../ui/viewport.js'
-import { wrap } from '../engine/utils.js'
-import { isTerrain } from '../engine/terrain.js'
-import '../index.css'
+import { tryMove } from './movement.js'
+import { wrap } from './utils.js'
+import { isTerrain } from './terrain.js'
 
-export default function GameEngine() {
-  const canvasRef = useRef(null)
+export function useMapAndPlayer() {
   const mapRef = useRef(null)
 
   const [ap, setAp] = useState(PLAYER.ap)
   const [round, setRound] = useState(1)
+
   const [cursor, setCursor] = useState({ x: PLAYER.x, y: PLAYER.y })
   const [selected, setSelected] = useState(null)
 
@@ -39,9 +36,15 @@ export default function GameEngine() {
       generated.map(row => row.map(() => null))
     )
 
+    PLAYER.x = 16
+    PLAYER.y = 16
+    PLAYER.ap = PLAYER.max_ap
+
     const start = { x: PLAYER.x, y: PLAYER.y }
     setPlayerPosition(start)
     setCursor(start)
+    setAp(PLAYER.ap)
+    setRound(1)
   }, [])
 
   useEffect(() => {
@@ -51,40 +54,13 @@ export default function GameEngine() {
     const occupiers = []
 
     if (playerPosition &&
-        cursor.x === playerPosition.x &&
-        cursor.y === playerPosition.y) {
+      cursor.x === playerPosition.x &&
+      cursor.y === playerPosition.y) {
       occupiers.push({ type: 'player', owner: 'us' })
     }
 
     setInfo({ terrain, occupiers })
   }, [cursor, terrainLayer, playerPosition])
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas || !terrainLayer.length) return
-
-    const ctx = canvas.getContext('2d')
-    const TILE_SIZE = 48
-    const VIEW_TILES = 15
-
-    function render() {
-      drawViewport(
-        ctx,
-        terrainLayer,
-        PLAYER,
-        TILE_SIZE,
-        VIEW_TILES,
-        cursor,
-        selected,
-        objectLayer // future use
-      )
-    }
-
-    render()
-
-    const interval = setInterval(render, 100)
-    return () => clearInterval(interval)
-  }, [cursor, selected, terrainLayer, objectLayer])
 
   useEffect(() => {
     function handleKey(e) {
@@ -102,8 +78,8 @@ export default function GameEngine() {
       if (e.key === ' ') {
         if (!selected) {
           if (playerPosition &&
-              cursor.x === playerPosition.x &&
-              cursor.y === playerPosition.y) {
+            cursor.x === playerPosition.x &&
+            cursor.y === playerPosition.y) {
             setSelected({ type: 'player' })
           }
         } else {
@@ -124,6 +100,7 @@ export default function GameEngine() {
 
       if (selected.type === 'player') {
         if (tryMove(PLAYER, dx, dy, map)) {
+          PLAYER.ap = PLAYER.ap
           setAp(PLAYER.ap)
           const newPos = { x: PLAYER.x, y: PLAYER.y }
           setCursor(newPos)
@@ -221,117 +198,23 @@ export default function GameEngine() {
     setSelected(null)
   }
 
-  return (
-    <div id='game-container'>
-      <div id='left-panel'>
-        <div id='player-ui'>
-          <div id='ap-display'>
-            AP: {ap}
-          </div>
-          <button
-            id='end-turn-btn'
-            onClick={endTurn}
-          >
-            End Turn
-          </button>
-        </div>
+  return {
+    ap,
+    round,
+    terrainLayer,
+    objectLayer,
+    cursor,
+    selected,
+    playerPosition,
+    enemyPosition,
+    info,
+    showLoadModal,
+    mapFilename,
 
-        <div id='left-lower'>
-          <h1 className='spellbook-title'>
-            Spellbook
-          </h1>
-          <div className='spellbook-list'>
-            {TESTING_SPELLBOOK.map((spell, i) => (
-              <div key={i} className='spell-entry'>
-                <div className='spell-name'>
-                  {spell.name}
-                </div>
-                <div className='spell-units'>
-                  Units: {spell.remainingUnits}/{spell.maxUnits}
-                </div>
-                <div className='spell-cost'>
-                  Mana Required: {spell.manaCost * spell.remainingUnits}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div id='middle-panel'>
-        <canvas
-          ref={canvasRef}
-          id='map'
-          width={720}
-          height={720}
-        ></canvas>
-      </div>
-
-      <div id='right-panel'>
-        <div id='title-area' className='logo-text'>
-          The Chaos Realm
-        </div>
-
-        <div id='right-middle'>
-          <div id='turn-counter'>
-            Turn {round} / 30
-          </div>
-        </div>
-
-        <div id='right-lower'>
-          <div className='info-panel'>
-            <div>
-              Terrain: {info.terrain}
-            </div>
-
-            {info.occupiers.length === 0 && (
-              <div>
-                Occupier: None
-              </div>
-            )}
-
-            {info.occupiers.map((o, i) => (
-              <div key={i}>
-                {o.type === 'player' && 'Occupier: Player (ours)'}
-              </div>
-            ))}
-
-            <button
-              className='load-map-btn'
-              onClick={() => setShowLoadModal(true)}
-            >
-              Load Map
-            </button>
-
-            <button
-              className='generate-map-btn'
-              onClick={restartGame}
-            >
-              Generate Map
-            </button>
-          </div>
-        </div>
-
-        {showLoadModal && (
-          <div className='modal'>
-            <div className='modal-content'>
-              <h2>Load Map</h2>
-
-              <input
-                type='text'
-                placeholder='Enter filename (without .json)'
-                value={mapFilename}
-                onChange={e => setMapFilename(e.target.value)}
-              />
-
-              <button onClick={loadMapFromFile}>Load</button>
-              <button onClick={() => setShowLoadModal(false)}>Cancel</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+    setShowLoadModal,
+    setMapFilename,
+    endTurn,
+    restartGame,
+    loadMapFromFile
+  }
 }
-
-
