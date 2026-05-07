@@ -4,9 +4,9 @@ import { PLAYER } from '../data/player.js'
 import { tryMove } from './movement.js'
 import { wrap } from './utils.js'
 import { isTerrain } from './terrain.js'
+import { castSpell } from './spellCaster.js'
 
 export function useMapAndPlayer() {
-
   const [terrainLayer, setTerrainLayer] = useState(() => generateProceduralMap())
 
   const [objectLayer, setObjectLayer] = useState(() =>
@@ -21,7 +21,7 @@ export function useMapAndPlayer() {
   })
 
   const [enemyPosition, setEnemyPosition] = useState(null)
-  
+
   const [cursor, setCursor] = useState(() => ({
     x: PLAYER.x,
     y: PLAYER.y
@@ -176,6 +176,49 @@ export function useMapAndPlayer() {
     setSelected(null)
   }
 
+  function castSpellForPlayer(spell) {
+    if (!spell) return
+
+    if (spell.currentSpellLevel <= 0) {
+      alert('This spell is exhausted')
+      return
+    }
+
+    const level = spell.currentSpellLevel
+    const cost = spell.manaCost * level
+
+    if (PLAYER.current_mana < cost) {
+      alert('Not enough mana')
+      return
+    }
+
+    const isTileFree = tile =>
+      tile.y >= 0 &&
+      tile.y < objectLayer.length &&
+      tile.x >= 0 &&
+      tile.x < objectLayer[0].length &&
+      objectLayer[tile.y][tile.x] === null
+
+    const spawnCreature = (creatureName, tile) => {
+      setObjectLayer(prev => {
+        const copy = prev.map(row => [...row])
+        copy[tile.y][tile.x] = creatureName
+        return copy
+      })
+    }
+
+    castSpell({
+      spell,
+      casterPos: playerPosition,
+      isTileFree,
+      spawnCreature
+    })
+
+    PLAYER.current_mana -= cost
+
+    spell.currentSpellLevel = Math.max(0, spell.currentSpellLevel - 1)
+  }
+
   return {
     ap,
     round,
@@ -188,7 +231,7 @@ export function useMapAndPlayer() {
     info,
     showLoadModal,
     mapFilename,
-
+    castSpellForPlayer,
     setShowLoadModal,
     setMapFilename,
     endTurn,

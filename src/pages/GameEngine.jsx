@@ -1,11 +1,12 @@
-import { useRef } from 'react'
-import { TESTING_SPELLBOOK } from '../data/spellbook.js'
+import { useRef, useState } from 'react'
+import { SPELLBOOK } from '../data/spellbook.js'
 import { useMapAndPlayer } from '../engine/useMapAndPlayer.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import '../index.css'
 
 export default function GameEngine() {
   const canvasRef = useRef(null)
+  const [selectedSpell, setSelectedSpell] = useState(null)
 
   const {
     ap,
@@ -17,6 +18,7 @@ export default function GameEngine() {
     info,
     showLoadModal,
     mapFilename,
+    castSpellForPlayer,
     setShowLoadModal,
     setMapFilename,
     endTurn,
@@ -26,6 +28,12 @@ export default function GameEngine() {
 
   useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected)
 
+  function handleCastClick() {
+    if (!selectedSpell) return
+    castSpellForPlayer(selectedSpell)
+    setSelectedSpell(null)
+  }
+
   return (
     <div id='game-container'>
       <div id='left-panel'>
@@ -33,6 +41,7 @@ export default function GameEngine() {
           <div id='ap-display'>
             AP: {ap}
           </div>
+
           <button
             id='end-turn-btn'
             onClick={endTurn}
@@ -45,21 +54,45 @@ export default function GameEngine() {
           <h1 className='spellbook-title'>
             Spellbook
           </h1>
+
           <div className='spellbook-list'>
-            {TESTING_SPELLBOOK.map((spell, i) => (
-              <div key={i} className='spell-entry'>
+            {SPELLBOOK.map((spell, i) => (
+              <div
+                key={i}
+                className='spell-entry'
+                onClick={() => setSelectedSpell(spell)}
+                style={{
+                  cursor: 'pointer',
+                  background:
+                    selectedSpell?.name === spell.name ? '#444' : 'transparent'
+                }}
+              >
                 <div className='spell-name'>
                   {spell.name}
                 </div>
                 <div className='spell-units'>
-                  Units: {spell.remainingUnits}/{spell.maxUnits}
+                  Level: {spell.currentSpellLevel}
                 </div>
                 <div className='spell-cost'>
-                  Mana Required: {spell.manaCost * spell.remainingUnits}
+                  Mana Cost: {spell.manaCost * (spell.currentSpellLevel || 1)}
                 </div>
               </div>
             ))}
           </div>
+
+          <button
+            style={{
+              marginTop: '10px',
+              padding: '10px',
+              width: '100%',
+              cursor: selectedSpell ? 'pointer' : 'not-allowed',
+              opacity: selectedSpell ? 1 : 0.5
+            }}
+            onClick={handleCastClick}
+            disabled={!selectedSpell}
+          >
+            Cast Selected Spell
+          </button>
         </div>
       </div>
 
