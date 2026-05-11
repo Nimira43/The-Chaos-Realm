@@ -1,5 +1,18 @@
 import { terrainColours } from '../engine/terrain.js'
 import { wrap } from '../engine/utils.js'
+import { CREATURES } from '../data/creatures.js'
+
+function getCreatureCode(name) {
+  const creature = CREATURES.find(c => c.name === name)
+  if (creature?.code) return creature.code
+
+  // Auto-generate fallback: first 3 consonants or letters
+  return name
+    .replace(/[^A-Z]/gi, '')
+    .substring(0, 3)
+    .toUpperCase()
+}
+
 
 export function drawViewport(
   ctx,
@@ -26,6 +39,7 @@ export function drawViewport(
     }
   }
 
+  // --- Draw creatures / objects ---
   for (let vy = 0; vy < viewTiles; vy++) {
     for (let vx = 0; vx < viewTiles; vx++) {
 
@@ -34,7 +48,8 @@ export function drawViewport(
 
       const obj = objectLayer[worldY][worldX]
 
-      if (obj) {
+      if (obj && obj.type === 'creature') {
+        // Blue square
         ctx.fillStyle = 'blue'
         ctx.fillRect(
           vx * tileSize + 6,
@@ -42,9 +57,23 @@ export function drawViewport(
           tileSize - 12,
           tileSize - 12
         )
+
+        // Creature code
+        const code = getCreatureCode(obj.name)
+
+        ctx.fillStyle = 'white'
+        ctx.font = 'bold 14px monospace'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(
+          code,
+          vx * tileSize + tileSize / 2,
+          vy * tileSize + tileSize / 2
+        )
       }
     }
   }
+
 
   const playerScreenX = (player.x - centreX + radius) * tileSize
   const playerScreenY = (player.y - centreY + radius) * tileSize

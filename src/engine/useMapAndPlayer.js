@@ -96,10 +96,20 @@ export function useMapAndPlayer() {
   }, [cursor, selected, terrainLayer, playerPosition])
 
   function endTurn() {
+    // Reset AP
     PLAYER.ap = PLAYER.max_ap
     setAp(PLAYER.ap)
+
+    // Mana regeneration: +10% of current mana (rounded up)
+    const regen = Math.ceil(PLAYER.current_mana * 0.10)
+    PLAYER.current_mana = Math.min(
+      PLAYER.current_mana + regen,
+      PLAYER.max_mana
+    )
+
     setRound(prev => prev + 1)
   }
+
 
   function restartGame() {
     const generated = generateProceduralMap()
@@ -202,10 +212,11 @@ export function useMapAndPlayer() {
     const spawnCreature = (creatureName, tile) => {
       setObjectLayer(prev => {
         const copy = prev.map(row => [...row])
-        copy[tile.y][tile.x] = creatureName
+        copy[tile.y][tile.x] = { type: 'creature', name: creatureName }
         return copy
       })
     }
+
 
     castSpell({
       spell,

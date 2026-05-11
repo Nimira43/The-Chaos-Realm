@@ -1,6 +1,7 @@
 export const CREATURES = [
   {
     name: 'Gold Dragon',
+    ident_code: 'GOD',
     manaCost: 47,
     action_points_ground: 38,
     action_points_flying: 40,
@@ -23,6 +24,7 @@ export const CREATURES = [
   },
   {
     name: 'Green Dragon',
+    ident_code: 'GRD',
     manaCost: 39,
     action_points_ground: 32,
     action_points_flying: 36,
@@ -45,6 +47,7 @@ export const CREATURES = [
   },
   {
     name: 'Red Dragon',
+    ident_code: 'RED',
     manaCost: 31,
     action_points_ground: 34,
     action_points_flying: 40,
@@ -67,6 +70,7 @@ export const CREATURES = [
   },
   {
     name: 'Pixie',
+    ident_code: 'PIX',
     manaCost: 7,
     action_points_ground: 34,
     action_points_flying: 0,
@@ -89,6 +93,7 @@ export const CREATURES = [
   },
   {
     name: 'Dwarf',
+    ident_code: 'DWA',
     manaCost: 8,
     action_points_ground: 26,
     action_points_flying: 0,
@@ -111,6 +116,7 @@ export const CREATURES = [
   },
   {
     name: 'Goblin',
+    ident_code: 'GOB',
     manaCost: 7,
     action_points_ground: 30,
     action_points_flying: 0,
@@ -133,6 +139,7 @@ export const CREATURES = [
   },
   {
     name: 'Troll',
+    ident_code: 'TRO',
     manaCost: 13,
     action_points_ground: 32,
     action_points_flying: 0,
@@ -155,6 +162,7 @@ export const CREATURES = [
   },
   {
     name: 'Giant',
+    ident_code: 'GIA',
     manaCost: 17,
     action_points_ground: 30,
     action_points_flying: 0,
@@ -177,6 +185,7 @@ export const CREATURES = [
   },
   {
     name: 'Centaur',
+    ident_code: 'CEN',
     manaCost: 10,
     action_points_ground: 48,
     action_points_flying: 0,
@@ -199,6 +208,7 @@ export const CREATURES = [
   },
   {
     name: 'Unicorn',
+    ident_code: 'UNI',
     manaCost: 10,
     action_points_ground: 56,
     action_points_flying: 0,
@@ -221,6 +231,7 @@ export const CREATURES = [
   },
   {
     name: 'Pegasus',
+    ident_code: 'PEG',
     manaCost: 12,
     action_points_ground: 46,
     action_points_flying: 56,
@@ -243,6 +254,7 @@ export const CREATURES = [
   },
   {
     name: 'Grypthon',
+    ident_code: 'GRY',
     manaCost: 19,
     action_points_ground: 42,
     action_points_flying: 52,
@@ -265,6 +277,7 @@ export const CREATURES = [
   },
   {
     name: 'Elephant',
+    ident_code: 'ELE',
     manaCost: 17,
     action_points_ground: 36,
     action_points_flying: 0,
@@ -287,6 +300,7 @@ export const CREATURES = [
   },
   {
     name: 'Gorilla',
+    ident_code: 'GOR',
     manaCost: 8,
     action_points_ground: 34,
     action_points_flying: 0,
@@ -309,6 +323,7 @@ export const CREATURES = [
   },
   {
     name: 'Lion',
+    ident_code: 'LIO',
     manaCost: 10,
     action_points_ground: 54,
     action_points_flying: 0,
@@ -331,6 +346,7 @@ export const CREATURES = [
   },
   {
     name: 'Bear',
+    ident_code: 'BEA',
     manaCost: 12,
     action_points_ground: 38,
     action_points_flying: 0,
@@ -353,6 +369,7 @@ export const CREATURES = [
   },
   {
     name: 'Crocodile',
+    ident_code: 'CRO',
     manaCost: 11,
     action_points_ground: 26,
     action_points_flying: 0,
@@ -375,6 +392,7 @@ export const CREATURES = [
   },
   {
     name: 'Giant Bat',
+    ident_code: 'BAT',
     manaCost: 5,
     action_points_ground: 24,
     action_points_flying: 62,
@@ -397,6 +415,7 @@ export const CREATURES = [
   },
   {
     name: 'Harpy',
+    ident_code: 'HAR',
     manaCost: 11,
     action_points_ground: 28,
     action_points_flying: 52,
@@ -419,6 +438,7 @@ export const CREATURES = [
   },
   {
     name: 'Giant Spider',
+    ident_code: 'SPI',
     manaCost: 22,
     action_points_ground: 44,
     action_points_flying: 0,
@@ -441,6 +461,7 @@ export const CREATURES = [
   },
   {
     name: 'Zombie',
+    ident_code: 'ZOM',
     manaCost: 16,
     action_points_ground: 24,
     action_points_flying: 0,
@@ -463,6 +484,7 @@ export const CREATURES = [
   },
   {
     name: 'Ghost',
+    ident_code: 'GHO',
     manaCost: 14,
     action_points_ground: 36,
     action_points_flying: 36,
@@ -485,6 +507,7 @@ export const CREATURES = [
   },
   {
     name: 'Vampire',
+    ident_code: 'VAM',
     manaCost: 29,
     action_points_ground: 34,
     action_points_flying: 40,
@@ -507,6 +530,7 @@ export const CREATURES = [
   },
   {
     name: 'Spectre',
+    ident_code: 'SPE',
     manaCost: 29,
     action_points_ground: 38,
     action_points_flying: 0,
@@ -529,6 +553,7 @@ export const CREATURES = [
   },
   {
     name: 'Demon',
+    ident_code: 'DEM',
     manaCost: 40,
     action_points_ground: 30,
     action_points_flying: 0,

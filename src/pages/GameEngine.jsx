@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { SPELLBOOK } from '../data/spellbook.js'
+import { PLAYER } from '../data/player.js'
 import { useMapAndPlayer } from '../engine/useMapAndPlayer.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import '../index.css'
@@ -38,8 +39,13 @@ export default function GameEngine() {
     <div id='game-container'>
       <div id='left-panel'>
         <div id='player-ui'>
-          <div id='ap-display'>
-            AP: {ap}
+          <div id='player-stats'>
+            <div>
+              AP: {ap}
+            </div>
+            <div>
+              Mana: {PLAYER.current_mana}/{PLAYER.max_mana}
+            </div>
           </div>
 
           <button
@@ -55,45 +61,41 @@ export default function GameEngine() {
             Spellbook
           </h1>
 
-          <div className='spellbook-list'>
-            {SPELLBOOK.map((spell, i) => (
-              <div
-                key={i}
-                className='spell-entry'
-                onClick={() => setSelectedSpell(spell)}
-                style={{
-                  cursor: 'pointer',
-                  background:
-                    selectedSpell?.name === spell.name ? '#444' : 'transparent'
-                }}
-              >
-                <div className='spell-name'>
-                  {spell.name}
-                </div>
-                <div className='spell-units'>
-                  Level: {spell.currentSpellLevel}
-                </div>
-                <div className='spell-cost'>
-                  Mana Cost: {spell.manaCost * (spell.currentSpellLevel || 1)}
-                </div>
+        <div className='spellbook-list'>
+          {SPELLBOOK.map((spell, i) => (
+            <div
+              key={i}
+              className={
+                `spell-entry ${selectedSpell?.name === spell.name ? 'selected' : ''}`
+              }
+              onClick={
+                () => setSelectedSpell(spell)
+              }
+            >
+              <div className='spell-name'>
+                {spell.name}
               </div>
-            ))}
-          </div>
-
-          <button
-            style={{
-              marginTop: '10px',
-              padding: '10px',
-              width: '100%',
-              cursor: selectedSpell ? 'pointer' : 'not-allowed',
-              opacity: selectedSpell ? 1 : 0.5
-            }}
-            onClick={handleCastClick}
-            disabled={!selectedSpell}
-          >
-            Cast Selected Spell
-          </button>
+              <div className='spell-units'>
+                Lv: {spell.currentSpellLevel}
+              </div>
+              <div className='spell-cost'>
+                {spell.manaCost * (spell.currentSpellLevel || 1)}
+              </div>
+            </div>
+          ))}
         </div>
+
+        <button
+          className={
+              `cast-btn ${selectedSpell ? 'active' : 'disabled'}`
+            }
+          onClick={handleCastClick}
+          disabled={!selectedSpell}
+        >
+          Cast Selected Spell
+        </button>
+      </div>
+
       </div>
 
       <div id='middle-panel'>
@@ -106,7 +108,10 @@ export default function GameEngine() {
       </div>
 
       <div id='right-panel'>
-        <div id='title-area' className='logo-text'>
+        <div
+          id='title-area'
+          className='logo-text'
+        >
           The Chaos Realm
         </div>
 
@@ -136,7 +141,9 @@ export default function GameEngine() {
 
             <button
               className='load-map-btn'
-              onClick={() => setShowLoadModal(true)}
+              onClick={
+                () => setShowLoadModal(true)
+              }
             >
               Load Map
             </button>
@@ -162,8 +169,14 @@ export default function GameEngine() {
                 onChange={e => setMapFilename(e.target.value)}
               />
 
-              <button onClick={loadMapFromFile}>Load</button>
-              <button onClick={() => setShowLoadModal(false)}>Cancel</button>
+              <button onClick={loadMapFromFile}>
+                Load
+              </button>
+              <button onClick={
+                () => setShowLoadModal(false)
+              }>
+                Cancel
+              </button>
             </div>
           </div>
         )}
