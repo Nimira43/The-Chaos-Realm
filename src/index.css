@@ -174,9 +174,10 @@ body {
 
 .cast-btn {
   padding: 12px;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 2px;
   border-radius: 4px;
   border: 1px solid var(--main);
   background: var(--main-dark);
@@ -267,8 +268,10 @@ canvas {
   background: var(--main-dark);
   border: 1px solid var(--main);
   color: var(--light);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
   cursor: pointer;
   border-radius: 4px;
   transition: var(--transition);
@@ -435,6 +438,7 @@ canvas {
 
 .save-btn,
 .load-btn {
+  text-transform: uppercase;
   margin-bottom: 20px;
   width: 100%;
 }
