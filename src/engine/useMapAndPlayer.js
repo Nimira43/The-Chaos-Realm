@@ -202,12 +202,41 @@ export function useMapAndPlayer() {
       return
     }
 
-    const isTileFree = tile =>
-      tile.y >= 0 &&
-      tile.y < objectLayer.length &&
-      tile.x >= 0 &&
-      tile.x < objectLayer[0].length &&
-      objectLayer[tile.y][tile.x] === null
+    // const isTileFree = tile =>
+    //   tile.y >= 0 &&
+    //   tile.y < objectLayer.length &&
+    //   tile.x >= 0 &&
+    //   tile.x < objectLayer[0].length &&
+    //   objectLayer[tile.y][tile.x] === null
+
+    const isTileFree = tile => {
+      const { x, y } = tile
+
+      // Bounds check
+      if (y < 0 || y >= terrainLayer.length) return false
+      if (x < 0 || x >= terrainLayer[0].length) return false
+
+      const terrain = terrainLayer[y][x]
+      const object = objectLayer[y][x]
+
+      // Blocked terrain types
+      const blockedTerrain = ['wall', 'water', 'door']
+
+      if (blockedTerrain.includes(terrain)) return false
+
+      // Blocked by objects (creatures, wizards, items, etc.)
+      if (object !== null) return false
+
+      // Block player wizard
+      if (playerPosition.x === x && playerPosition.y === y) return false
+
+      // Block enemy wizard
+      if (enemyPosition && enemyPosition.x === x && enemyPosition.y === y) return false
+
+      return true
+    }
+
+
 
     const spawnCreature = (creatureName, tile) => {
       setObjectLayer(prev => {
