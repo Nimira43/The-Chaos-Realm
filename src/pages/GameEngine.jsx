@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { SPELLBOOK } from '../data/spellbook.js'
 import { PLAYER } from '../data/player.js'
-import { useMapAndPlayer } from '../engine/useMapAndPlayer.js'
+import useGameEngine  from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import '../index.css'
 
@@ -25,7 +25,7 @@ export default function GameEngine() {
     endTurn,
     restartGame,
     loadMapFromFile
-  } = useMapAndPlayer()
+  } = useGameEngine()
 
   useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected)
 
