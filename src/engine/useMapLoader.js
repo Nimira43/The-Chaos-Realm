@@ -1,4 +1,3 @@
-// src/engine/useMapLoader.js
 import { isTerrain } from './terrain.js'
 import { generateProceduralMap } from './map.js'
 import { PLAYER } from '../data/player.js'

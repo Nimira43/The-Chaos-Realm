@@ -1,4 +1,3 @@
-// src/engine/useInput.js
 import { useEffect } from 'react'
 import { wrap } from './utils.js'
 import { tryMove } from './movement.js'
@@ -14,7 +13,8 @@ export default function useInput({
   setCursor,
   setSelected,
   setPlayerPosition,
-  setAp
+  setAp,
+  setObjectLayer
 }) {
 
   useEffect(() => {
@@ -35,8 +35,17 @@ export default function useInput({
       // -----------------------------
       if (e.key === ' ') {
         if (!selected) {
+          // Select player
           if (cursor.x === playerPosition.x && cursor.y === playerPosition.y) {
             setSelected({ type: 'player' })
+            return
+          }
+
+          // Select creature
+          const obj = objectLayer[cursor.y][cursor.x]
+          if (obj && obj.type === 'creature' && obj.owner === 'player') {
+            setSelected({ type: 'creature', x: cursor.x, y: cursor.y })
+            return
           }
         } else {
           setSelected(null)
@@ -70,6 +79,52 @@ export default function useInput({
             setPlayerPosition(newPos)
           }
         }
+        return
+      }
+
+      // -----------------------------
+      // Creature movement
+      // -----------------------------
+      if (selected.type === 'creature') {
+        const { x, y } = selected
+        const creature = objectLayer[y][x]
+
+        if (!creature) {
+          setSelected(null)
+          return
+        }
+
+        if (creature.ap <= 0) {
+          console.log('Creature has no AP left')
+          return
+        }
+
+        if (dx !== 0 || dy !== 0) {
+          const newX = wrap(x + dx, map[0].length)
+          const newY = wrap(y + dy, map.length)
+
+          const terrain = terrainLayer[newY][newX]
+          const blockedTerrain = ['wall', 'water', 'door']
+          if (blockedTerrain.includes(terrain)) return
+
+          if (objectLayer[newY][newX] !== null) return
+
+          // Move creature
+          setObjectLayer(prev => {
+            const copy = prev.map(row => [...row])
+            copy[y][x] = null
+            copy[newY][newX] = {
+              ...creature,
+              x: newX,
+              y: newY,
+              ap: creature.ap - 1
+            }
+            return copy
+          })
+
+          setCursor({ x: newX, y: newY })
+          setSelected({ type: 'creature', x: newX, y: newY })
+        }
       }
     }
 
@@ -85,6 +140,7 @@ export default function useInput({
     setCursor,
     setSelected,
     setPlayerPosition,
-    setAp
+    setAp,
+    setObjectLayer
   ])
 }

@@ -40,7 +40,7 @@ body {
   height: 100vh;
 }
 
-/* Left Upper Panel */
+/* Left Panel */
 
 #left-panel {
   display: flex;
@@ -49,48 +49,17 @@ body {
   background: var(--dark);
 }
 
-/* Player UI Display */
+/* Title moved to LEFT PANEL */
 
-#player-ui {
+#title-area {
+  height: 120px;
   background: var(--dark);
-  padding: 20px;
-}
-
-#player-stats {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-#player-stats div {
-  background: var(--grey-1);
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--main);
-}
-
-#end-turn-btn {
-  width: 100%;
-  padding: 12px;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  border-radius: 3px;
-  border: 1px solid var(--main);
-  background: var(--main-dark);
-  color: var(--light);
-  outline: none;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-#end-turn-btn:hover {
-  background: var(--main);
+  color: var(--main);
+  font-size: 48px;
+  text-align: center;
+  padding-top: 20px;
+  font-family: 'Kaushan Script', cursive;
+  border-bottom: 2px solid var(--main-dark);
 }
 
 /* Left Lower Panel */
@@ -221,29 +190,105 @@ canvas {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--dark);
+  padding: 0;
 }
 
-#title-area {
-  height: 120px;
-  background: var(--dark);
-  color: var(--main);
-  font-size: 48px;
-  text-align: center;
-  padding-top: 20px;
-  font-family: 'Kaushan Script', cursive;
-}
+/* Turn Counter (now at top of right panel) */
 
 #right-middle {
-  flex: 1;
+  padding: 20px 0 10px 0;
   background: var(--dark);
+  text-align: center;
 }
 
 #turn-counter {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
-  text-align: center;
-  margin-top: 40px;
+  color: var(--main);
+  letter-spacing: 2px;
 }
+
+/* Player UI (moved to right panel) */
+
+#player-ui {
+  padding: 20px;
+  background: var(--dark);
+  border-top: 2px solid var(--main-dark);
+  border-bottom: 2px solid var(--main-dark);
+}
+
+#player-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+#player-stats div {
+  background: var(--grey-1);
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--main);
+}
+
+#end-turn-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-radius: 3px;
+  border: 1px solid var(--main);
+  background: var(--main-dark);
+  color: var(--light);
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+#end-turn-btn:hover {
+  background: var(--main);
+}
+
+/* NEW — Creature Info Block */
+
+.creature-info {
+  background: var(--grey-1);
+  border: 1px solid var(--main);
+  border-radius: 6px;
+  padding: 16px;
+  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 20px;
+  box-shadow: 0 0 10px var(--main-dark);
+}
+
+.creature-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.creature-label {
+  font-weight: 700;
+  color: var(--main);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.creature-value {
+  font-weight: 600;
+  color: var(--light);
+}
+
+/* Right Lower Panel */
 
 #right-lower {
   flex: 1;
@@ -382,7 +427,6 @@ canvas {
 
 #editor-left {
   border-right: 2px solid var(--main);
-
 }
 
 #editor-right {
@@ -442,4 +486,3 @@ canvas {
   margin-bottom: 20px;
   width: 100%;
 }
-

@@ -1,4 +1,3 @@
-// src/engine/useSpellcasting.js
 import { CREATURES } from '../data/creatures.js'
 import { castSpell } from './spellCaster.js'
 

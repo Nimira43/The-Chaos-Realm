@@ -38,22 +38,11 @@ export default function GameEngine() {
   return (
     <div id='game-container'>
       <div id='left-panel'>
-        <div id='player-ui'>
-          <div id='player-stats'>
-            <div>
-              AP: {ap}
-            </div>
-            <div>
-              Mana: {PLAYER.current_mana}/{PLAYER.max_mana}
-            </div>
-          </div>
-
-          <button
-            id='end-turn-btn'
-            onClick={endTurn}
-          >
-            End Turn
-          </button>
+        <div
+          id='title-area'
+          className='logo-text'
+        >
+          The Chaos Realm
         </div>
 
         <div id='left-lower'>
@@ -108,18 +97,50 @@ export default function GameEngine() {
       </div>
 
       <div id='right-panel'>
-        <div
-          id='title-area'
-          className='logo-text'
-        >
-          The Chaos Realm
-        </div>
-
         <div id='right-middle'>
           <div id='turn-counter'>
             Turn {round} / 30
           </div>
         </div>
+        <div id='player-ui'>
+          <div id='player-stats'>
+            <div>
+              AP: {ap}
+            </div>
+            <div>
+              Mana: {PLAYER.current_mana}/{PLAYER.max_mana}
+            </div>
+          </div>
+
+          <button
+            id='end-turn-btn'
+            onClick={endTurn}
+          >
+            End Turn
+          </button>
+        </div>
+
+        {selected?.type === 'creature' && (
+          <div className='creature-info'>
+            <div className='creature-info-row'>
+              <span className='creature-label'>
+                Creature:
+              </span>
+              <span className='creature-value'>
+                {objectLayer[selected.y][selected.x]?.name || 'Unknown'}
+              </span>
+            </div>
+
+            <div className='creature-info-row'>
+              <span className='creature-label'>
+                AP:
+              </span>
+              <span className='creature-value'>
+                {objectLayer[selected.y][selected.x]?.ap} / {objectLayer[selected.y][selected.x]?.stats.action_points_ground}
+              </span>
+            </div>
+          </div>
+        )}
 
         <div id='right-lower'>
           <div className='info-panel'>

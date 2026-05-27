@@ -44,7 +44,8 @@ export default function useGameEngine() {
     setCursor,
     setSelected,
     setPlayerPosition,
-    setAp
+    setAp,
+    setObjectLayer
   })
 
   const {
@@ -87,7 +88,8 @@ export default function useGameEngine() {
 
   const endTurn = useTurnSystem({
     setAp,
-    setRound
+    setRound,
+    setObjectLayer
   })
 
   return {
