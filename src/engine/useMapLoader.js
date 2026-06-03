@@ -14,9 +14,8 @@ export default function useMapLoader({
   mapFilename
 }) {
 
-  // -----------------------------
   // Restart the game (procedural map)
-  // -----------------------------
+
   const restartGame = () => {
     const generated = generateProceduralMap()
 
@@ -35,9 +34,8 @@ export default function useMapLoader({
     setRound(1)
   }
 
-  // -----------------------------
   // Load handcrafted map from JSON
-  // -----------------------------
+
   const loadHandcraftedMap = (jsonMap) => {
     const terrain = []
     const objects = []
@@ -84,9 +82,8 @@ export default function useMapLoader({
     setSelected(null)
   }
 
-  // -----------------------------
   // Load map from file
-  // -----------------------------
+
   const loadMapFromFile = async () => {
     try {
       const res = await fetch(`/created-maps/${mapFilename}.json`)

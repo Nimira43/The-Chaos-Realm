@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { wrap } from './utils.js'
 import { tryMove } from './movement.js'
 import { PLAYER } from '../data/player.js'
+import { terrainCost } from './terrain.js'
 
 export default function useInput({
   cursor,
@@ -30,20 +31,18 @@ export default function useInput({
       else if (e.key === 'ArrowLeft') dx = -1
       else if (e.key === 'ArrowRight') dx = 1
 
-      // -----------------------------
       // SPACE — selection logic
-      // -----------------------------
+
       if (e.key === ' ') {
         if (!selected) {
-          // Select player
-          if (cursor.x === playerPosition.x && cursor.y === playerPosition.y) {
+          const obj = objectLayer[cursor.y][cursor.x]
+
+          if (obj?.type === 'player') {
             setSelected({ type: 'player' })
             return
           }
 
-          // Select creature
-          const obj = objectLayer[cursor.y][cursor.x]
-          if (obj && obj.type === 'creature' && obj.owner === 'player') {
+          if (obj?.type === 'creature' && obj.owner === 'player') {
             setSelected({ type: 'creature', x: cursor.x, y: cursor.y })
             return
           }
@@ -53,11 +52,10 @@ export default function useInput({
         return
       }
 
-      // -----------------------------
       // Cursor movement (no selection)
-      // -----------------------------
+
       if (!selected) {
-        if (dx !== 0 || dy !== 0) {
+        if (dx || dy) {
           setCursor(c => ({
             x: wrap(c.x + dx, map[0].length),
             y: wrap(c.y + dy, map.length)
@@ -66,15 +64,35 @@ export default function useInput({
         return
       }
 
-      // -----------------------------
-      // Player movement
-      // -----------------------------
+      // PLAYER MOVEMENT
+
       if (selected.type === 'player') {
-        if (dx !== 0 || dy !== 0) {
+        if (dx || dy) {
+          const newX = wrap(PLAYER.x + dx, map[0].length)
+          const newY = wrap(PLAYER.y + dy, map.length)
+
+          // BLOCK movement if tile is occupied
+          if (objectLayer[newY][newX] !== null) {
+            console.log("Player cannot move onto an occupied tile")
+            return
+          }
+
           const moved = tryMove(PLAYER, dx, dy, map)
           if (moved) {
-            setAp(PLAYER.ap)
             const newPos = { x: PLAYER.x, y: PLAYER.y }
+
+            setObjectLayer(prev => {
+              const copy = prev.map(row => [...row])
+              copy[playerPosition.y][playerPosition.x] = null
+              copy[newPos.y][newPos.x] = {
+                type: 'player',
+                name: 'Wizard',
+                owner: 'player'
+              }
+              return copy
+            })
+
+            setAp(PLAYER.ap)
             setCursor(newPos)
             setPlayerPosition(newPos)
           }
@@ -82,34 +100,27 @@ export default function useInput({
         return
       }
 
-      // -----------------------------
-      // Creature movement
-      // -----------------------------
+      // CREATURE MOVEMENT
+
       if (selected.type === 'creature') {
         const { x, y } = selected
         const creature = objectLayer[y][x]
-
         if (!creature) {
           setSelected(null)
           return
         }
 
-        if (creature.ap <= 0) {
-          console.log('Creature has no AP left')
-          return
-        }
-
-        if (dx !== 0 || dy !== 0) {
+        if (dx || dy) {
           const newX = wrap(x + dx, map[0].length)
           const newY = wrap(y + dy, map.length)
 
-          const terrain = terrainLayer[newY][newX]
-          const blockedTerrain = ['wall', 'water', 'door']
-          if (blockedTerrain.includes(terrain)) return
+          const terrainType = terrainLayer[newY][newX]
+          const cost = terrainCost[terrainType] ?? 1
 
+          if (cost >= 999) return
           if (objectLayer[newY][newX] !== null) return
+          if (creature.ap < cost) return
 
-          // Move creature
           setObjectLayer(prev => {
             const copy = prev.map(row => [...row])
             copy[y][x] = null
@@ -117,7 +128,7 @@ export default function useInput({
               ...creature,
               x: newX,
               y: newY,
-              ap: creature.ap - 1
+              ap: creature.ap - cost
             }
             return copy
           })
@@ -144,3 +155,4 @@ export default function useInput({
     setObjectLayer
   ])
 }
+

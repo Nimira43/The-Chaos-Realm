@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import { SPELLBOOK } from '../data/spellbook.js'
 import { PLAYER } from '../data/player.js'
-import useGameEngine  from '../engine/useGameEngine.js'
+import useGameEngine from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
+import { terrainCost } from '../engine/terrain.js'
 import '../index.css'
 
 export default function GameEngine() {
@@ -38,10 +39,7 @@ export default function GameEngine() {
   return (
     <div id='game-container'>
       <div id='left-panel'>
-        <div
-          id='title-area'
-          className='logo-text'
-        >
+        <div id='title-area' className='logo-text'>
           The Chaos Realm
         </div>
 
@@ -50,50 +48,34 @@ export default function GameEngine() {
             Spellbook
           </h1>
 
-        <div className='spellbook-list'>
-          {SPELLBOOK.map((spell, i) => (
-            <div
-              key={i}
-              className={
-                `spell-entry ${selectedSpell?.name === spell.name ? 'selected' : ''}`
-              }
-              onClick={
-                () => setSelectedSpell(spell)
-              }
-            >
-              <div className='spell-name'>
-                {spell.name}
+          <div className='spellbook-list'>
+            {SPELLBOOK.map((spell, i) => (
+              <div
+                key={i}
+                className={`spell-entry ${selectedSpell?.name === spell.name ? 'selected' : ''}`}
+                onClick={() => setSelectedSpell(spell)}
+              >
+                <div className='spell-name'>{spell.name}</div>
+                <div className='spell-units'>Lv: {spell.currentSpellLevel}</div>
+                <div className='spell-cost'>
+                  {spell.manaCost * (spell.currentSpellLevel || 1)}
+                </div>
               </div>
-              <div className='spell-units'>
-                Lv: {spell.currentSpellLevel}
-              </div>
-              <div className='spell-cost'>
-                {spell.manaCost * (spell.currentSpellLevel || 1)}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          <button
+            className={`cast-btn ${selectedSpell ? 'active' : 'disabled'}`}
+            onClick={handleCastClick}
+            disabled={!selectedSpell}
+          >
+            Cast Selected Spell
+          </button>
         </div>
-
-        <button
-          className={
-              `cast-btn ${selectedSpell ? 'active' : 'disabled'}`
-            }
-          onClick={handleCastClick}
-          disabled={!selectedSpell}
-        >
-          Cast Selected Spell
-        </button>
-      </div>
-
       </div>
 
       <div id='middle-panel'>
-        <canvas
-          ref={canvasRef}
-          id='map'
-          width={720}
-          height={720}
-        ></canvas>
+        <canvas ref={canvasRef} id='map' width={720} height={720}></canvas>
       </div>
 
       <div id='right-panel'>
@@ -102,6 +84,7 @@ export default function GameEngine() {
             Turn {round} / 30
           </div>
         </div>
+
         <div id='player-ui'>
           <div id='player-stats'>
             <div>
@@ -112,10 +95,7 @@ export default function GameEngine() {
             </div>
           </div>
 
-          <button
-            id='end-turn-btn'
-            onClick={endTurn}
-          >
+          <button id='end-turn-btn' onClick={endTurn}>
             End Turn
           </button>
         </div>
@@ -136,7 +116,26 @@ export default function GameEngine() {
                 AP:
               </span>
               <span className='creature-value'>
-                {objectLayer[selected.y][selected.x]?.ap} / {objectLayer[selected.y][selected.x]?.stats.action_points_ground}
+                {objectLayer[selected.y][selected.x]?.ap} /
+                {objectLayer[selected.y][selected.x]?.stats.action_points_ground}
+              </span>
+            </div>
+
+            <div className='creature-info-row'>
+              <span className='creature-label'>
+                Terrain:
+              </span>
+              <span className='creature-value'>
+                {terrainLayer[selected.y][selected.x]}
+              </span>
+            </div>
+
+            <div className='creature-info-row'>
+              <span className='creature-label'>
+                Move Cost:
+              </span>
+              <span className='creature-value'>
+                {terrainCost[terrainLayer[selected.y][selected.x]]}
               </span>
             </div>
           </div>
@@ -144,15 +143,9 @@ export default function GameEngine() {
 
         <div id='right-lower'>
           <div className='info-panel'>
-            <div>
-              Terrain: {info.terrain}
-            </div>
+            <div>Terrain: {info.terrain}</div>
 
-            {info.occupiers.length === 0 && (
-              <div>
-                Occupier: None
-              </div>
-            )}
+            {info.occupiers.length === 0 && <div>Occupier: None</div>}
 
             {info.occupiers.map((o, i) => (
               <div key={i}>
@@ -181,13 +174,17 @@ export default function GameEngine() {
         {showLoadModal && (
           <div className='modal'>
             <div className='modal-content'>
-              <h2>Load Map</h2>
+              <h2>
+                Load Map
+              </h2>
 
               <input
                 type='text'
                 placeholder='Enter filename (without .json)'
                 value={mapFilename}
-                onChange={e => setMapFilename(e.target.value)}
+                onChange={
+                  e => setMapFilename(e.target.value)
+                }
               />
 
               <button onClick={loadMapFromFile}>

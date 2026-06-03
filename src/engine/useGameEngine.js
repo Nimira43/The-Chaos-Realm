@@ -10,16 +10,27 @@ export default function useGameEngine() {
 
   const [terrainLayer, setTerrainLayer] = useState(() => generateProceduralMap())
 
-  const [objectLayer, setObjectLayer] = useState(() =>
-    terrainLayer.map(row => row.map(() => null))
-  )
+  // OBJECT LAYER — now includes the PLAYER WIZARD
 
-  const [playerPosition, setPlayerPosition] = useState(() => {
+  const [objectLayer, setObjectLayer] = useState(() => {
+    const layer = terrainLayer.map(row => row.map(() => null))
     PLAYER.x = 16
     PLAYER.y = 16
     PLAYER.ap = PLAYER.max_ap
-    return { x: PLAYER.x, y: PLAYER.y }
+
+    layer[PLAYER.y][PLAYER.x] = {
+      type: 'player',
+      name: 'Wizard',
+      owner: 'player'
+    }
+
+    return layer
   })
+
+  const [playerPosition, setPlayerPosition] = useState(() => ({
+    x: PLAYER.x,
+    y: PLAYER.y
+  }))
 
   const [enemyPosition, setEnemyPosition] = useState(null)
 
@@ -79,10 +90,8 @@ export default function useGameEngine() {
         : 'grass',
 
     occupiers:
-      playerPosition &&
-        cursor.x === playerPosition.x &&
-        cursor.y === playerPosition.y
-        ? [{ type: 'player', owner: 'us' }]
+      objectLayer[cursor.y][cursor.x]
+        ? [objectLayer[cursor.y][cursor.x]]
         : []
   }
 
@@ -112,3 +121,4 @@ export default function useGameEngine() {
     loadMapFromFile
   }
 }
+
