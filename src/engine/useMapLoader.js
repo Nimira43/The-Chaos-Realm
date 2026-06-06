@@ -15,16 +15,23 @@ export default function useMapLoader({
 }) {
 
   // Restart the game (procedural map)
-
   const restartGame = () => {
     const generated = generateProceduralMap()
-
     setTerrainLayer(generated)
-    setObjectLayer(generated.map(row => row.map(() => null)))
+    const objects = generated.map(row => row.map(() => null))
 
+    // Place player wizard
     PLAYER.x = 16
     PLAYER.y = 16
     PLAYER.ap = PLAYER.max_ap
+
+    objects[PLAYER.y][PLAYER.x] = {
+      type: 'player',
+      name: 'Wizard',
+      owner: 'player'
+    }
+
+    setObjectLayer(objects)
 
     const start = { x: PLAYER.x, y: PLAYER.y }
     setPlayerPosition(start)
@@ -35,7 +42,6 @@ export default function useMapLoader({
   }
 
   // Load handcrafted map from JSON
-
   const loadHandcraftedMap = (jsonMap) => {
     const terrain = []
     const objects = []
@@ -54,27 +60,48 @@ export default function useMapLoader({
           objects[y][x] = null
         } else {
           terrain[y][x] = 'grass'
-          objects[y][x] = tile
+          objects[y][x] = null
 
-          if (tile === 'playerWizard') playerStart = { x, y }
-          if (tile === 'enemyWizard') enemyStart = { x, y }
+          if (tile === 'playerWizard') {
+            playerStart = { x, y }
+          }
+
+          if (tile === 'enemyWizard') {
+            enemyStart = { x, y }
+          }
         }
       }
     }
 
+    // Apply terrain
     setTerrainLayer(terrain)
-    setObjectLayer(objects)
 
+    // Insert objects (player + enemy)
     if (playerStart) {
       PLAYER.x = playerStart.x
       PLAYER.y = playerStart.y
+
+      objects[playerStart.y][playerStart.x] = {
+        type: 'player',
+        name: 'Wizard',
+        owner: 'player'
+      }
+
       setPlayerPosition(playerStart)
       setCursor(playerStart)
     }
 
     if (enemyStart) {
+      objects[enemyStart.y][enemyStart.x] = {
+        type: 'enemyWizard',
+        name: 'Enemy Wizard',
+        owner: 'enemy'
+      }
+
       setEnemyPosition(enemyStart)
     }
+
+    setObjectLayer(objects)
 
     PLAYER.ap = PLAYER.max_ap
     setAp(PLAYER.ap)
@@ -83,7 +110,6 @@ export default function useMapLoader({
   }
 
   // Load map from file
-
   const loadMapFromFile = async () => {
     try {
       const res = await fetch(`/created-maps/${mapFilename}.json`)
@@ -100,3 +126,4 @@ export default function useMapLoader({
     loadHandcraftedMap
   }
 }
+
