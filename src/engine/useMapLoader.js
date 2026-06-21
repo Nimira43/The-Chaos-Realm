@@ -1,6 +1,7 @@
 import { isTerrain } from './terrain.js'
 import { generateProceduralMap } from './map.js'
 import { PLAYER } from '../data/player.js'
+import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 
 export default function useMapLoader({
   setTerrainLayer,
@@ -92,10 +93,14 @@ export default function useMapLoader({
     }
 
     if (enemyStart) {
+      ENEMY_WIZARD.x = enemyStart.x
+      ENEMY_WIZARD.y = enemyStart.y
+
       objects[enemyStart.y][enemyStart.x] = {
         type: 'enemyWizard',
         name: 'Enemy Wizard',
-        owner: 'enemy'
+        owner: 'enemy',
+        ref: ENEMY_WIZARD
       }
 
       setEnemyPosition(enemyStart)

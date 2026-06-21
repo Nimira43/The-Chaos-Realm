@@ -1,4 +1,5 @@
 import { PLAYER } from '../data/player.js'
+import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 
 export default function useTurnSystem({
   setAp,
@@ -10,6 +11,9 @@ export default function useTurnSystem({
     // Reset player AP
     PLAYER.ap = PLAYER.max_ap
     setAp(PLAYER.ap)
+    
+    // Reset enemy wizard AP
+    ENEMY_WIZARD.ap = ENEMY_WIZARD.max_ap
 
     // Mana regeneration
     const regen = Math.ceil(PLAYER.current_mana * 0.10)
