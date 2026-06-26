@@ -5,6 +5,7 @@ import useGameEngine from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import { terrainCost } from '../engine/terrain.js'
 import '../index.css'
+import { useEffect } from 'react'
 
 export default function GameEngine() {
   const canvasRef = useRef(null)
@@ -27,6 +28,10 @@ export default function GameEngine() {
     restartGame,
     loadMapFromFile
   } = useGameEngine()
+
+  useEffect(() => {
+    restartGame()
+  }, [])
 
   useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected)
 

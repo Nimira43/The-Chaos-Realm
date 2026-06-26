@@ -71,6 +71,29 @@ export function drawViewport(
           vy * tileSize + tileSize / 2
         )
       }
+
+      if (obj && obj.type === 'enemyWizard') {
+        // Red square for enemy wizard
+        ctx.fillStyle = '#ff0e0e'
+        ctx.fillRect(
+          vx * tileSize + 4,
+          vy * tileSize + 4,
+          tileSize - 8,
+          tileSize - 8
+        )
+
+        // Optional: EW label
+        ctx.fillStyle = 'white'
+        ctx.font = 'bold 14px monospace'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(
+          'EW',
+          vx * tileSize + tileSize / 2,
+          vy * tileSize + tileSize / 2
+        )
+      }
+
     }
   }
 

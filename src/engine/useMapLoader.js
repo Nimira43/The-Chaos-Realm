@@ -15,7 +15,6 @@ export default function useMapLoader({
   mapFilename
 }) {
 
-  // Restart the game (procedural map)
   const restartGame = () => {
     const generated = generateProceduralMap()
     setTerrainLayer(generated)
@@ -32,6 +31,21 @@ export default function useMapLoader({
       owner: 'player'
     }
 
+    // Place enemy wizard
+    ENEMY_WIZARD.x = 20
+    ENEMY_WIZARD.y = 20
+    ENEMY_WIZARD.ap = ENEMY_WIZARD.max_ap
+
+    objects[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = {
+      type: 'enemyWizard',
+      name: 'Enemy Wizard',
+      owner: 'enemy',
+      ref: ENEMY_WIZARD
+    }
+
+    setEnemyPosition({ x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y })
+
+    // Finalise
     setObjectLayer(objects)
 
     const start = { x: PLAYER.x, y: PLAYER.y }
@@ -40,7 +54,11 @@ export default function useMapLoader({
     setSelected(null)
     setAp(PLAYER.ap)
     setRound(1)
+
+    console.log('Generated map size:', generated.length, generated[0].length)
+    console.log('RESTART GAME CALLED')
   }
+
 
   // Load handcrafted map from JSON
   const loadHandcraftedMap = (jsonMap) => {
