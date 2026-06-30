@@ -410,7 +410,7 @@
   [
     "water",
     "grass",
-    "grass",
+    "portal",
     "water",
     "water",
     "water",
@@ -492,7 +492,7 @@
     "swamp",
     "grass",
     "water",
-    "rock",
+    "enemyWizard",
     "water",
     "water",
     "water",

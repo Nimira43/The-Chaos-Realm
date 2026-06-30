@@ -1,6 +1,6 @@
 [
   [
-    "grass",
+    "enemyWizard",
     "wall",
     "grass",
     "wall",
@@ -1054,7 +1054,7 @@
     "wall"
   ],
   [
-    "grass",
+    "portal",
     "wall",
     "grass",
     "grass",

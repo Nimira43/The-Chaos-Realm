@@ -31,7 +31,7 @@
     "water",
     "wall",
     "floor",
-    "enemyWizard"
+    "floor"
   ],
   [
     "floor",
@@ -506,7 +506,7 @@
     "door",
     "floor",
     "wall",
-    "forest",
+    "enemyWizard",
     "forest"
   ],
   [
