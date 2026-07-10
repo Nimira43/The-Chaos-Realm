@@ -7,11 +7,8 @@ import useInput from './useInput.js'
 import useTurnSystem from './useTurnSystem.js'
 
 export default function useGameEngine() {
-
   const [terrainLayer, setTerrainLayer] = useState(() => generateProceduralMap())
-
-  // OBJECT LAYER — now includes the PLAYER WIZARD
-
+  
   const [objectLayer, setObjectLayer] = useState(() => {
     const layer = terrainLayer.map(row => row.map(() => null))
     PLAYER.x = 16
@@ -96,9 +93,13 @@ export default function useGameEngine() {
   }
 
   const endTurn = useTurnSystem({
+    terrainLayer,
+    objectLayer,
+    enemyPosition,
     setAp,
     setRound,
-    setObjectLayer
+    setObjectLayer,
+    setEnemyPosition
   })
 
   return {
