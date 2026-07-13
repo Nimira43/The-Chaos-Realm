@@ -4,13 +4,13 @@ import { terrainCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap } from './utils.js'
 
 function findNearestTarget(objectLayer) {
-  
+
   let nearest = {
     x: PLAYER.x,
     y: PLAYER.y,
     type: 'player'
   }
-  
+
   let bestDist = Math.abs(PLAYER.x - ENEMY_WIZARD.x) + Math.abs(PLAYER.y - ENEMY_WIZARD.y)
 
   for (let y = 0; y < objectLayer.length; y++) {
@@ -29,47 +29,68 @@ function findNearestTarget(objectLayer) {
   return { target: nearest, dist: bestDist }
 }
 
+function chebyshevDist(ax, ay, bx, by) {
+  return Math.max(Math.abs(ax - bx), Math.abs(ay - by))
+}
+
 export function runEnemyWizardAI(terrainLayer, objectLayer) {
   // Aware of the player wizard AND any player-owned creatures.
-  // Moves 1 step toward whichever is nearest, if within range.
-  const { target, dist } = findNearestTarget(objectLayer)
+  // Spends its AP for the turn stepping toward whichever is nearest,
+  // one tile at a time, until it runs out of AP, gets blocked, or
+  // becomes adjacent to its target.
+  const { dist: initialDist } = findNearestTarget(objectLayer)
 
-  if (dist > 6) {
+  if (initialDist > 6) {
     return { moved: false, objectLayer }
   }
 
-  const dx = target.x - ENEMY_WIZARD.x
-  const dy = target.y - ENEMY_WIZARD.y
+  let currentLayer = objectLayer
+  let moved = false
+  let lastPosition = null
 
-  const stepX = wrap(ENEMY_WIZARD.x + Math.sign(dx), MAP_WIDTH)
-  const stepY = wrap(ENEMY_WIZARD.y + Math.sign(dy), MAP_HEIGHT)
+  while (ENEMY_WIZARD.ap > 0) {
+    const { target, dist } = findNearestTarget(currentLayer)
 
-  const cost = terrainCost[terrainLayer[stepY][stepX]] ?? 999
-  if (cost >= 999) {
-    return { moved: false, objectLayer }
-  }
+    // Stop once genuinely adjacent — don't walk into their tile, combat isn't wired up yet
+    const adjacency = chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, target.x, target.y)
+    if (adjacency <= 1) break
 
-  // Don't walk onto an occupied tile — no combat yet
-  if (objectLayer[stepY][stepX] !== null) {
-    return { moved: false, objectLayer }
-  }
+    const dx = target.x - ENEMY_WIZARD.x
+    const dy = target.y - ENEMY_WIZARD.y
 
-  const newLayer = objectLayer.map(row => [...row])
-  newLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = null
+    const stepX = wrap(ENEMY_WIZARD.x + Math.sign(dx), MAP_WIDTH)
+    const stepY = wrap(ENEMY_WIZARD.y + Math.sign(dy), MAP_HEIGHT)
 
-  ENEMY_WIZARD.x = stepX
-  ENEMY_WIZARD.y = stepY
+    const cost = terrainCost[terrainLayer[stepY][stepX]] ?? 999
 
-  newLayer[stepY][stepX] = {
-    type: 'enemyWizard',
-    name: 'Enemy Wizard',
-    owner: 'enemy',
-    ref: ENEMY_WIZARD
+    if (cost >= 999) break
+    if (cost > ENEMY_WIZARD.ap) break
+
+    // Don't walk onto an occupied tile — no combat yet
+    if (currentLayer[stepY][stepX] !== null) break
+
+    const newLayer = currentLayer.map(row => [...row])
+    newLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = null
+
+    ENEMY_WIZARD.x = stepX
+    ENEMY_WIZARD.y = stepY
+    ENEMY_WIZARD.ap -= cost
+
+    newLayer[stepY][stepX] = {
+      type: 'enemyWizard',
+      name: 'Enemy Wizard',
+      owner: 'enemy',
+      ref: ENEMY_WIZARD
+    }
+
+    currentLayer = newLayer
+    moved = true
+    lastPosition = { x: stepX, y: stepY }
   }
 
   return {
-    moved: true,
-    objectLayer: newLayer,
-    position: { x: stepX, y: stepY }
+    moved,
+    objectLayer: currentLayer,
+    position: lastPosition
   }
 }

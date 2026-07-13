@@ -8,7 +8,7 @@ import useTurnSystem from './useTurnSystem.js'
 
 export default function useGameEngine() {
   const [terrainLayer, setTerrainLayer] = useState(() => generateProceduralMap())
-  
+
   const [objectLayer, setObjectLayer] = useState(() => {
     const layer = terrainLayer.map(row => row.map(() => null))
     PLAYER.x = 16
@@ -53,7 +53,8 @@ export default function useGameEngine() {
     setSelected,
     setPlayerPosition,
     setAp,
-    setObjectLayer
+    setObjectLayer,
+    showLoadModal
   })
 
   const {
@@ -122,4 +123,3 @@ export default function useGameEngine() {
     loadMapFromFile
   }
 }
-

@@ -15,16 +15,38 @@ export default function useInput({
   setSelected,
   setPlayerPosition,
   setAp,
-  setObjectLayer
+  setObjectLayer,
+  showLoadModal
 }) {
 
   useEffect(() => {
     function handleKey(e) {
+      // Don't hijack keys while the load-map modal / any text input is active
+      if (showLoadModal) return
+
+      const active = document.activeElement
+      const isTyping =
+        active &&
+        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
+
+      if (isTyping) return
+
       const map = terrainLayer
       if (!map.length) return
 
       let dx = 0
       let dy = 0
+
+      const isGameKey =
+        e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown' ||
+        e.key === 'ArrowLeft' ||
+        e.key === 'ArrowRight' ||
+        e.key === ' '
+
+      // Stop the browser's native behaviour (page scroll, and — critically —
+      // "activate the currently focused button" on Space) for keys we handle.
+      if (isGameKey) e.preventDefault()
 
       if (e.key === 'ArrowUp') dy = -1
       else if (e.key === 'ArrowDown') dy = 1
@@ -152,7 +174,7 @@ export default function useInput({
     setSelected,
     setPlayerPosition,
     setAp,
-    setObjectLayer
+    setObjectLayer,
+    showLoadModal
   ])
 }
-

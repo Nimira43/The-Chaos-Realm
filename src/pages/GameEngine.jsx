@@ -35,10 +35,26 @@ export default function GameEngine() {
 
   useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected)
 
-  function handleCastClick() {
+  function handleCastClick(e) {
     if (!selectedSpell) return
     castSpellForPlayer(selectedSpell)
     setSelectedSpell(null)
+    e.currentTarget.blur()
+  }
+
+  function handleEndTurnClick(e) {
+    endTurn()
+    e.currentTarget.blur()
+  }
+
+  function handleRestartClick(e) {
+    restartGame()
+    e.currentTarget.blur()
+  }
+
+  function handleLoadClick(e) {
+    loadMapFromFile()
+    e.currentTarget.blur()
   }
 
   return (
@@ -100,7 +116,7 @@ export default function GameEngine() {
             </div>
           </div>
 
-          <button id='end-turn-btn' onClick={endTurn}>
+          <button id='end-turn-btn' onClick={handleEndTurnClick}>
             End Turn
           </button>
         </div>
@@ -161,7 +177,7 @@ export default function GameEngine() {
             <button
               className='load-map-btn'
               onClick={
-                () => setShowLoadModal(true)
+                (e) => { setShowLoadModal(true); e.currentTarget.blur() }
               }
             >
               Load Map
@@ -169,7 +185,7 @@ export default function GameEngine() {
 
             <button
               className='generate-map-btn'
-              onClick={restartGame}
+              onClick={handleRestartClick}
             >
               Generate Map
             </button>
@@ -192,11 +208,11 @@ export default function GameEngine() {
                 }
               />
 
-              <button onClick={loadMapFromFile}>
+              <button onClick={handleLoadClick}>
                 Load
               </button>
               <button onClick={
-                () => setShowLoadModal(false)
+                (e) => { setShowLoadModal(false); e.currentTarget.blur() }
               }>
                 Cancel
               </button>
