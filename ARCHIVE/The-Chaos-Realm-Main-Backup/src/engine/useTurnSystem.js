@@ -1,6 +1,6 @@
 import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
-import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
+import { runEnemyWizardAI } from './enemyAI.js'
 
 export default function useTurnSystem({
   terrainLayer,
@@ -20,21 +20,14 @@ export default function useTurnSystem({
     // Reset enemy wizard AP
     ENEMY_WIZARD.ap = ENEMY_WIZARD.max_ap
 
-    // Mana regeneration — player
-    const playerRegen = Math.ceil(PLAYER.current_mana * 0.10)
+    // Mana regeneration
+    const regen = Math.ceil(PLAYER.current_mana * 0.10)
     PLAYER.current_mana = Math.min(
-      PLAYER.current_mana + playerRegen,
+      PLAYER.current_mana + regen,
       PLAYER.max_mana
     )
 
-    // Mana regeneration — enemy wizard
-    const enemyRegen = Math.ceil(ENEMY_WIZARD.current_mana * 0.10)
-    ENEMY_WIZARD.current_mana = Math.min(
-      ENEMY_WIZARD.current_mana + enemyRegen,
-      ENEMY_WIZARD.max_mana
-    )
-
-    // Reset AP for all creatures (player-owned AND enemy-owned)
+    // Reset AP for all creatures
     const withCreatureAp = objectLayer.map(row =>
       row.map(cell => {
         if (cell && cell.type === 'creature') {
@@ -46,11 +39,8 @@ export default function useTurnSystem({
 
     // Enemy wizard's turn — only if one is actually on the board
     if (enemyPosition) {
-      const { objectLayer: afterWizardAI, moved, position } = runEnemyWizardAI(terrainLayer, withCreatureAp)
-      const { objectLayer: afterCreatureAI } = runEnemyCreaturesAI(terrainLayer, afterWizardAI)
-
-      setObjectLayer(afterCreatureAI)
-
+      const { objectLayer: afterAI, moved, position } = runEnemyWizardAI(terrainLayer, withCreatureAp)
+      setObjectLayer(afterAI)
       if (moved && position) {
         setEnemyPosition(position)
       }
@@ -63,4 +53,3 @@ export default function useTurnSystem({
 
   return endTurn
 }
-

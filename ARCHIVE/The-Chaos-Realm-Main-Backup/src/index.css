@@ -1,0 +1,488 @@
+@import url('https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Smooch+Sans:wght@100..900&display=swap');
+
+* {
+  box-sizing: border-box;
+  font-family: 'Smooch Sans', sans-serif;
+}
+
+:root {
+  --main: #ff4500;
+  --main-dark: #b73405;
+  --black: #000;
+  --dark: #111;
+  --light: #fffdfa;
+  --grey-1: #333;
+  --grey-2: #999;
+  --grey-3: #ccc;
+  --grey-4: #eee;
+  --grey-5: #fafafa;
+  --transition: all 0.5s ease-in-out;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--dark);
+  color: var(--light);
+}
+
+/* Main Layout Grid */
+
+#game-container {
+  display: grid;
+  grid-template-columns: 400px 1fr 400px;
+  grid-template-rows: 100%;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Left Panel */
+
+#left-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--dark);
+}
+
+/* Title moved to LEFT PANEL */
+
+#title-area {
+  height: 120px;
+  background: var(--dark);
+  color: var(--main);
+  font-size: 48px;
+  text-align: center;
+  padding-top: 20px;
+  font-family: 'Kaushan Script', cursive;
+  border-bottom: 2px solid var(--main-dark);
+}
+
+/* Left Lower Panel */
+
+#left-lower {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--dark);
+  padding: 16px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Spellbook */
+
+.spellbook-title {
+  margin: 0;
+  padding: 0;
+  font-size: 30px;
+  text-transform: uppercase;
+  text-align: center;
+  letter-spacing: 2px;
+  color: var(--main);
+}
+
+.spellbook-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 6px;
+}
+
+.spellbook-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.spellbook-list::-webkit-scrollbar-thumb {
+  background: var(--main);
+  border-radius: 3px;
+}
+
+.spell-entry {
+  background: var(--grey-1);
+  padding: 12px;
+  border: 1px solid var(--main-dark);
+  border-radius: 4px;
+  font-size: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.spell-entry:hover {
+  background: var(--main-dark);
+}
+
+.spell-entry.selected {
+  background: var(--main);
+  border-color: var(--light);
+}
+
+.spell-name {
+  flex: 1;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--light);
+}
+
+.spell-units,
+.spell-cost {
+  color: var(--light);
+  font-weight: 600;
+  min-width: 50px;
+  text-align: right;
+}
+
+.cast-btn {
+  padding: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-radius: 4px;
+  border: 1px solid var(--main);
+  background: var(--main-dark);
+  color: var(--light);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.cast-btn.active:hover {
+  background: var(--main);
+}
+
+.cast-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Middle Panel */
+
+#middle-panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--dark);
+  height: 100%;
+  width: 100%;
+}
+
+/* Canvas */
+
+canvas {
+  width: 720px;
+  height: 720px;
+  image-rendering: pixelated;
+  background: var(--black);
+}
+
+/* Right Panel */
+
+#right-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--dark);
+  padding: 0;
+}
+
+/* Turn Counter (now at top of right panel) */
+
+#right-middle {
+  padding: 20px 0 10px 0;
+  background: var(--dark);
+  text-align: center;
+}
+
+#turn-counter {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--main);
+  letter-spacing: 2px;
+}
+
+/* Player UI (moved to right panel) */
+
+#player-ui {
+  padding: 20px;
+  background: var(--dark);
+  border-top: 2px solid var(--main-dark);
+  border-bottom: 2px solid var(--main-dark);
+}
+
+#player-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+#player-stats div {
+  background: var(--grey-1);
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--main);
+}
+
+#end-turn-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border-radius: 3px;
+  border: 1px solid var(--main);
+  background: var(--main-dark);
+  color: var(--light);
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+#end-turn-btn:hover {
+  background: var(--main);
+}
+
+/* NEW — Creature Info Block */
+
+.creature-info {
+  background: var(--grey-1);
+  border: 1px solid var(--main);
+  border-radius: 6px;
+  padding: 16px;
+  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 20px;
+  box-shadow: 0 0 10px var(--main-dark);
+}
+
+.creature-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.creature-label {
+  font-weight: 700;
+  color: var(--main);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.creature-value {
+  font-weight: 600;
+  color: var(--light);
+}
+
+/* Right Lower Panel */
+
+#right-lower {
+  flex: 1;
+  background: var(--dark);
+  padding: 20px;
+  border-top: 2px solid var(--main-dark);
+}
+
+.info-panel {
+  background: var(--grey-1);
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid var(--main);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 20px;
+}
+
+.info-panel button {
+  padding: 10px;
+  background: var(--main-dark);
+  border: 1px solid var(--main);
+  color: var(--light);
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.info-panel button:hover {
+  background: var(--main);
+}
+
+/* Load Level Modal */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--grey-1);
+  border: 2px solid var(--main);
+  border-radius: 8px;
+  padding: 30px;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 0 20px var(--main-dark);
+  animation: modal-pop 0.25s ease-out;
+}
+
+.modal-content h2 {
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  font-size: 32px;
+  color: var(--main);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.modal-content input {
+  padding: 12px;
+  font-size: 20px;
+  border-radius: 4px;
+  border: 1px solid var(--main);
+  background: var(--dark);
+  color: var(--light);
+  outline: none;
+}
+
+.modal-content input:focus {
+  border-color: var(--main);
+  box-shadow: 0 0 6px var(--main);
+}
+
+.modal-content button {
+  padding: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 4px;
+  border: 1px solid var(--main);
+  background: var(--main-dark);
+  color: var(--light);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.modal-content button:hover {
+  background: var(--main);
+}
+
+@keyframes modal-pop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Map Editor */
+
+#map-editor-container {
+  display: grid;
+  grid-template-columns: 300px 1fr 300px;
+  height: 100vh;
+  background: var(--dark);
+  color: var(--light);
+}
+
+#editor-left,
+#editor-right {
+  padding: 20px;
+  background: var(--black);
+}
+
+#editor-left {
+  border-right: 2px solid var(--main);
+}
+
+#editor-right {
+  border-left: 2px solid var(--main);
+}
+
+#editor-middle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#editor-middle canvas {
+  width: 600px !important;
+  height: 600px !important;
+}
+
+.terrain-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 12px;
+  margin-bottom: 20px;
+  padding-right: 4px;
+}
+
+.terrain-btn,
+.save-btn,
+.load-btn {
+  padding: 8px 4px;
+  background: var(--main);
+  color: var(--light);
+  border: none;
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.terrain-btn:hover,
+.save-btn:hover,
+.load-btn:hover {
+  background: var(--main-dark);
+}
+
+.terrain-btn.selected {
+  background: var(--main-dark);
+}
+
+.save-btn,
+.load-btn {
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  width: 100%;
+}

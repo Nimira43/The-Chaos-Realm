@@ -49,8 +49,8 @@ export function drawViewport(
       const obj = objectLayer[worldY][worldX]
 
       if (obj && obj.type === 'creature') {
-        // Blue for the player's creatures, red for the enemy wizard's
-        ctx.fillStyle = obj.owner === 'enemy' ? '#ff0e0e' : 'blue'
+        // Blue square
+        ctx.fillStyle = 'blue'
         ctx.fillRect(
           vx * tileSize + 6,
           vy * tileSize + 6,
