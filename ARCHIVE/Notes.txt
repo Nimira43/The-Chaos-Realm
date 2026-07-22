@@ -1,2 +1,0 @@
-This main backup has the Enemy Wizard as just a stub character. 
-This is the backup to go to if future development of the Enemy Wizard goes wrong.
