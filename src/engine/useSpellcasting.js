@@ -46,6 +46,7 @@ export default function useSpellcasting({
         x: tile.x,
         y: tile.y,
         ap: creatureData.action_points_ground,
+        current_health: creatureData.constitution,
         stats: creatureData
       }
       return copy
@@ -83,3 +84,4 @@ export default function useSpellcasting({
 
   return castSpellForPlayer
 }
+

@@ -54,6 +54,7 @@ export default function useGameEngine() {
     setPlayerPosition,
     setAp,
     setObjectLayer,
+    setEnemyPosition,
     showLoadModal
   })
 

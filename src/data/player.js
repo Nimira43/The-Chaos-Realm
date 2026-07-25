@@ -7,7 +7,8 @@ export const PLAYER = {
   current_mana: 600,
   ap: 336,
   stamina: 70,
-  constitution: 40,
+  constitution: 100,
+  current_health: 100,
   combat: 10,
   defence: 10,
   magic_resistance: 50,
@@ -23,3 +24,4 @@ export const PLAYER = {
   water_type: false,
   rock_type: false,
 }
+

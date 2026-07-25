@@ -3,6 +3,7 @@ import { wrap } from './utils.js'
 import { tryMove } from './movement.js'
 import { PLAYER } from '../data/player.js'
 import { terrainCost } from './terrain.js'
+import { resolveAttack, ATTACK_AP_COST } from './combat.js'
 
 export default function useInput({
   cursor,
@@ -16,6 +17,7 @@ export default function useInput({
   setPlayerPosition,
   setAp,
   setObjectLayer,
+  setEnemyPosition,
   showLoadModal
 }) {
 
@@ -86,16 +88,35 @@ export default function useInput({
         return
       }
 
-      // PLAYER MOVEMENT
+      // PLAYER MOVEMENT / ATTACK
 
       if (selected.type === 'player') {
         if (dx || dy) {
           const newX = wrap(PLAYER.x + dx, map[0].length)
           const newY = wrap(PLAYER.y + dy, map.length)
 
-          // BLOCK movement if tile is occupied
-          if (objectLayer[newY][newX] !== null) {
-            console.log("Player cannot move onto an occupied tile")
+          const occupant = objectLayer[newY][newX]
+
+          if (occupant !== null) {
+            if (occupant.owner === 'enemy') {
+              if (PLAYER.ap < ATTACK_AP_COST) return
+
+              const result = resolveAttack({
+                objectLayer,
+                attackerPos: { x: PLAYER.x, y: PLAYER.y },
+                defenderPos: { x: newX, y: newY }
+              })
+
+              PLAYER.ap -= ATTACK_AP_COST
+              setAp(PLAYER.ap)
+              setObjectLayer(result.objectLayer)
+
+              if (result.defeated && result.defenderType === 'enemyWizard') {
+                setEnemyPosition(null)
+              }
+            } else {
+              console.log("Player cannot move onto an occupied tile")
+            }
             return
           }
 
@@ -122,7 +143,7 @@ export default function useInput({
         return
       }
 
-      // CREATURE MOVEMENT
+      // CREATURE MOVEMENT / ATTACK
 
       if (selected.type === 'creature') {
         const { x, y } = selected
@@ -136,11 +157,39 @@ export default function useInput({
           const newX = wrap(x + dx, map[0].length)
           const newY = wrap(y + dy, map.length)
 
+          const occupant = objectLayer[newY][newX]
+
+          if (occupant !== null) {
+            if (occupant.owner === 'enemy') {
+              if (creature.ap < ATTACK_AP_COST) return
+
+              const result = resolveAttack({
+                objectLayer,
+                attackerPos: { x, y },
+                defenderPos: { x: newX, y: newY }
+              })
+
+              let updatedLayer = result.objectLayer
+              const attackerCellNow = updatedLayer[y][x]
+
+              if (attackerCellNow) {
+                updatedLayer = updatedLayer.map(row => [...row])
+                updatedLayer[y][x] = { ...attackerCellNow, ap: attackerCellNow.ap - ATTACK_AP_COST }
+              }
+
+              setObjectLayer(updatedLayer)
+
+              if (result.defeated && result.defenderType === 'enemyWizard') {
+                setEnemyPosition(null)
+              }
+            }
+            return
+          }
+
           const terrainType = terrainLayer[newY][newX]
           const cost = terrainCost[terrainType] ?? 1
 
           if (cost >= 999) return
-          if (objectLayer[newY][newX] !== null) return
           if (creature.ap < cost) return
 
           setObjectLayer(prev => {
@@ -175,6 +224,7 @@ export default function useInput({
     setPlayerPosition,
     setAp,
     setObjectLayer,
+    setEnemyPosition,
     showLoadModal
   ])
 }

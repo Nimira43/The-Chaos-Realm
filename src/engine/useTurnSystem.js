@@ -44,20 +44,32 @@ export default function useTurnSystem({
       })
     )
 
+    let workingLayer = withCreatureAp
+
     // Enemy wizard's turn — only if one is actually on the board
     if (enemyPosition) {
-      const { objectLayer: afterWizardAI, moved, position } = runEnemyWizardAI(terrainLayer, withCreatureAp)
-      const { objectLayer: afterCreatureAI } = runEnemyCreaturesAI(terrainLayer, afterWizardAI)
+      const wizardResult = runEnemyWizardAI(terrainLayer, workingLayer)
+      workingLayer = wizardResult.objectLayer
 
-      setObjectLayer(afterCreatureAI)
-
-      if (moved && position) {
-        setEnemyPosition(position)
+      if (wizardResult.position) {
+        setEnemyPosition(wizardResult.position)
       }
-    } else {
-      setObjectLayer(withCreatureAp)
+
+      if (wizardResult.defeatedTarget === 'player') {
+        console.log('The player wizard has fallen!')
+      }
     }
 
+    // Enemy creatures act independently — they keep fighting even if their
+    // wizard has already been defeated
+    const creatureResult = runEnemyCreaturesAI(terrainLayer, workingLayer)
+    workingLayer = creatureResult.objectLayer
+
+    if (creatureResult.defeatedTargets.includes('player')) {
+      console.log('The player wizard has fallen!')
+    }
+
+    setObjectLayer(workingLayer)
     setRound(prev => prev + 1)
   }
 

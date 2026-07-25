@@ -5,6 +5,7 @@ import { CREATURES } from '../data/creatures.js'
 import { terrainCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap } from './utils.js'
 import { castSpell } from './spellCaster.js'
+import { resolveAttack, ATTACK_AP_COST } from './combat.js'
 
 const SIGHT_RANGE = 6
 const CAST_CHANCE = 0.5 // tweak this to make the enemy wizard more/less trigger-happy
@@ -40,18 +41,35 @@ function findNearestPlayerTarget(objectLayer, originX, originY) {
   return { target: nearest, dist: bestDist }
 }
 
-// Enemy wizard — movement
+// Enemy wizard — movement (attacks once it reaches adjacency)
 
 function moveEnemyWizard(terrainLayer, objectLayer) {
   let currentLayer = objectLayer
   let moved = false
   let lastPosition = null
+  let defeatedTarget = null
 
   while (ENEMY_WIZARD.ap > 0) {
     const { target } = findNearestPlayerTarget(currentLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
 
     const adjacency = chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, target.x, target.y)
-    if (adjacency <= 1) break
+
+    if (adjacency <= 1) {
+      // Already adjacent to our target — attack instead of moving, then stop
+      if (ENEMY_WIZARD.ap >= ATTACK_AP_COST) {
+        const result = resolveAttack({
+          objectLayer: currentLayer,
+          attackerPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+          defenderPos: { x: target.x, y: target.y }
+        })
+
+        currentLayer = result.objectLayer
+        ENEMY_WIZARD.ap -= ATTACK_AP_COST
+
+        if (result.defeated) defeatedTarget = result.defenderType
+      }
+      break
+    }
 
     const dx = target.x - ENEMY_WIZARD.x
     const dy = target.y - ENEMY_WIZARD.y
@@ -84,7 +102,7 @@ function moveEnemyWizard(terrainLayer, objectLayer) {
     lastPosition = { x: stepX, y: stepY }
   }
 
-  return { objectLayer: currentLayer, moved, position: lastPosition }
+  return { objectLayer: currentLayer, moved, position: lastPosition, defeatedTarget }
 }
 
 // Enemy wizard — spellcasting
@@ -130,6 +148,7 @@ function castEnemyWizardSpell(terrainLayer, objectLayer) {
       x: tile.x,
       y: tile.y,
       ap: creatureData.action_points_ground,
+      current_health: creatureData.constitution,
       stats: creatureData
     }
   }
@@ -148,13 +167,13 @@ function castEnemyWizardSpell(terrainLayer, objectLayer) {
   return { objectLayer: workingLayer, cast: true }
 }
 
-// Enemy wizard — combined turn (movement, then a chance to cast)
+// Enemy wizard — combined turn (move/attack, then a chance to cast)
 
 export function runEnemyWizardAI(terrainLayer, objectLayer) {
   const { dist: initialDist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
 
   if (initialDist > SIGHT_RANGE) {
-    return { objectLayer, moved: false, position: null }
+    return { objectLayer, moved: false, position: null, defeatedTarget: null }
   }
 
   const moveResult = moveEnemyWizard(terrainLayer, objectLayer)
@@ -163,20 +182,22 @@ export function runEnemyWizardAI(terrainLayer, objectLayer) {
   return {
     objectLayer: castResult.objectLayer,
     moved: moveResult.moved,
-    position: moveResult.position
+    position: moveResult.position,
+    defeatedTarget: moveResult.defeatedTarget
   }
 }
 
-// Enemy creatures — each summoned creature chases the nearest player target
+// Enemy creatures — each summoned creature chases (and attacks) the nearest player target
 
 function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
   let x = startX
   let y = startY
   let workingLayer = objectLayer
   let moved = false
+  let defeatedTarget = null
 
   let creature = workingLayer[y][x]
-  if (!creature) return { objectLayer: workingLayer, moved }
+  if (!creature) return { objectLayer: workingLayer, moved, defeatedTarget }
 
   let ap = creature.ap
 
@@ -185,7 +206,29 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
     if (dist > SIGHT_RANGE) break
 
     const adjacency = chebyshevDist(x, y, target.x, target.y)
-    if (adjacency <= 1) break
+
+    if (adjacency <= 1) {
+      if (ap >= ATTACK_AP_COST) {
+        const result = resolveAttack({
+          objectLayer: workingLayer,
+          attackerPos: { x, y },
+          defenderPos: { x: target.x, y: target.y }
+        })
+
+        workingLayer = result.objectLayer
+        ap -= ATTACK_AP_COST
+
+        // Re-apply the attacker's updated AP onto its own cell
+        const attackerCell = workingLayer[y][x]
+        if (attackerCell) {
+          workingLayer = workingLayer.map(row => [...row])
+          workingLayer[y][x] = { ...attackerCell, ap }
+        }
+
+        if (result.defeated) defeatedTarget = result.defenderType
+      }
+      break
+    }
 
     const dx = target.x - x
     const dy = target.y - y
@@ -218,11 +261,12 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
     moved = true
   }
 
-  return { objectLayer: workingLayer, moved }
+  return { objectLayer: workingLayer, moved, defeatedTarget }
 }
 
 export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
   let workingLayer = objectLayer
+  const defeatedTargets = []
 
   // Snapshot starting positions first, so each creature moves exactly once
   // this turn using its position at the START of the enemy turn.
@@ -239,7 +283,8 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
   startingPositions.forEach(({ x, y }) => {
     const result = moveCreatureToward(terrainLayer, workingLayer, x, y)
     workingLayer = result.objectLayer
+    if (result.defeatedTarget) defeatedTargets.push(result.defeatedTarget)
   })
 
-  return { objectLayer: workingLayer }
+  return { objectLayer: workingLayer, defeatedTargets }
 }

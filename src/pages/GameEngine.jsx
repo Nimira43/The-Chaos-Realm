@@ -114,6 +114,9 @@ export default function GameEngine() {
             <div>
               Mana: {PLAYER.current_mana}/{PLAYER.max_mana}
             </div>
+            <div>
+              HP: {PLAYER.current_health}/{PLAYER.constitution}
+            </div>
           </div>
 
           <button id='end-turn-btn' onClick={handleEndTurnClick}>
@@ -139,6 +142,16 @@ export default function GameEngine() {
               <span className='creature-value'>
                 {objectLayer[selected.y][selected.x]?.ap} /
                 {objectLayer[selected.y][selected.x]?.stats.action_points_ground}
+              </span>
+            </div>
+
+            <div className='creature-info-row'>
+              <span className='creature-label'>
+                HP:
+              </span>
+              <span className='creature-value'>
+                {objectLayer[selected.y][selected.x]?.current_health} /
+                {objectLayer[selected.y][selected.x]?.stats.constitution}
               </span>
             </div>
 
