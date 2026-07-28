@@ -228,7 +228,7 @@
     "water",
     "water",
     "grass",
-    "water",
+    "grass",
     "grass",
     "grass",
     "grass",
@@ -275,7 +275,7 @@
     "water",
     "grass",
     "grass",
-    "water",
+    "grass",
     "grass",
     "forest",
     "grass",
@@ -306,7 +306,7 @@
     "grass"
   ],
   [
-    "water",
+    "grass",
     "grass",
     "water",
     "grass",
@@ -396,9 +396,9 @@
     "grass",
     "water",
     "grass",
-    "water",
     "grass",
-    "water",
+    "grass",
+    "grass",
     "grass",
     "grass",
     "grass",
@@ -458,7 +458,7 @@
     "grass",
     "water",
     "grass",
-    "water",
+    "grass",
     "grass",
     "grass",
     "water",
@@ -491,9 +491,9 @@
     "swamp",
     "swamp",
     "grass",
-    "water",
+    "grass",
     "enemyWizard",
-    "water",
+    "grass",
     "water",
     "water",
     "grass",
@@ -525,7 +525,7 @@
     "swamp",
     "swamp",
     "swamp",
-    "water",
+    "grass",
     "rock",
     "swamp",
     "swamp",
@@ -559,10 +559,10 @@
     "water",
     "swamp",
     "grass",
-    "water",
+    "grass",
     "swamp",
     "grass",
-    "water",
+    "grass",
     "swamp",
     "swamp",
     "swamp",
@@ -575,7 +575,7 @@
     "water",
     "grass",
     "grass",
-    "water"
+    "grass"
   ],
   [
     "grass",
@@ -592,10 +592,10 @@
     "swamp",
     "grass",
     "grass",
-    "water",
     "grass",
     "grass",
-    "water",
+    "grass",
+    "grass",
     "swamp",
     "swamp",
     "grass",
@@ -937,7 +937,7 @@
     "water",
     "forest",
     "water",
-    "water",
+    "grass",
     "forest",
     "water",
     "water",
@@ -971,7 +971,7 @@
     "forest",
     "forest",
     "water",
-    "water",
+    "grass",
     "water",
     "water",
     "water",
@@ -982,7 +982,7 @@
     "grass",
     "water",
     "grass",
-    "water",
+    "grass",
     "water"
   ],
   [
@@ -1016,8 +1016,8 @@
     "grass",
     "water",
     "water",
-    "water",
-    "water"
+    "grass",
+    "grass"
   ],
   [
     "grass",
@@ -1050,7 +1050,7 @@
     "water",
     "water",
     "water",
-    "water",
+    "grass",
     "playerWizard"
   ],
   [
@@ -1084,7 +1084,7 @@
     "water",
     "water",
     "water",
-    "water",
-    "water"
+    "grass",
+    "grass"
   ]
 ]
