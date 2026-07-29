@@ -3,7 +3,7 @@ import { SPELLBOOK } from '../data/spellbook.js'
 import { PLAYER } from '../data/player.js'
 import useGameEngine from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
-import { terrainCost } from '../engine/terrain.js'
+import { getMovementCost } from '../engine/terrain.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -169,7 +169,7 @@ export default function GameEngine() {
                 Move Cost:
               </span>
               <span className='creature-value'>
-                {terrainCost[terrainLayer[selected.y][selected.x]]}
+                {getMovementCost(terrainLayer[selected.y][selected.x], objectLayer[selected.y][selected.x]?.stats)}
               </span>
             </div>
           </div>

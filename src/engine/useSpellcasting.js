@@ -10,8 +10,6 @@ export default function useSpellcasting({
   PLAYER
 }) {
 
-  // Helper: is a tile free?
-
   const isTileFree = (tile) => {
     const { x, y } = tile
 
@@ -21,7 +19,7 @@ export default function useSpellcasting({
     const terrain = terrainLayer[y][x]
     const object = objectLayer[y][x]
 
-    const blockedTerrain = ['wall', 'water', 'door']
+    const blockedTerrain = ['wall', 'water', 'door', 'mountain']
     if (blockedTerrain.includes(terrain)) return false
 
     if (object !== null) return false
@@ -31,8 +29,6 @@ export default function useSpellcasting({
 
     return true
   }
-
-  // Helper: spawn a creature
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -52,8 +48,6 @@ export default function useSpellcasting({
       return copy
     })
   }
-
-  // Main spellcasting function
 
   const castSpellForPlayer = (spell) => {
     if (!spell) return
@@ -84,4 +78,3 @@ export default function useSpellcasting({
 
   return castSpellForPlayer
 }
-

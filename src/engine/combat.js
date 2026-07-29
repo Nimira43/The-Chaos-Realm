@@ -1,21 +1,15 @@
 import { PLAYER } from '../data/player.js'
 
-// Flat AP cost for any attack action, regardless of terrain or attacker type.
-// Kept separate from movement cost — attacking and moving are different actions.
 export const ATTACK_AP_COST = 2
 
-// Random swing added on top of the attacker's combat rating before subtracting
-// the defender's defence, so outcomes aren't perfectly deterministic.
 const DAMAGE_ROLL_MAX = 6
+const LAVA_DAMAGE_PERCENT = 0.10
 
 function rollDamage(attackerCombat, defenderDefence) {
   const swing = Math.floor(Math.random() * DAMAGE_ROLL_MAX) + 1
   return Math.max(1, (attackerCombat + swing) - defenderDefence)
 }
 
-// Normalises access to combat stats across the three kinds of thing that can
-// occupy a tile: the player wizard (a singleton), the enemy wizard (a singleton
-// referenced via cell.ref), and creatures (plain objects living in the layer).
 function getCombatProfile(cell) {
   if (!cell) return null
 
@@ -24,6 +18,7 @@ function getCombatProfile(cell) {
       combat: PLAYER.combat,
       defence: PLAYER.defence,
       health: PLAYER.current_health,
+      maxHealth: PLAYER.constitution,
       apply: (newHealth) => { PLAYER.current_health = newHealth }
     }
   }
@@ -34,6 +29,7 @@ function getCombatProfile(cell) {
       combat: ref.combat,
       defence: ref.defence,
       health: ref.current_health,
+      maxHealth: ref.constitution,
       apply: (newHealth) => { ref.current_health = newHealth }
     }
   }
@@ -43,8 +39,7 @@ function getCombatProfile(cell) {
       combat: cell.stats.combat,
       defence: cell.stats.defence,
       health: cell.current_health,
-      // Creature health lives on the cell itself (not a singleton) — nothing to
-      // "apply" here, the caller replaces the cell in the layer instead.
+      maxHealth: cell.stats.constitution,
       apply: null
     }
   }
@@ -52,9 +47,36 @@ function getCombatProfile(cell) {
   return null
 }
 
-// Resolves one attack from the unit at attackerPos against the unit at defenderPos.
-// Returns a new objectLayer with damage applied and defeated units removed.
-// The caller is responsible for deducting the attacker's own AP.
+function applyDamageToCell(objectLayer, pos, damage) {
+  const cell = objectLayer[pos.y][pos.x]
+  if (!cell) return { objectLayer, damage: 0, defeated: false, targetType: null }
+
+  const profile = getCombatProfile(cell)
+  if (!profile) return { objectLayer, damage: 0, defeated: false, targetType: null }
+
+  const newHealth = Math.max(0, profile.health - damage)
+  const defeated = newHealth <= 0
+
+  let newLayer = objectLayer
+
+  if (profile.apply) {
+    profile.apply(newHealth)
+
+    if (defeated) {
+      newLayer = objectLayer.map(row => [...row])
+      newLayer[pos.y][pos.x] = null
+    }
+  } else {
+    newLayer = objectLayer.map(row => [...row])
+
+    newLayer[pos.y][pos.x] = defeated
+      ? null
+      : { ...cell, current_health: newHealth }
+  }
+
+  return { objectLayer: newLayer, damage, defeated, targetType: cell.type }
+}
+
 export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
   const attackerCell = objectLayer[attackerPos.y][attackerPos.x]
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
@@ -71,27 +93,25 @@ export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
   }
 
   const damage = rollDamage(attackerProfile.combat, defenderProfile.defence)
-  const newHealth = Math.max(0, defenderProfile.health - damage)
-  const defeated = newHealth <= 0
+  const result = applyDamageToCell(objectLayer, defenderPos, damage)
 
-  let newLayer = objectLayer
-
-  if (defenderProfile.apply) {
-    // Wizard — health lives on the singleton, mutate it directly
-    defenderProfile.apply(newHealth)
-
-    if (defeated) {
-      newLayer = objectLayer.map(row => [...row])
-      newLayer[defenderPos.y][defenderPos.x] = null
-    }
-  } else {
-    // Creature — health lives on the cell, replace it immutably
-    newLayer = objectLayer.map(row => [...row])
-
-    newLayer[defenderPos.y][defenderPos.x] = defeated
-      ? null
-      : { ...defenderCell, current_health: newHealth }
+  return {
+    objectLayer: result.objectLayer,
+    damage: result.damage,
+    defeated: result.defeated,
+    defenderType: result.targetType
   }
+}
 
-  return { objectLayer: newLayer, damage, defeated, defenderType: defenderCell.type }
+export function applyLavaDamage(objectLayer, pos) {
+  const cell = objectLayer[pos.y][pos.x]
+  if (!cell) return { objectLayer, damage: 0, defeated: false }
+
+  const profile = getCombatProfile(cell)
+  if (!profile) return { objectLayer, damage: 0, defeated: false }
+
+  const damage = Math.max(1, Math.ceil(profile.maxHealth * LAVA_DAMAGE_PERCENT))
+  const result = applyDamageToCell(objectLayer, pos, damage)
+
+  return { objectLayer: result.objectLayer, damage: result.damage, defeated: result.defeated }
 }

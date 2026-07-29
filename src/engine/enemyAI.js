@@ -2,20 +2,18 @@ import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { PLAYER } from '../data/player.js'
 import { CREATURES } from '../data/creatures.js'
-import { terrainCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
+import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap } from './utils.js'
 import { castSpell } from './spellCaster.js'
-import { resolveAttack, ATTACK_AP_COST } from './combat.js'
+import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
 
 const SIGHT_RANGE = 6
-const CAST_CHANCE = 0.5 // tweak this to make the enemy wizard more/less trigger-happy
+const CAST_CHANCE = 0.5
 
 function chebyshevDist(ax, ay, bx, by) {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by))
 }
 
-// Finds the nearest player wizard or player-owned creature to a given origin.
-// Reusable for the enemy wizard AND every individual enemy creature.
 function findNearestPlayerTarget(objectLayer, originX, originY) {
   let nearest = {
     x: PLAYER.x,
@@ -41,13 +39,12 @@ function findNearestPlayerTarget(objectLayer, originX, originY) {
   return { target: nearest, dist: bestDist }
 }
 
-// Enemy wizard — movement (attacks once it reaches adjacency)
-
 function moveEnemyWizard(terrainLayer, objectLayer) {
   let currentLayer = objectLayer
   let moved = false
   let lastPosition = null
   let defeatedTarget = null
+  let selfDefeated = false
 
   while (ENEMY_WIZARD.ap > 0) {
     const { target } = findNearestPlayerTarget(currentLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
@@ -55,7 +52,6 @@ function moveEnemyWizard(terrainLayer, objectLayer) {
     const adjacency = chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, target.x, target.y)
 
     if (adjacency <= 1) {
-      // Already adjacent to our target — attack instead of moving, then stop
       if (ENEMY_WIZARD.ap >= ATTACK_AP_COST) {
         const result = resolveAttack({
           objectLayer: currentLayer,
@@ -77,7 +73,8 @@ function moveEnemyWizard(terrainLayer, objectLayer) {
     const stepX = wrap(ENEMY_WIZARD.x + Math.sign(dx), MAP_WIDTH)
     const stepY = wrap(ENEMY_WIZARD.y + Math.sign(dy), MAP_HEIGHT)
 
-    const cost = terrainCost[terrainLayer[stepY][stepX]] ?? 999
+    const terrainType = terrainLayer[stepY][stepX]
+    const cost = getMovementCost(terrainType, ENEMY_WIZARD)
 
     if (cost >= 999) break
     if (cost > ENEMY_WIZARD.ap) break
@@ -100,19 +97,27 @@ function moveEnemyWizard(terrainLayer, objectLayer) {
     currentLayer = newLayer
     moved = true
     lastPosition = { x: stepX, y: stepY }
+
+    if (terrainType === 'lava') {
+      const lavaResult = applyLavaDamage(currentLayer, { x: stepX, y: stepY })
+      currentLayer = lavaResult.objectLayer
+
+      if (lavaResult.defeated) {
+        selfDefeated = true
+        break
+      }
+    }
   }
 
-  return { objectLayer: currentLayer, moved, position: lastPosition, defeatedTarget }
+  return { objectLayer: currentLayer, moved, position: lastPosition, defeatedTarget, selfDefeated }
 }
-
-// Enemy wizard — spellcasting
 
 function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
   if (x < 0 || x >= terrainLayer[0].length) return false
 
   const terrain = terrainLayer[y][x]
-  const blockedTerrain = ['wall', 'water', 'door']
+  const blockedTerrain = ['wall', 'water', 'door', 'mountain']
   if (blockedTerrain.includes(terrain)) return false
 
   if (objectLayer[y][x] !== null) return false
@@ -167,27 +172,35 @@ function castEnemyWizardSpell(terrainLayer, objectLayer) {
   return { objectLayer: workingLayer, cast: true }
 }
 
-// Enemy wizard — combined turn (move/attack, then a chance to cast)
-
 export function runEnemyWizardAI(terrainLayer, objectLayer) {
   const { dist: initialDist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
 
   if (initialDist > SIGHT_RANGE) {
-    return { objectLayer, moved: false, position: null, defeatedTarget: null }
+    return { objectLayer, moved: false, position: null, defeatedTarget: null, selfDefeated: false }
   }
 
   const moveResult = moveEnemyWizard(terrainLayer, objectLayer)
+
+  if (moveResult.selfDefeated) {
+    return {
+      objectLayer: moveResult.objectLayer,
+      moved: moveResult.moved,
+      position: moveResult.position,
+      defeatedTarget: moveResult.defeatedTarget,
+      selfDefeated: true
+    }
+  }
+
   const castResult = castEnemyWizardSpell(terrainLayer, moveResult.objectLayer)
 
   return {
     objectLayer: castResult.objectLayer,
     moved: moveResult.moved,
     position: moveResult.position,
-    defeatedTarget: moveResult.defeatedTarget
+    defeatedTarget: moveResult.defeatedTarget,
+    selfDefeated: false
   }
 }
-
-// Enemy creatures — each summoned creature chases (and attacks) the nearest player target
 
 function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
   let x = startX
@@ -195,9 +208,10 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
   let workingLayer = objectLayer
   let moved = false
   let defeatedTarget = null
+  let selfDefeated = false
 
   let creature = workingLayer[y][x]
-  if (!creature) return { objectLayer: workingLayer, moved, defeatedTarget }
+  if (!creature) return { objectLayer: workingLayer, moved, defeatedTarget, selfDefeated }
 
   let ap = creature.ap
 
@@ -218,7 +232,6 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
         workingLayer = result.objectLayer
         ap -= ATTACK_AP_COST
 
-        // Re-apply the attacker's updated AP onto its own cell
         const attackerCell = workingLayer[y][x]
         if (attackerCell) {
           workingLayer = workingLayer.map(row => [...row])
@@ -236,7 +249,8 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
     const stepX = wrap(x + Math.sign(dx), MAP_WIDTH)
     const stepY = wrap(y + Math.sign(dy), MAP_HEIGHT)
 
-    const cost = terrainCost[terrainLayer[stepY][stepX]] ?? 999
+    const terrainType = terrainLayer[stepY][stepX]
+    const cost = getMovementCost(terrainType, creature.stats)
 
     if (cost >= 999) break
     if (cost > ap) break
@@ -259,17 +273,24 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
 
     workingLayer = newLayer
     moved = true
+
+    if (terrainType === 'lava') {
+      const lavaResult = applyLavaDamage(workingLayer, { x, y })
+      workingLayer = lavaResult.objectLayer
+
+      if (lavaResult.defeated) {
+        selfDefeated = true
+        break
+      }
+    }
   }
 
-  return { objectLayer: workingLayer, moved, defeatedTarget }
+  return { objectLayer: workingLayer, moved, defeatedTarget, selfDefeated }
 }
 
 export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
   let workingLayer = objectLayer
   const defeatedTargets = []
-
-  // Snapshot starting positions first, so each creature moves exactly once
-  // this turn using its position at the START of the enemy turn.
   const startingPositions = []
   for (let y = 0; y < workingLayer.length; y++) {
     for (let x = 0; x < workingLayer[y].length; x++) {

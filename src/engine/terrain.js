@@ -14,6 +14,8 @@ export const terrainColours = {
   door: '#003366',
   key: '#000000',
   floor: '#dddddd',
+  mountain: '#7a7a6e',
+  lava: '#e25822',
   creature: '#ff4500',
   enemyWizard: '#ff0e0e',
   playerWizard: '#ffffff',
@@ -26,12 +28,14 @@ export const terrainCost = {
   swamp: 6,
   water: 999,
   forest: 4,
-  portal: 1,    
-  wall: 999,    
-  road: 1,      
-  door: 999,    
-  key: 1,       
-  floor: 2,     
+  portal: 1,
+  wall: 999,
+  road: 1,
+  door: 999,
+  key: 1,
+  floor: 2,
+  mountain: 999,
+  lava: 2,
   creature: 999,
   enemyWizard: 999,
   playerWizard: 999,
@@ -50,8 +54,16 @@ export function isTerrain(tile) {
     'road',
     'door',
     'key',
-    'floor'
+    'floor',
+    'mountain',
+    'lava'
   ].includes(tile)
 }
 
+export function getMovementCost(terrainType, entity) {
+  if (terrainType === 'water' && entity?.water_type) {
+    return terrainCost.grass
+  }
 
+  return terrainCost[terrainType] ?? 999
+}

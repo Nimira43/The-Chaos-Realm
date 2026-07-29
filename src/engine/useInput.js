@@ -2,8 +2,8 @@ import { useEffect } from 'react'
 import { wrap } from './utils.js'
 import { tryMove } from './movement.js'
 import { PLAYER } from '../data/player.js'
-import { terrainCost } from './terrain.js'
-import { resolveAttack, ATTACK_AP_COST } from './combat.js'
+import { getMovementCost } from './terrain.js'
+import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
 
 export default function useInput({
   cursor,
@@ -23,7 +23,6 @@ export default function useInput({
 
   useEffect(() => {
     function handleKey(e) {
-      // Don't hijack keys while the load-map modal / any text input is active
       if (showLoadModal) return
 
       const active = document.activeElement
@@ -46,16 +45,12 @@ export default function useInput({
         e.key === 'ArrowRight' ||
         e.key === ' '
 
-      // Stop the browser's native behaviour (page scroll, and — critically —
-      // "activate the currently focused button" on Space) for keys we handle.
       if (isGameKey) e.preventDefault()
 
       if (e.key === 'ArrowUp') dy = -1
       else if (e.key === 'ArrowDown') dy = 1
       else if (e.key === 'ArrowLeft') dx = -1
       else if (e.key === 'ArrowRight') dx = 1
-
-      // SPACE — selection logic
 
       if (e.key === ' ') {
         if (!selected) {
@@ -76,8 +71,6 @@ export default function useInput({
         return
       }
 
-      // Cursor movement (no selection)
-
       if (!selected) {
         if (dx || dy) {
           setCursor(c => ({
@@ -87,8 +80,6 @@ export default function useInput({
         }
         return
       }
-
-      // PLAYER MOVEMENT / ATTACK
 
       if (selected.type === 'player') {
         if (dx || dy) {
@@ -125,13 +116,19 @@ export default function useInput({
             const newPos = { x: PLAYER.x, y: PLAYER.y }
 
             setObjectLayer(prev => {
-              const copy = prev.map(row => [...row])
+              let copy = prev.map(row => [...row])
               copy[playerPosition.y][playerPosition.x] = null
               copy[newPos.y][newPos.x] = {
                 type: 'player',
                 name: 'Wizard',
                 owner: 'player'
               }
+
+              if (terrainLayer[newPos.y][newPos.x] === 'lava') {
+                const lavaResult = applyLavaDamage(copy, newPos)
+                copy = lavaResult.objectLayer
+              }
+
               return copy
             })
 
@@ -142,8 +139,6 @@ export default function useInput({
         }
         return
       }
-
-      // CREATURE MOVEMENT / ATTACK
 
       if (selected.type === 'creature') {
         const { x, y } = selected
@@ -187,25 +182,36 @@ export default function useInput({
           }
 
           const terrainType = terrainLayer[newY][newX]
-          const cost = terrainCost[terrainType] ?? 1
+          const cost = getMovementCost(terrainType, creature.stats)
 
           if (cost >= 999) return
           if (creature.ap < cost) return
 
-          setObjectLayer(prev => {
-            const copy = prev.map(row => [...row])
-            copy[y][x] = null
-            copy[newY][newX] = {
-              ...creature,
-              x: newX,
-              y: newY,
-              ap: creature.ap - cost
-            }
-            return copy
-          })
+          let updatedLayer = objectLayer.map(row => [...row])
+          updatedLayer[y][x] = null
+          updatedLayer[newY][newX] = {
+            ...creature,
+            x: newX,
+            y: newY,
+            ap: creature.ap - cost
+          }
 
-          setCursor({ x: newX, y: newY })
-          setSelected({ type: 'creature', x: newX, y: newY })
+          let defeated = false
+
+          if (terrainType === 'lava') {
+            const lavaResult = applyLavaDamage(updatedLayer, { x: newX, y: newY })
+            updatedLayer = lavaResult.objectLayer
+            defeated = lavaResult.defeated
+          }
+
+          setObjectLayer(updatedLayer)
+
+          if (defeated) {
+            setSelected(null)
+          } else {
+            setCursor({ x: newX, y: newY })
+            setSelected({ type: 'creature', x: newX, y: newY })
+          }
         }
       }
     }
