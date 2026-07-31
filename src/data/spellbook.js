@@ -1,34 +1,34 @@
 export function buildSpellbook() {
   return [
-    { name: 'Gold Dragon', manaCost: 47, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
-    { name: 'Green Dragon', manaCost: 39, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Red Dragon', manaCost: 31, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
-    { name: 'Pixie', manaCost: 7, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
-    { name: 'Dwarf', manaCost: 5, currentSpellLevel: 3, category: 'creature', duration: 'permanent' },
-    { name: 'Goblin', manaCost: 7, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
-    { name: 'Orc', manaCost: 11, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
-    { name: 'Troll', manaCost: 13, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Broo', manaCost: 15, currentSpellLevel: 3, category: 'creature', duration: 'permanent' },
-    { name: 'Giant', manaCost: 17, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
-    { name: 'Centaur', manaCost: 10, currentSpellLevel: 8, category: 'creature', duration: 'permanent' },
-    { name: 'Unicorn', manaCost: 10, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
-    { name: 'Pegasus', manaCost: 12, currentSpellLevel: 6, category: 'creature', duration: 'permanent' },
-    { name: 'Gryphon', manaCost: 19, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Manticore', manaCost: 21, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
-    { name: 'Elephant', manaCost: 17, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
-    { name: 'Gorilla', manaCost: 8, currentSpellLevel: 5, category: 'creature', duration: 'permanent' },
-    { name: 'Lion', manaCost: 10, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
-    { name: 'Bear', manaCost: 12, currentSpellLevel: 8, category: 'creature', duration: 'permanent' },
-    { name: 'Crocodile', manaCost: 11, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Sea Wolf', manaCost: 16, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Giant Bat', manaCost: 5, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Harpy', manaCost: 11, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
-    { name: 'Giant Spider', manaCost: 22, currentSpellLevel: 7, category: 'creature', duration: 'permanent' },
-    { name: 'Zombie', manaCost: 16, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Ghost', manaCost: 14, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
-    { name: 'Vampire', manaCost: 29, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
-    { name: 'Spectre', manaCost: 29, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
-    { name: 'Demon', manaCost: 40, currentSpellLevel: 4, category: 'creature', duration: 'permanent' }
+    { name: 'Gold Dragon', manaCost: 47, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
+    { name: 'Green Dragon', manaCost: 39, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Red Dragon', manaCost: 31, initialSpellLevel: 1, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
+    { name: 'Pixie', manaCost: 7, initialSpellLevel: 4, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
+    { name: 'Dwarf', manaCost: 5, initialSpellLevel: 3, currentSpellLevel: 3, category: 'creature', duration: 'permanent' },
+    { name: 'Goblin', manaCost: 7, initialSpellLevel: 4, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
+    { name: 'Orc', manaCost: 11, initialSpellLevel: 1, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
+    { name: 'Troll', manaCost: 13, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Broo', manaCost: 15, initialSpellLevel: 3, currentSpellLevel: 3, category: 'creature', duration: 'permanent' },
+    { name: 'Giant', manaCost: 17, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
+    { name: 'Centaur', manaCost: 10, initialSpellLevel: 8, currentSpellLevel: 8, category: 'creature', duration: 'permanent' },
+    { name: 'Unicorn', manaCost: 10, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
+    { name: 'Pegasus', manaCost: 12, initialSpellLevel: 6, currentSpellLevel: 6, category: 'creature', duration: 'permanent' },
+    { name: 'Gryphon', manaCost: 19, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Manticore', manaCost: 21, initialSpellLevel: 4, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
+    { name: 'Elephant', manaCost: 17, initialSpellLevel: 1, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
+    { name: 'Gorilla', manaCost: 8, initialSpellLevel: 5, currentSpellLevel: 5, category: 'creature', duration: 'permanent' },
+    { name: 'Lion', manaCost: 10, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
+    { name: 'Bear', manaCost: 12, initialSpellLevel: 8, currentSpellLevel: 8, category: 'creature', duration: 'permanent' },
+    { name: 'Crocodile', manaCost: 11, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Sea Wolf', manaCost: 16, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Giant Bat', manaCost: 5, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Harpy', manaCost: 11, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
+    { name: 'Giant Spider', manaCost: 22, initialSpellLevel: 7, currentSpellLevel: 7, category: 'creature', duration: 'permanent' },
+    { name: 'Zombie', manaCost: 16, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Ghost', manaCost: 14, initialSpellLevel: 1, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
+    { name: 'Vampire', manaCost: 29, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
+    { name: 'Spectre', manaCost: 29, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
+    { name: 'Demon', manaCost: 40, initialSpellLevel: 4, currentSpellLevel: 4, category: 'creature', duration: 'permanent' }
   ]
 
   // --- POTIONS (4 turns except healing) ---
@@ -60,6 +60,12 @@ export function buildSpellbook() {
   //   { name: 'Teleport', manaCost: 16, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
   //   { name: 'Magic Eye', manaCost: 8, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
   //   { name: 'Magic Shield', manaCost: 6, currentSpellLevel: 5, category: 'utility', duration: 4 }
+}
+
+export function resetSpellbook(spellbook) {
+  spellbook.forEach(spell => {
+    spell.currentSpellLevel = spell.initialSpellLevel
+  })
 }
 
 export const SPELLBOOK = buildSpellbook()
