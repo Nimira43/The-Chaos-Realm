@@ -22,9 +22,7 @@ export default function useMapLoader({
     setTerrainLayer(generated)
     const objects = generated.map(row => row.map(() => null))
 
-    resetSpellbook(SPELLBOOK)
-    resetSpellbook(ENEMY_SPELLBOOK)
-
+    // Place player wizard
     PLAYER.x = 16
     PLAYER.y = 16
     PLAYER.ap = PLAYER.max_ap
@@ -37,6 +35,8 @@ export default function useMapLoader({
       owner: 'player'
     }
 
+    // Place enemy wizard
+    ENEMY_WIZARD.x = 20
     ENEMY_WIZARD.y = 20
     ENEMY_WIZARD.ap = ENEMY_WIZARD.max_ap
     ENEMY_WIZARD.current_mana = ENEMY_WIZARD.max_mana
@@ -50,6 +50,8 @@ export default function useMapLoader({
     }
 
     setEnemyPosition({ x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y })
+
+    // Finalise
     setObjectLayer(objects)
 
     const start = { x: PLAYER.x, y: PLAYER.y }
@@ -59,13 +61,26 @@ export default function useMapLoader({
     setAp(PLAYER.ap)
     setRound(1)
 
+    // Fresh world — both spellbooks return to their starting levels. Done
+    // LAST and defensively, so a problem here can never prevent the wizards
+    // from being placed above.
+    try {
+      resetSpellbook(SPELLBOOK)
+      resetSpellbook(ENEMY_SPELLBOOK)
+    } catch (err) {
+      console.error('Failed to reset spellbooks on restart:', err)
+    }
+
     console.log('Generated map size:', generated.length, generated[0].length)
     console.log('RESTART GAME CALLED')
   }
 
+
+  // Load handcrafted map from JSON
   const loadHandcraftedMap = (jsonMap) => {
     const height = jsonMap.length
     const width = jsonMap[0].length
+
     const terrain = []
     const objects = []
     let playerStart = null
@@ -95,10 +110,13 @@ export default function useMapLoader({
         }
       }
     }
-    setTerrainLayer(terrain)
-    resetSpellbook(SPELLBOOK)
-    resetSpellbook(ENEMY_SPELLBOOK)
 
+    // Apply terrain
+    setTerrainLayer(terrain)
+
+    // The player ALWAYS needs a definite position on the new map — never leave
+    // PLAYER.x/y pointing at wherever it happened to be on the previous map.
+    // If the map has no explicit playerWizard tile, fall back to its centre.
     const resolvedPlayerStart = playerStart || {
       x: Math.floor(width / 2),
       y: Math.floor(height / 2)
@@ -123,6 +141,9 @@ export default function useMapLoader({
     setPlayerPosition(resolvedPlayerStart)
     setCursor(resolvedPlayerStart)
 
+    // Enemy wizard — only place one if the map actually has a tile for it.
+    // If not, explicitly clear enemyPosition rather than leaving a stale one
+    // pointing at a spot on a completely different map.
     if (enemyStart) {
       ENEMY_WIZARD.x = enemyStart.x
       ENEMY_WIZARD.y = enemyStart.y
@@ -143,11 +164,21 @@ export default function useMapLoader({
     }
 
     setObjectLayer(objects)
+
     setAp(PLAYER.ap)
     setRound(1)
     setSelected(null)
+
+    // Fresh world — same reset as restartGame, done last and defensively
+    try {
+      resetSpellbook(SPELLBOOK)
+      resetSpellbook(ENEMY_SPELLBOOK)
+    } catch (err) {
+      console.error('Failed to reset spellbooks on map load:', err)
+    }
   }
 
+  // Load map from file
   const loadMapFromFile = async () => {
     try {
       const res = await fetch(`/created-maps/${mapFilename}.json`)

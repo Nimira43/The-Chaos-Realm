@@ -62,10 +62,20 @@ export function buildSpellbook() {
   //   { name: 'Magic Shield', manaCost: 6, currentSpellLevel: 5, category: 'utility', duration: 4 }
 }
 
+// Restores every spell in a spellbook back to its starting level, in place.
+// Kept as a plain mutation (not returning a new array) so the SAME array
+// reference that's already imported everywhere stays valid — nothing needs
+// to re-fetch SPELLBOOK/ENEMY_SPELLBOOK after calling this.
 export function resetSpellbook(spellbook) {
+  if (!Array.isArray(spellbook)) {
+    console.warn('resetSpellbook called with something that is not an array:', spellbook)
+    return
+  }
+
   spellbook.forEach(spell => {
     spell.currentSpellLevel = spell.initialSpellLevel
   })
 }
 
 export const SPELLBOOK = buildSpellbook()
+
