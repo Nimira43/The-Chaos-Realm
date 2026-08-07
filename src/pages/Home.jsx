@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 export default function Home() {
   return (
     <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1>The Chaos Realm</h1>
+      <h1 className='logo'>
+        The Chaos Realm
+      </h1>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '40px' }}>
         <Link to='/game'>

@@ -30,6 +30,13 @@ body {
   color: var(--light);
 }
 
+.logo {
+  color: var(--main);
+  font-size: 48px;
+  text-align: center;
+  font-family: 'Kaushan Script', cursive;
+}
+
 /* Main Layout Grid */
 
 #game-container {
