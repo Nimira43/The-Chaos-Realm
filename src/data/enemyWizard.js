@@ -24,6 +24,7 @@ export const ENEMY_WIZARD = {
   water_type: false,
   rock_type: false,
   owner: 'enemy',
+  wanderTarget: null, 
 }
 
 /*
