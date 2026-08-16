@@ -98,6 +98,7 @@ export default function useGameEngine() {
     terrainLayer,
     objectLayer,
     enemyPosition,
+    round,
     setAp,
     setRound,
     setObjectLayer,

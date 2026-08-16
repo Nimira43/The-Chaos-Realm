@@ -4,6 +4,7 @@ import { PLAYER } from '../data/player.js'
 import useGameEngine from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import { getMovementCost } from '../engine/terrain.js'
+import { MAX_ROUNDS } from '../engine/useTurnSystem.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -28,6 +29,8 @@ export default function GameEngine() {
     restartGame,
     loadMapFromFile
   } = useGameEngine()
+
+  const turnLimitReached = round >= MAX_ROUNDS
 
   useEffect(() => {
     restartGame()
@@ -102,8 +105,20 @@ export default function GameEngine() {
       <div id='right-panel'>
         <div id='right-middle'>
           <div id='turn-counter'>
-            Turn {round} / 30
+            Turn {round} / {MAX_ROUNDS}
           </div>
+          {turnLimitReached && (
+            <div
+              style={{
+                textAlign: 'center',
+                color: 'var(--main)',
+                fontSize: '20px',
+                marginTop: '4px'
+              }}
+            >
+              Turn limit reached
+            </div>
+          )}
         </div>
 
         <div id='player-ui'>
@@ -119,7 +134,7 @@ export default function GameEngine() {
             </div>
           </div>
 
-          <button id='end-turn-btn' onClick={handleEndTurnClick}>
+          <button id='end-turn-btn' onClick={handleEndTurnClick} disabled={turnLimitReached}>
             End Turn
           </button>
         </div>

@@ -2,8 +2,8 @@ export const ENEMY_WIZARD = {
   x: 0,
   y: 0,
   name: 'Archon Pyre',
-  max_ap: 336,
-  ap: 336,
+  max_ap: 50,
+  ap: 50,
   max_mana: 600,
   current_mana: 600,
   stamina: 70,
@@ -24,7 +24,7 @@ export const ENEMY_WIZARD = {
   water_type: false,
   rock_type: false,
   owner: 'enemy',
-  wanderTarget: null, 
+  wanderTarget: null,
 }
 
 /*

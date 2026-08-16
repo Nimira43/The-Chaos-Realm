@@ -262,7 +262,10 @@ canvas {
   background: var(--main);
 }
 
-/* NEW — Creature Info Block */
+#end-turn-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .creature-info {
   background: var(--grey-1);

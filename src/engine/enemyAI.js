@@ -3,9 +3,10 @@ import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { PLAYER } from '../data/player.js'
 import { CREATURES } from '../data/creatures.js'
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
-import { wrap } from './utils.js'
+import { wrap, wrappedManhattanDistance } from './utils.js'
 import { castSpell } from './spellCaster.js'
 import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
+import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 
 const SIGHT_RANGE = 10
 const WANDER_RADIUS = 10
@@ -17,19 +18,14 @@ function chebyshevDist(ax, ay, bx, by) {
 }
 
 function findNearestPlayerTarget(objectLayer, originX, originY) {
-  let nearest = {
-    x: PLAYER.x,
-    y: PLAYER.y,
-    type: 'player'
-  }
-
-  let bestDist = Math.abs(PLAYER.x - originX) + Math.abs(PLAYER.y - originY)
+  let nearest = { x: PLAYER.x, y: PLAYER.y, type: 'player' }
+  let bestDist = wrappedManhattanDistance(originX, originY, PLAYER.x, PLAYER.y, MAP_WIDTH, MAP_HEIGHT)
 
   for (let y = 0; y < objectLayer.length; y++) {
     for (let x = 0; x < objectLayer[y].length; x++) {
       const cell = objectLayer[y][x]
       if (cell && cell.type === 'creature' && cell.owner === 'player') {
-        const dist = Math.abs(x - originX) + Math.abs(y - originY)
+        const dist = wrappedManhattanDistance(originX, originY, x, y, MAP_WIDTH, MAP_HEIGHT)
         if (dist < bestDist) {
           bestDist = dist
           nearest = { x, y, type: 'creature' }
@@ -41,7 +37,7 @@ function findNearestPlayerTarget(objectLayer, originX, originY) {
   return { target: nearest, dist: bestDist }
 }
 
-function pickWanderTarget(originX, originY, terrainLayer, entity) {
+function pickWanderTarget(originX, originY, terrainLayer, objectLayer, entity) {
   for (let i = 0; i < WANDER_ATTEMPTS; i++) {
     const dx = Math.floor(Math.random() * (WANDER_RADIUS * 2 + 1)) - WANDER_RADIUS
     const dy = Math.floor(Math.random() * (WANDER_RADIUS * 2 + 1)) - WANDER_RADIUS
@@ -50,8 +46,7 @@ function pickWanderTarget(originX, originY, terrainLayer, entity) {
     const x = wrap(originX + dx, MAP_WIDTH)
     const y = wrap(originY + dy, MAP_HEIGHT)
 
-    const cost = getMovementCost(terrainLayer[y][x], entity)
-    if (cost < 999) {
+    if (getMovementCost(terrainLayer[y][x], entity) < 999 && objectLayer[y][x] === null) {
       return { x, y }
     }
   }
@@ -59,102 +54,33 @@ function pickWanderTarget(originX, originY, terrainLayer, entity) {
   return null
 }
 
-function moveEnemyWizard(terrainLayer, objectLayer) {
+function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
   let currentLayer = objectLayer
+  let remainingAp = ap
   let moved = false
   let lastPosition = null
-  let defeatedTarget = null
   let selfDefeated = false
+  const frames = []
 
-  while (ENEMY_WIZARD.ap > 0) {
-    const { target, dist } = findNearestPlayerTarget(currentLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
-    const seekingPlayer = dist <= SIGHT_RANGE
+  for (const step of path) {
+    if (remainingAp <= 0) break
 
-    let destX, destY
+    const terrainType = terrainLayer[step.y][step.x]
+    const cost = getMovementCost(terrainType, onStep.entity())
 
-    if (seekingPlayer) {
-      destX = target.x
-      destY = target.y
-      ENEMY_WIZARD.wanderTarget = null 
-    } else {
-      const reachedWander =
-        ENEMY_WIZARD.wanderTarget &&
-        ENEMY_WIZARD.x === ENEMY_WIZARD.wanderTarget.x &&
-        ENEMY_WIZARD.y === ENEMY_WIZARD.wanderTarget.y
+    if (cost > remainingAp) break
+    if (currentLayer[step.y][step.x] !== null) break // something's since moved in
 
-      if (!ENEMY_WIZARD.wanderTarget || reachedWander) {
-        ENEMY_WIZARD.wanderTarget = pickWanderTarget(ENEMY_WIZARD.x, ENEMY_WIZARD.y, terrainLayer, ENEMY_WIZARD)
-      }
-
-      if (!ENEMY_WIZARD.wanderTarget) break 
-
-      destX = ENEMY_WIZARD.wanderTarget.x
-      destY = ENEMY_WIZARD.wanderTarget.y
-    }
-
-    if (seekingPlayer) {
-      const adjacency = chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, destX, destY)
-
-      if (adjacency <= 1) {
-        if (ENEMY_WIZARD.ap >= ATTACK_AP_COST) {
-          const result = resolveAttack({
-            objectLayer: currentLayer,
-            attackerPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
-            defenderPos: { x: destX, y: destY }
-          })
-
-          currentLayer = result.objectLayer
-          ENEMY_WIZARD.ap -= ATTACK_AP_COST
-
-          if (result.defeated) defeatedTarget = result.defenderType
-        }
-        break
-      }
-    } else if (ENEMY_WIZARD.x === destX && ENEMY_WIZARD.y === destY) {
-      break
-    }
-
-    const dx = destX - ENEMY_WIZARD.x
-    const dy = destY - ENEMY_WIZARD.y
-
-    const stepX = wrap(ENEMY_WIZARD.x + Math.sign(dx), MAP_WIDTH)
-    const stepY = wrap(ENEMY_WIZARD.y + Math.sign(dy), MAP_HEIGHT)
-
-    const terrainType = terrainLayer[stepY][stepX]
-    const cost = getMovementCost(terrainType, ENEMY_WIZARD)
-
-    if (cost >= 999) {
-      if (!seekingPlayer) ENEMY_WIZARD.wanderTarget = null
-      break
-    }
-    if (cost > ENEMY_WIZARD.ap) break
-    if (currentLayer[stepY][stepX] !== null) {
-      if (!seekingPlayer) ENEMY_WIZARD.wanderTarget = null
-      break
-    }
-
-    const newLayer = currentLayer.map(row => [...row])
-    newLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = null
-
-    ENEMY_WIZARD.x = stepX
-    ENEMY_WIZARD.y = stepY
-    ENEMY_WIZARD.ap -= cost
-
-    newLayer[stepY][stepX] = {
-      type: 'enemyWizard',
-      name: 'Enemy Wizard',
-      owner: 'enemy',
-      ref: ENEMY_WIZARD
-    }
-
-    currentLayer = newLayer
+    remainingAp -= cost
+    currentLayer = onStep.move(currentLayer, step, remainingAp)
     moved = true
-    lastPosition = { x: stepX, y: stepY }
+    lastPosition = step
+    frames.push(currentLayer)
 
     if (terrainType === 'lava') {
-      const lavaResult = applyLavaDamage(currentLayer, { x: stepX, y: stepY })
+      const lavaResult = applyLavaDamage(currentLayer, step)
       currentLayer = lavaResult.objectLayer
-
+      frames.push(currentLayer)
       if (lavaResult.defeated) {
         selfDefeated = true
         break
@@ -162,7 +88,111 @@ function moveEnemyWizard(terrainLayer, objectLayer) {
     }
   }
 
-  return { objectLayer: currentLayer, moved, position: lastPosition, defeatedTarget, selfDefeated }
+  return { objectLayer: currentLayer, ap: remainingAp, moved, lastPosition, selfDefeated, frames }
+}
+
+function moveEnemyWizard(terrainLayer, objectLayer) {
+  const { target, dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+  const seekingPlayer = dist <= SIGHT_RANGE
+
+  let path = []
+
+  if (seekingPlayer) {
+    ENEMY_WIZARD.wanderTarget = null
+    path = findPathToNearestGoal({
+      terrainLayer,
+      objectLayer,
+      start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+      goals: getAdjacentTiles(target.x, target.y),
+      entity: ENEMY_WIZARD
+    })
+  }
+
+  if (!seekingPlayer || path.length === 0) {
+    const reached =
+      ENEMY_WIZARD.wanderTarget &&
+      ENEMY_WIZARD.x === ENEMY_WIZARD.wanderTarget.x &&
+      ENEMY_WIZARD.y === ENEMY_WIZARD.wanderTarget.y
+
+    if (!ENEMY_WIZARD.wanderTarget || reached) {
+      ENEMY_WIZARD.wanderTarget = pickWanderTarget(ENEMY_WIZARD.x, ENEMY_WIZARD.y, terrainLayer, objectLayer, ENEMY_WIZARD)
+    }
+
+    if (ENEMY_WIZARD.wanderTarget) {
+      path = findPathToNearestGoal({
+        terrainLayer,
+        objectLayer,
+        start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+        goals: [ENEMY_WIZARD.wanderTarget],
+        entity: ENEMY_WIZARD
+      })
+
+      if (path.length === 0) ENEMY_WIZARD.wanderTarget = null // truly unreachable — drop it, try fresh next turn
+    }
+  }
+
+  if (path.length > 0) {
+    console.debug(
+      '[enemy wizard] path:',
+      path.map(p => `${p.x},${p.y} (${terrainLayer[p.y][p.x]})`).join(' -> ')
+    )
+  }
+
+  const walkResult = walkPath({
+    path,
+    ap: ENEMY_WIZARD.ap,
+    terrainLayer,
+    objectLayer,
+    onStep: {
+      entity: () => ENEMY_WIZARD,
+      move: (layer, step) => {
+        const newLayer = layer.map(row => [...row])
+        newLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = null
+        ENEMY_WIZARD.x = step.x
+        ENEMY_WIZARD.y = step.y
+        newLayer[step.y][step.x] = {
+          type: 'enemyWizard',
+          name: 'Enemy Wizard',
+          owner: 'enemy',
+          ref: ENEMY_WIZARD
+        }
+        return newLayer
+      }
+    }
+  })
+
+  ENEMY_WIZARD.ap = walkResult.ap
+
+  let currentLayer = walkResult.objectLayer
+  let defeatedTarget = null
+  const frames = [...walkResult.frames]
+
+  if (!walkResult.selfDefeated && seekingPlayer) {
+    const { target: freshTarget } = findNearestPlayerTarget(currentLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+    const adjacency = chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, freshTarget.x, freshTarget.y)
+
+    if (adjacency <= 1 && ENEMY_WIZARD.ap >= ATTACK_AP_COST) {
+      const result = resolveAttack({
+        objectLayer: currentLayer,
+        attackerPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+        defenderPos: { x: freshTarget.x, y: freshTarget.y }
+      })
+
+      currentLayer = result.objectLayer
+      ENEMY_WIZARD.ap -= ATTACK_AP_COST
+      frames.push(currentLayer)
+      if (result.defeated) defeatedTarget = result.defenderType
+    }
+  }
+
+  return {
+    objectLayer: currentLayer,
+    moved: walkResult.moved,
+    position: walkResult.lastPosition,
+    defeatedTarget,
+    selfDefeated: walkResult.selfDefeated,
+    frames
+  }
 }
 
 function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
@@ -170,7 +200,7 @@ function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
   if (x < 0 || x >= terrainLayer[0].length) return false
 
   const terrain = terrainLayer[y][x]
-  const blockedTerrain = ['wall', 'water', 'door', 'mountain']
+  const blockedTerrain = ['wall', 'water', 'door', 'mountain', 'lava']
   if (blockedTerrain.includes(terrain)) return false
 
   if (objectLayer[y][x] !== null) return false
@@ -235,141 +265,132 @@ export function runEnemyWizardAI(terrainLayer, objectLayer) {
       moved: moveResult.moved,
       position: moveResult.position,
       defeatedTarget: moveResult.defeatedTarget,
-      selfDefeated: true
+      selfDefeated: true,
+      frames: moveResult.frames
     }
   }
 
   const castResult = castEnemyWizardSpell(terrainLayer, moveResult.objectLayer)
+  const frames = castResult.cast ? [...moveResult.frames, castResult.objectLayer] : moveResult.frames
 
   return {
     objectLayer: castResult.objectLayer,
     moved: moveResult.moved,
     position: moveResult.position,
     defeatedTarget: moveResult.defeatedTarget,
-    selfDefeated: false
+    selfDefeated: false,
+    frames
   }
 }
 
 function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
-  let x = startX
-  let y = startY
-  let workingLayer = objectLayer
-  let moved = false
-  let defeatedTarget = null
-  let selfDefeated = false
+  const creature = objectLayer[startY][startX]
+  if (!creature) return { objectLayer, moved: false, defeatedTarget: null, selfDefeated: false, frames: [] }
 
-  let creature = workingLayer[y][x]
-  if (!creature) return { objectLayer: workingLayer, moved, defeatedTarget, selfDefeated }
+  const { target, dist } = findNearestPlayerTarget(objectLayer, startX, startY)
+  const seekingPlayer = dist <= SIGHT_RANGE
 
-  let ap = creature.ap
   let wanderTarget = creature.wanderTarget ?? null
+  let path = []
 
-  while (ap > 0) {
-    const { target, dist } = findNearestPlayerTarget(workingLayer, x, y)
-    const seekingPlayer = dist <= SIGHT_RANGE
+  if (seekingPlayer) {
+    wanderTarget = null
+    path = findPathToNearestGoal({
+      terrainLayer,
+      objectLayer,
+      start: { x: startX, y: startY },
+      goals: getAdjacentTiles(target.x, target.y),
+      entity: creature.stats
+    })
+  }
 
-    let destX, destY
+  if (!seekingPlayer || path.length === 0) {
+    const reached = wanderTarget && startX === wanderTarget.x && startY === wanderTarget.y
 
-    if (seekingPlayer) {
-      destX = target.x
-      destY = target.y
-      wanderTarget = null
-    } else {
-      const reachedWander = wanderTarget && x === wanderTarget.x && y === wanderTarget.y
-
-      if (!wanderTarget || reachedWander) {
-        wanderTarget = pickWanderTarget(x, y, terrainLayer, creature.stats)
-      }
-
-      if (!wanderTarget) break
-
-      destX = wanderTarget.x
-      destY = wanderTarget.y
+    if (!wanderTarget || reached) {
+      wanderTarget = pickWanderTarget(startX, startY, terrainLayer, objectLayer, creature.stats)
     }
 
-    if (seekingPlayer) {
-      const adjacency = chebyshevDist(x, y, destX, destY)
+    if (wanderTarget) {
+      path = findPathToNearestGoal({
+        terrainLayer,
+        objectLayer,
+        start: { x: startX, y: startY },
+        goals: [wanderTarget],
+        entity: creature.stats
+      })
 
-      if (adjacency <= 1) {
-        if (ap >= ATTACK_AP_COST) {
-          const result = resolveAttack({
-            objectLayer: workingLayer,
-            attackerPos: { x, y },
-            defenderPos: { x: destX, y: destY }
-          })
-
-          workingLayer = result.objectLayer
-          ap -= ATTACK_AP_COST
-
-          const attackerCell = workingLayer[y] ? workingLayer[y][x] : null
-          if (attackerCell) {
-            workingLayer = workingLayer.map(row => [...row])
-            workingLayer[y][x] = { ...attackerCell, ap, wanderTarget }
-          }
-
-          if (result.defeated) defeatedTarget = result.defenderType
-        }
-        break
-      }
-    } else if (x === destX && y === destY) {
-      break
-    }
-
-    const dx = destX - x
-    const dy = destY - y
-
-    const stepX = wrap(x + Math.sign(dx), MAP_WIDTH)
-    const stepY = wrap(y + Math.sign(dy), MAP_HEIGHT)
-
-    const terrainType = terrainLayer[stepY][stepX]
-    const cost = getMovementCost(terrainType, creature.stats)
-
-    if (cost >= 999) {
-      if (!seekingPlayer) wanderTarget = null
-      break
-    }
-    if (cost > ap) break
-    if (workingLayer[stepY][stepX] !== null) {
-      if (!seekingPlayer) wanderTarget = null
-      break
-    }
-
-    const newLayer = workingLayer.map(row => [...row])
-    const movingCreature = newLayer[y][x]
-    newLayer[y][x] = null
-
-    ap -= cost
-    x = stepX
-    y = stepY
-
-    newLayer[y][x] = {
-      ...movingCreature,
-      x,
-      y,
-      ap,
-      wanderTarget
-    }
-
-    workingLayer = newLayer
-    moved = true
-
-    if (terrainType === 'lava') {
-      const lavaResult = applyLavaDamage(workingLayer, { x, y })
-      workingLayer = lavaResult.objectLayer
-
-      if (lavaResult.defeated) {
-        selfDefeated = true
-        break
-      }
+      if (path.length === 0) wanderTarget = null
     }
   }
 
-  return { objectLayer: workingLayer, moved, defeatedTarget, selfDefeated }
+  let finalX = startX
+  let finalY = startY
+
+  const walkResult = walkPath({
+    path,
+    ap: creature.ap,
+    terrainLayer,
+    objectLayer,
+    onStep: {
+      entity: () => creature.stats,
+      move: (layer, step, remainingAp) => {
+        const newLayer = layer.map(row => [...row])
+        const moving = newLayer[finalY][finalX]
+        newLayer[finalY][finalX] = null
+        finalX = step.x
+        finalY = step.y
+        newLayer[finalY][finalX] = { ...moving, x: finalX, y: finalY, ap: remainingAp, wanderTarget }
+        return newLayer
+      }
+    }
+  })
+
+  let workingLayer = walkResult.objectLayer
+  let ap = walkResult.ap
+  let defeatedTarget = null
+  const frames = [...walkResult.frames]
+
+  if (!walkResult.moved) {
+    const currentCell = workingLayer[finalY][finalX]
+    if (currentCell) {
+      workingLayer = workingLayer.map(row => [...row])
+      workingLayer[finalY][finalX] = { ...currentCell, wanderTarget }
+    }
+  }
+
+  if (!walkResult.selfDefeated && seekingPlayer) {
+    const { target: freshTarget } = findNearestPlayerTarget(workingLayer, finalX, finalY)
+    const adjacency = chebyshevDist(finalX, finalY, freshTarget.x, freshTarget.y)
+
+    if (adjacency <= 1 && ap >= ATTACK_AP_COST) {
+      const result = resolveAttack({
+        objectLayer: workingLayer,
+        attackerPos: { x: finalX, y: finalY },
+        defenderPos: { x: freshTarget.x, y: freshTarget.y }
+      })
+
+      workingLayer = result.objectLayer
+      ap -= ATTACK_AP_COST
+
+      const attackerCell = workingLayer[finalY] ? workingLayer[finalY][finalX] : null
+      if (attackerCell) {
+        workingLayer = workingLayer.map(row => [...row])
+        workingLayer[finalY][finalX] = { ...attackerCell, ap, wanderTarget }
+      }
+
+      frames.push(workingLayer)
+      if (result.defeated) defeatedTarget = result.defenderType
+    }
+  }
+
+  return { objectLayer: workingLayer, moved: walkResult.moved, defeatedTarget, selfDefeated: walkResult.selfDefeated, frames }
 }
 
 export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
   let workingLayer = objectLayer
   const defeatedTargets = []
+  const frames = []
 
   const startingPositions = []
   for (let y = 0; y < workingLayer.length; y++) {
@@ -384,8 +405,10 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
   startingPositions.forEach(({ x, y }) => {
     const result = moveCreatureToward(terrainLayer, workingLayer, x, y)
     workingLayer = result.objectLayer
+    frames.push(...result.frames)
     if (result.defeatedTarget) defeatedTargets.push(result.defeatedTarget)
   })
 
-  return { objectLayer: workingLayer, defeatedTargets }
+  return { objectLayer: workingLayer, defeatedTargets, frames }
 }
+
