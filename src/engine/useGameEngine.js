@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { generateProceduralMap } from './map.js'
 import { PLAYER } from '../data/player.js'
 import useSpellcasting from './useSpellcasting.js'
@@ -41,6 +41,12 @@ export default function useGameEngine() {
   const [round, setRound] = useState(1)
   const [showLoadModal, setShowLoadModal] = useState(false)
   const [mapFilename, setMapFilename] = useState('')
+  const [portalStart, setPortalStart] = useState(null)
+  const [portalPosition, setPortalPosition] = useState(null)
+  const [gameStatus, setGameStatus] = useState('playing') // 'playing' | 'won' | 'lost'
+  const [gameOverMessage, setGameOverMessage] = useState('')
+  const [isAnimating, setIsAnimating] = useState(false)
+  const turnTokenRef = useRef(0)
 
   useInput({
     cursor,
@@ -55,7 +61,11 @@ export default function useGameEngine() {
     setAp,
     setObjectLayer,
     setEnemyPosition,
-    showLoadModal
+    showLoadModal,
+    gameStatus,
+    setGameStatus,
+    setGameOverMessage,
+    isAnimating
   })
 
   const {
@@ -70,6 +80,12 @@ export default function useGameEngine() {
     setSelected,
     setAp,
     setRound,
+    setPortalStart,
+    setPortalPosition,
+    setGameStatus,
+    setGameOverMessage,
+    setIsAnimating,
+    turnTokenRef,
     mapFilename
   })
 
@@ -99,10 +115,20 @@ export default function useGameEngine() {
     objectLayer,
     enemyPosition,
     round,
+    portalStart,
+    portalPosition,
+    gameStatus,
+    isAnimating,
     setAp,
     setRound,
     setObjectLayer,
-    setEnemyPosition
+    setEnemyPosition,
+    setTerrainLayer,
+    setPortalPosition,
+    setGameStatus,
+    setGameOverMessage,
+    setIsAnimating,
+    turnTokenRef
   })
 
   return {
@@ -117,6 +143,10 @@ export default function useGameEngine() {
     info,
     showLoadModal,
     mapFilename,
+    portalPosition,
+    gameStatus,
+    gameOverMessage,
+    isAnimating,
     castSpellForPlayer,
     setShowLoadModal,
     setMapFilename,

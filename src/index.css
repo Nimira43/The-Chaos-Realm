@@ -30,13 +30,6 @@ body {
   color: var(--light);
 }
 
-.logo {
-  color: var(--main);
-  font-size: 48px;
-  text-align: center;
-  font-family: 'Kaushan Script', cursive;
-}
-
 /* Main Layout Grid */
 
 #game-container {
@@ -267,6 +260,8 @@ canvas {
   cursor: not-allowed;
 }
 
+/* Creature Info Block */
+
 .creature-info {
   background: var(--grey-1);
   border: 1px solid var(--main);
@@ -336,7 +331,7 @@ canvas {
   background: var(--main);
 }
 
-/* Load Level Modal */
+/* Load Level Modal / Game Over Modal (shared) */
 
 .modal {
   position: fixed;
@@ -417,6 +412,25 @@ canvas {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* Game Over modal — victory/defeat colour variants */
+
+.game-over-content.victory {
+  border-color: var(--main);
+  box-shadow: 0 0 20px var(--main-dark);
+}
+
+.game-over-content.victory h2 {
+  color: var(--light);
+}
+
+.game-over-content.defeat {
+  border-color: var(--main);
+}
+
+.game-over-content.defeat h2 {
+  color: var(--main);
 }
 
 /* Map Editor */

@@ -4,7 +4,7 @@ import { PLAYER } from '../data/player.js'
 import useGameEngine from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import { getMovementCost } from '../engine/terrain.js'
-import { MAX_ROUNDS } from '../engine/useTurnSystem.js'
+import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -22,6 +22,10 @@ export default function GameEngine() {
     info,
     showLoadModal,
     mapFilename,
+    portalPosition,
+    gameStatus,
+    gameOverMessage,
+    isAnimating,
     castSpellForPlayer,
     setShowLoadModal,
     setMapFilename,
@@ -30,7 +34,8 @@ export default function GameEngine() {
     loadMapFromFile
   } = useGameEngine()
 
-  const turnLimitReached = round >= MAX_ROUNDS
+  const gameOver = gameStatus !== 'playing'
+  const actionsLocked = gameOver || isAnimating
 
   useEffect(() => {
     restartGame()
@@ -39,13 +44,14 @@ export default function GameEngine() {
   useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected)
 
   function handleCastClick(e) {
-    if (!selectedSpell) return
+    if (!selectedSpell || actionsLocked) return
     castSpellForPlayer(selectedSpell)
     setSelectedSpell(null)
     e.currentTarget.blur()
   }
 
   function handleEndTurnClick(e) {
+    if (actionsLocked) return
     endTurn()
     e.currentTarget.blur()
   }
@@ -89,9 +95,9 @@ export default function GameEngine() {
           </div>
 
           <button
-            className={`cast-btn ${selectedSpell ? 'active' : 'disabled'}`}
+            className={`cast-btn ${selectedSpell && !actionsLocked ? 'active' : 'disabled'}`}
             onClick={handleCastClick}
-            disabled={!selectedSpell}
+            disabled={!selectedSpell || actionsLocked}
           >
             Cast Selected Spell
           </button>
@@ -107,16 +113,19 @@ export default function GameEngine() {
           <div id='turn-counter'>
             Turn {round} / {MAX_ROUNDS}
           </div>
-          {turnLimitReached && (
-            <div
-              style={{
-                textAlign: 'center',
-                color: 'var(--main)',
-                fontSize: '20px',
-                marginTop: '4px'
-              }}
-            >
-              Turn limit reached
+          {isAnimating && !gameOver && (
+            <div style={{ textAlign: 'center', color: 'var(--grey-3)', fontSize: '16px', marginTop: '4px' }}>
+              Enemy turn…
+            </div>
+          )}
+          {!isAnimating && !portalPosition && !gameOver && (
+            <div style={{ textAlign: 'center', color: 'var(--grey-3)', fontSize: '16px', marginTop: '4px' }}>
+              Portal appears: Turn {PORTAL_TURN}
+            </div>
+          )}
+          {!isAnimating && portalPosition && !gameOver && (
+            <div style={{ textAlign: 'center', color: 'var(--main)', fontSize: '16px', marginTop: '4px' }}>
+              The portal has opened!
             </div>
           )}
         </div>
@@ -134,8 +143,8 @@ export default function GameEngine() {
             </div>
           </div>
 
-          <button id='end-turn-btn' onClick={handleEndTurnClick} disabled={turnLimitReached}>
-            End Turn
+          <button id='end-turn-btn' onClick={handleEndTurnClick} disabled={actionsLocked}>
+            {isAnimating ? 'Enemy Turn…' : 'End Turn'}
           </button>
         </div>
 
@@ -192,7 +201,9 @@ export default function GameEngine() {
 
         <div id='right-lower'>
           <div className='info-panel'>
-            <div>Terrain: {info.terrain}</div>
+            <div>
+              Terrain: {info.terrain}
+            </div>
 
             {info.occupiers.length === 0 && <div>Occupier: None</div>}
 
@@ -243,6 +254,24 @@ export default function GameEngine() {
                 (e) => { setShowLoadModal(false); e.currentTarget.blur() }
               }>
                 Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {gameOver && (
+          <div className='modal'>
+            <div className={`modal-content game-over-content ${gameStatus === 'won' ? 'victory' : 'defeat'}`}>
+              <h2>
+                {gameStatus === 'won' ? 'Victory!' : 'Defeated'}
+              </h2>
+
+              <p style={{ textAlign: 'center', fontSize: '20px', margin: 0 }}>
+                {gameOverMessage}
+              </p>
+
+              <button onClick={handleRestartClick}>
+                Play Again
               </button>
             </div>
           </div>

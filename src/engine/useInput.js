@@ -18,12 +18,18 @@ export default function useInput({
   setAp,
   setObjectLayer,
   setEnemyPosition,
-  showLoadModal
+  showLoadModal,
+  gameStatus,
+  setGameStatus,
+  setGameOverMessage,
+  isAnimating
 }) {
 
   useEffect(() => {
     function handleKey(e) {
       if (showLoadModal) return
+      if (gameStatus !== 'playing') return
+      if (isAnimating) return
 
       const active = document.activeElement
       const isTyping =
@@ -106,7 +112,7 @@ export default function useInput({
                 setEnemyPosition(null)
               }
             } else {
-              console.log("Player cannot move onto an occupied tile")
+              console.log('Player cannot move onto an occupied tile')
             }
             return
           }
@@ -135,6 +141,11 @@ export default function useInput({
             setAp(PLAYER.ap)
             setCursor(newPos)
             setPlayerPosition(newPos)
+
+            if (terrainLayer[newPos.y][newPos.x] === 'portal') {
+              setGameStatus('won')
+              setGameOverMessage('You reached the portal! Victory!')
+            }
           }
         }
         return
@@ -231,6 +242,10 @@ export default function useInput({
     setAp,
     setObjectLayer,
     setEnemyPosition,
-    showLoadModal
+    showLoadModal,
+    gameStatus,
+    setGameStatus,
+    setGameOverMessage,
+    isAnimating
   ])
 }
