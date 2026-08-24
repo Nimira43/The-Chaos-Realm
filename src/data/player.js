@@ -24,4 +24,3 @@ export const PLAYER = {
   water_type: false,
   rock_type: false,
 }
-

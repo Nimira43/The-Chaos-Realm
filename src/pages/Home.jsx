@@ -2,26 +2,23 @@ import { Link } from 'react-router-dom'
 
 export default function Home() {
   return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1 className='logo'>
+    <div className='home-container'>
+      <h1 className='home-logo'>
         The Chaos Realm
       </h1>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '40px' }}>
+      <div clasName='home-wrapper'>
         <Link to='/game'>
-          <button style={{ padding: '20px', fontSize: '20px', width: '300px' }}>
+          <button className='home-btn'>
             Game Engine
           </button>
         </Link>
-
         <Link to='/map-editor'>
-          <button style={{ padding: '20px', fontSize: '20px', width: '300px' }}>
+          <button className='home-btn'>
             Map Editor
           </button>
         </Link>
-
         <Link to='/wizard-editor'>
-          <button style={{ padding: '20px', fontSize: '20px', width: '300px' }}>
+          <button className='home-btn'>
             Wizard Editor
           </button>
         </Link>
