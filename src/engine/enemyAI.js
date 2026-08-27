@@ -69,7 +69,7 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
     const cost = getMovementCost(terrainType, onStep.entity())
 
     if (cost > remainingAp) break
-    if (currentLayer[step.y][step.x] !== null) break
+    if (currentLayer[step.y][step.x] !== null) break 
 
     remainingAp -= cost
     currentLayer = onStep.move(currentLayer, step, remainingAp)
@@ -91,13 +91,26 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
   return { objectLayer: currentLayer, ap: remainingAp, moved, lastPosition, selfDefeated, frames }
 }
 
-function moveEnemyWizard(terrainLayer, objectLayer) {
+function moveEnemyWizard(terrainLayer, objectLayer, portalPosition) {
   const { target, dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
   const seekingPlayer = dist <= SIGHT_RANGE
+  const adjacentToPlayerNow = seekingPlayer && chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, target.x, target.y) <= 1
+  const alreadyAtPortal = portalPosition && ENEMY_WIZARD.x === portalPosition.x && ENEMY_WIZARD.y === portalPosition.y
 
   let path = []
 
-  if (seekingPlayer) {
+  if (portalPosition && !adjacentToPlayerNow && !alreadyAtPortal) {
+    ENEMY_WIZARD.wanderTarget = null
+    path = findPathToNearestGoal({
+      terrainLayer,
+      objectLayer,
+      start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+      goals: [portalPosition],
+      entity: ENEMY_WIZARD
+    })
+  }
+
+  if (path.length === 0 && !alreadyAtPortal && seekingPlayer) {
     ENEMY_WIZARD.wanderTarget = null
     path = findPathToNearestGoal({
       terrainLayer,
@@ -108,7 +121,7 @@ function moveEnemyWizard(terrainLayer, objectLayer) {
     })
   }
 
-  if (!seekingPlayer || path.length === 0) {
+  if (path.length === 0 && !portalPosition && !alreadyAtPortal) {
     const reached =
       ENEMY_WIZARD.wanderTarget &&
       ENEMY_WIZARD.x === ENEMY_WIZARD.wanderTarget.x &&
@@ -258,8 +271,8 @@ function castEnemyWizardSpell(terrainLayer, objectLayer) {
   return { objectLayer: workingLayer, cast: true }
 }
 
-export function runEnemyWizardAI(terrainLayer, objectLayer) {
-  const moveResult = moveEnemyWizard(terrainLayer, objectLayer)
+export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition) {
+  const moveResult = moveEnemyWizard(terrainLayer, objectLayer, portalPosition)
 
   if (moveResult.selfDefeated) {
     return {
@@ -415,4 +428,3 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
 
   return { objectLayer: workingLayer, defeatedTargets, frames }
 }
-

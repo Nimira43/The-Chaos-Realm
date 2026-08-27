@@ -18,7 +18,7 @@ function playFrames(frames, setObjectLayer, turnTokenRef, token, onDone) {
   let i = 0
 
   function step() {
-    if (turnTokenRef.current !== token) return // superseded — stop here, don't apply more
+    if (turnTokenRef.current !== token) return
     setObjectLayer(frames[i])
     i++
     if (i < frames.length) {
@@ -83,7 +83,7 @@ export default function useTurnSystem({
   const endTurn = () => {
     if (gameStatus !== 'playing') return
     if (round >= MAX_ROUNDS) return
-    if (isAnimating) return // a turn is already in progress — ignore repeat clicks
+    if (isAnimating) return
 
     turnTokenRef.current += 1
     const myToken = turnTokenRef.current
@@ -150,7 +150,7 @@ export default function useTurnSystem({
     }
 
     if (enemyPosition) {
-      const wizardResult = runEnemyWizardAI(workingTerrain, workingLayer)
+      const wizardResult = runEnemyWizardAI(workingTerrain, workingLayer, activePortalPosition)
       workingLayer = wizardResult.objectLayer
       frames = frames.concat(wizardResult.frames)
 
@@ -193,7 +193,7 @@ export default function useTurnSystem({
     }
 
     playFrames(frames, setObjectLayer, turnTokenRef, myToken, () => {
-      if (turnTokenRef.current !== myToken) return // superseded mid-flight — don't stomp newer state
+      if (turnTokenRef.current !== myToken) return
       setObjectLayer(workingLayer)
       setIsAnimating(false)
     })
