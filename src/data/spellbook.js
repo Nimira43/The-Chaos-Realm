@@ -24,6 +24,7 @@ export function buildSpellbook() {
     { name: 'Giant Bat', manaCost: 5, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
     { name: 'Harpy', manaCost: 11, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
     { name: 'Giant Spider', manaCost: 22, initialSpellLevel: 7, currentSpellLevel: 7, category: 'creature', duration: 'permanent' },
+    { name: 'Cindermaw', manaCost: 18, initialSpellLevel: 3, currentSpellLevel: 3, category: 'creature', duration: 'permanent' },
     { name: 'Zombie', manaCost: 16, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
     { name: 'Ghost', manaCost: 14, initialSpellLevel: 1, currentSpellLevel: 1, category: 'creature', duration: 'permanent' },
     { name: 'Vampire', manaCost: 29, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
