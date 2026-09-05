@@ -6,6 +6,8 @@ const NEIGHBOUR_OFFSETS = [
   { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: -1, y: -1 }
 ]
 
+const LAVA_AVOIDANCE_PENALTY = 500
+
 export function getAdjacentTiles(x, y) {
   return NEIGHBOUR_OFFSETS.map(offset => ({
     x: wrap(x + offset.x, MAP_WIDTH),
@@ -13,7 +15,7 @@ export function getAdjacentTiles(x, y) {
   }))
 }
 
-export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals, entity, maxExplored = 1500 }) {
+export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals, entity, maxExplored = 1500, forbidLava = false }) {
   const goalSet = new Set(goals.map(g => `${g.x},${g.y}`))
   if (goalSet.size === 0) return []
 
@@ -57,7 +59,8 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
       if (visited.has(nKey)) continue
       if (objectLayer[ny][nx] !== null) continue
 
-      const cost = getMovementCost(terrainLayer[ny][nx], entity)
+      const terrainType = terrainLayer[ny][nx]
+      const cost = getMovementCost(terrainType, entity)
       if (cost >= 999) continue
 
       if (offset.x !== 0 && offset.y !== 0) {
@@ -67,7 +70,14 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
         if (flankACost >= 999 || flankBCost >= 999) continue
       }
 
-      const newCost = current.cost + cost
+      const isLava = terrainType === 'lava'
+      const lavaIsHazardHere = isLava && !entity?.lava_type
+
+      if (lavaIsHazardHere && forbidLava) continue
+
+      const pathCost = lavaIsHazardHere ? cost + LAVA_AVOIDANCE_PENALTY : cost
+
+      const newCost = current.cost + pathCost
       const known = bestCost.get(nKey)
 
       if (known === undefined || newCost < known) {
@@ -78,5 +88,5 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
     }
   }
 
-  return [] // no goal was reachable at all
+  return [] 
 }

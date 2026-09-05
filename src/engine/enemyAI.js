@@ -11,7 +11,7 @@ import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 const SIGHT_RANGE = 10
 const WANDER_RADIUS = 10
 const WANDER_ATTEMPTS = 10
-const CAST_CHANCE = 0.5 
+const CAST_CHANCE = 0.5
 
 function chebyshevDist(ax, ay, bx, by) {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by))
@@ -34,7 +34,10 @@ function findNearestPlayerTarget(objectLayer, originX, originY) {
     }
   }
 
-  return { target: nearest, dist: bestDist }
+  return {
+    target: nearest,
+    dist: bestDist
+  }
 }
 
 function pickWanderTarget(originX, originY, terrainLayer, objectLayer, entity) {
@@ -88,7 +91,14 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
     }
   }
 
-  return { objectLayer: currentLayer, ap: remainingAp, moved, lastPosition, selfDefeated, frames }
+  return {
+    objectLayer: currentLayer,
+    ap: remainingAp,
+    moved,
+    lastPosition,
+    selfDefeated,
+    frames
+  }
 }
 
 function moveEnemyWizard(terrainLayer, objectLayer, portalPosition) {
@@ -137,7 +147,8 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition) {
         objectLayer,
         start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
         goals: [ENEMY_WIZARD.wanderTarget],
-        entity: ENEMY_WIZARD
+        entity: ENEMY_WIZARD,
+        forbidLava: true
       })
 
       if (path.length === 0) ENEMY_WIZARD.wanderTarget = null
@@ -268,7 +279,10 @@ function castEnemyWizardSpell(terrainLayer, objectLayer) {
   ENEMY_WIZARD.current_mana -= cost
   spell.currentSpellLevel = Math.max(0, spell.currentSpellLevel - 1)
 
-  return { objectLayer: workingLayer, cast: true }
+  return {
+    objectLayer: workingLayer,
+    cast: true
+  }
 }
 
 export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition) {
@@ -300,7 +314,12 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition) {
 
 function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
   const creature = objectLayer[startY][startX]
-  if (!creature) return { objectLayer, moved: false, defeatedTarget: null, selfDefeated: false, frames: [] }
+  
+  if (!creature) return {
+    objectLayer, moved: false,
+    defeatedTarget: null,
+    selfDefeated: false, frames: []
+  }
 
   const { target, dist } = findNearestPlayerTarget(objectLayer, startX, startY)
   const seekingPlayer = dist <= SIGHT_RANGE
@@ -332,7 +351,8 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
         objectLayer,
         start: { x: startX, y: startY },
         goals: [wanderTarget],
-        entity: creature.stats
+        entity: creature.stats,
+        forbidLava: true
       })
 
       if (path.length === 0) wanderTarget = null
@@ -355,7 +375,13 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
         newLayer[finalY][finalX] = null
         finalX = step.x
         finalY = step.y
-        newLayer[finalY][finalX] = { ...moving, x: finalX, y: finalY, ap: remainingAp, wanderTarget }
+        newLayer[finalY][finalX] = {
+          ...moving,
+          x: finalX,
+          y: finalY,
+          ap: remainingAp,
+          wanderTarget
+        }
         return newLayer
       }
     }
@@ -401,7 +427,13 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
     }
   }
 
-  return { objectLayer: workingLayer, moved: walkResult.moved, defeatedTarget, selfDefeated: walkResult.selfDefeated, frames }
+  return {
+    objectLayer: workingLayer,
+    moved: walkResult.moved,
+    defeatedTarget,
+    selfDefeated: walkResult.selfDefeated,
+    frames
+  }
 }
 
 export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
@@ -426,5 +458,8 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
     if (result.defeatedTarget) defeatedTargets.push(result.defeatedTarget)
   })
 
-  return { objectLayer: workingLayer, defeatedTargets, frames }
+  return {
+    objectLayer: workingLayer,
+    defeatedTargets, frames
+  }
 }

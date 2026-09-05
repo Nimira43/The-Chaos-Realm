@@ -23,6 +23,7 @@ export const ENEMY_WIZARD = {
   wood_type: false,
   water_type: false,
   rock_type: false,
+  lava_type: false,
   owner: 'enemy',
   wanderTarget: null,
 }

@@ -20,6 +20,7 @@ function getCombatProfile(cell) {
       health: PLAYER.current_health,
       maxHealth: PLAYER.constitution,
       undead: PLAYER.undead,
+      lavaType: PLAYER.lava_type,
       apply: (newHealth) => { PLAYER.current_health = newHealth }
     }
   }
@@ -32,6 +33,7 @@ function getCombatProfile(cell) {
       health: ref.current_health,
       maxHealth: ref.constitution,
       undead: ref.undead,
+      lavaType: ref.lava_type,
       apply: (newHealth) => { ref.current_health = newHealth }
     }
   }
@@ -43,6 +45,7 @@ function getCombatProfile(cell) {
       health: cell.current_health,
       maxHealth: cell.stats.constitution,
       undead: cell.stats.undead,
+      lavaType: cell.stats.lava_type,
       apply: null
     }
   }
@@ -125,8 +128,16 @@ export function applyLavaDamage(objectLayer, pos) {
   const profile = getCombatProfile(cell)
   if (!profile) return { objectLayer, damage: 0, defeated: false }
 
+  if (profile.lavaType) {
+    return { objectLayer, damage: 0, defeated: false }
+  }
+
   const damage = Math.max(1, Math.ceil(profile.maxHealth * LAVA_DAMAGE_PERCENT))
   const result = applyDamageToCell(objectLayer, pos, damage)
 
-  return { objectLayer: result.objectLayer, damage: result.damage, defeated: result.defeated }
+  return {
+    objectLayer: result.objectLayer,
+    damage: result.damage,
+    defeated: result.defeated
+  }
 }
