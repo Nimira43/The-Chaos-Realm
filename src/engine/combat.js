@@ -5,6 +5,8 @@ export const ATTACK_AP_COST = 2
 const DAMAGE_ROLL_MAX = 6
 const LAVA_DAMAGE_PERCENT = 0.10
 
+export const FIRE_DAMAGE_PER_TURN = 8
+
 function rollDamage(attackerCombat, defenderDefence) {
   const swing = Math.floor(Math.random() * DAMAGE_ROLL_MAX) + 1
   return Math.max(1, (attackerCombat + swing) - defenderDefence)
@@ -55,10 +57,20 @@ function getCombatProfile(cell) {
 
 function applyDamageToCell(objectLayer, pos, damage) {
   const cell = objectLayer[pos.y][pos.x]
-  if (!cell) return { objectLayer, damage: 0, defeated: false, targetType: null }
+  if (!cell) return {
+    objectLayer,
+    damage: 0,
+    defeated: false,
+    targetType: null
+  }
 
   const profile = getCombatProfile(cell)
-  if (!profile) return { objectLayer, damage: 0, defeated: false, targetType: null }
+  if (!profile) return {
+    objectLayer,
+    damage: 0,
+    defeated: false,
+    targetType: null
+  }
 
   const newHealth = Math.max(0, profile.health - damage)
   const defeated = newHealth <= 0
@@ -80,7 +92,12 @@ function applyDamageToCell(objectLayer, pos, damage) {
       : { ...cell, current_health: newHealth }
   }
 
-  return { objectLayer: newLayer, damage, defeated, targetType: cell.type }
+  return {
+    objectLayer: newLayer,
+    damage,
+    defeated,
+    targetType: cell.type
+  }
 }
 
 export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
@@ -88,14 +105,26 @@ export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
 
   if (!attackerCell || !defenderCell) {
-    return { objectLayer, damage: 0, defeated: false, defenderType: null, blocked: false }
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: null,
+      blocked: false
+    }
   }
 
   const attackerProfile = getCombatProfile(attackerCell)
   const defenderProfile = getCombatProfile(defenderCell)
 
   if (!attackerProfile || !defenderProfile) {
-    return { objectLayer, damage: 0, defeated: false, defenderType: null, blocked: false }
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: null,
+      blocked: false
+    }
   }
 
   if (defenderProfile.undead && !attackerProfile.undead) {
@@ -123,13 +152,25 @@ export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
 
 export function applyLavaDamage(objectLayer, pos) {
   const cell = objectLayer[pos.y][pos.x]
-  if (!cell) return { objectLayer, damage: 0, defeated: false }
+  if (!cell) return {
+    objectLayer,
+    damage: 0,
+    defeated: false
+  }
 
   const profile = getCombatProfile(cell)
-  if (!profile) return { objectLayer, damage: 0, defeated: false }
+  if (!profile) return {
+    objectLayer,
+    damage: 0,
+    defeated: false
+  }
 
   if (profile.lavaType) {
-    return { objectLayer, damage: 0, defeated: false }
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false
+    }
   }
 
   const damage = Math.max(1, Math.ceil(profile.maxHealth * LAVA_DAMAGE_PERCENT))
@@ -139,5 +180,31 @@ export function applyLavaDamage(objectLayer, pos) {
     objectLayer: result.objectLayer,
     damage: result.damage,
     defeated: result.defeated
+  }
+}
+
+export function applyFireDamage(objectLayer, pos) {
+  const cell = objectLayer[pos.y][pos.x]
+  if (!cell) return {
+    objectLayer, damage: 0,
+    defeated: false,
+    targetType: null
+  }
+
+  const profile = getCombatProfile(cell)
+  if (!profile) return {
+    objectLayer,
+    damage: 0,
+    defeated: false,
+    targetType: null
+  }
+
+  const result = applyDamageToCell(objectLayer, pos, FIRE_DAMAGE_PER_TURN)
+
+  return {
+    objectLayer: result.objectLayer,
+    damage: result.damage,
+    defeated: result.defeated,
+    targetType: result.targetType
   }
 }

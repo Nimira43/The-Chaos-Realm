@@ -8,6 +8,7 @@ import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 export default function useMapLoader({
   setTerrainLayer,
   setObjectLayer,
+  setEffectLayer,
   setPlayerPosition,
   setCursor,
   setEnemyPosition,
@@ -30,6 +31,7 @@ export default function useMapLoader({
     const generated = generateProceduralMap()
     setTerrainLayer(generated)
     const objects = generated.map(row => row.map(() => null))
+    const effects = generated.map(row => row.map(() => null))
 
     resetSpellbook(SPELLBOOK)
     resetSpellbook(ENEMY_SPELLBOOK)
@@ -63,6 +65,7 @@ export default function useMapLoader({
     setEnemyPosition({ x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y })
 
     setObjectLayer(objects)
+    setEffectLayer(effects)
 
     const start = { x: PLAYER.x, y: PLAYER.y }
     setPlayerPosition(start)
@@ -97,6 +100,7 @@ export default function useMapLoader({
 
     const terrain = []
     const objects = []
+    const effects = []
     let playerStart = null
     let enemyStart = null
     let portalStart = null
@@ -104,9 +108,11 @@ export default function useMapLoader({
     for (let y = 0; y < height; y++) {
       terrain[y] = []
       objects[y] = []
+      effects[y] = []
 
       for (let x = 0; x < width; x++) {
         const tile = jsonMap[y][x]
+        effects[y][x] = null
 
         if (isTerrain(tile)) {
           terrain[y][x] = tile
@@ -180,6 +186,7 @@ export default function useMapLoader({
     }
 
     setObjectLayer(objects)
+    setEffectLayer(effects)
 
     setAp(PLAYER.ap)
     setRound(1)

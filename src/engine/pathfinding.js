@@ -1,7 +1,7 @@
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap } from './utils.js'
 
-const NEIGHBOUR_OFFSETS = [
+export const NEIGHBOUR_OFFSETS = [
   { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
   { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: -1, y: -1 }
 ]
@@ -76,7 +76,6 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
       if (lavaIsHazardHere && forbidLava) continue
 
       const pathCost = lavaIsHazardHere ? cost + LAVA_AVOIDANCE_PENALTY : cost
-
       const newCost = current.cost + pathCost
       const known = bestCost.get(nKey)
 
@@ -88,5 +87,5 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
     }
   }
 
-  return [] 
+  return []
 }

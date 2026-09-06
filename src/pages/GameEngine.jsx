@@ -17,6 +17,7 @@ export default function GameEngine() {
     round,
     terrainLayer,
     objectLayer,
+    effectLayer,
     cursor,
     selected,
     info,
@@ -41,7 +42,7 @@ export default function GameEngine() {
     restartGame()
   }, [])
 
-  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected)
+  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer)
 
   function handleCastClick(e) {
     if (!selectedSpell || actionsLocked) return

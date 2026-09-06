@@ -55,11 +55,65 @@ export function castCreatureSummonSpell({
   })
 }
 
+export function castMagicFireSpell({
+  casterPos,
+  spellLevel,
+  isTileIgnitable,
+  igniteTile
+}) {
+  const tileCount = SUMMON_COUNT_BY_LEVEL[spellLevel] || 1
+
+  const adjacentTiles = ADJACENT_OFFSETS.map(offset => ({
+    x: casterPos.x + offset.x,
+    y: casterPos.y + offset.y
+  }))
+
+  const validTiles = adjacentTiles.filter(tile => isTileIgnitable(tile))
+
+  let tilesToIgnite
+
+  if (validTiles.length <= tileCount) {
+    tilesToIgnite = validTiles
+  } else {
+    tilesToIgnite = []
+    const pool = [...validTiles]
+
+    while (tilesToIgnite.length < tileCount) {
+      const index = Math.floor(Math.random() * pool.length)
+      tilesToIgnite.push(pool[index])
+      pool.splice(index, 1)
+    }
+  }
+
+  tilesToIgnite.forEach(tile => {
+    igniteTile(tile)
+  })
+}
+
+function castEnvironmentSpell({ spell, casterPos, isTileIgnitable, igniteTile }) {
+  switch (spell.name) {
+    case 'Magic Fire':
+      castMagicFireSpell({
+        casterPos,
+        spellLevel: spell.currentSpellLevel,
+        isTileIgnitable,
+        igniteTile
+      })
+      break
+
+    default:
+      console.warn(`Unhandled environment spell: ${spell.name}`)
+      break
+  }
+}
+
 export function castSpell({
   spell,
   casterPos,
   isTileFree,
-  spawnCreature
+  spawnCreature,
+  isTileIgnitable,
+  igniteTile
 }) {
   if (!spell) {
     console.warn('castSpell called with no spell')
@@ -77,9 +131,12 @@ export function castSpell({
       })
       break
 
+    case 'environment':
+      castEnvironmentSpell({ spell, casterPos, isTileIgnitable, igniteTile })
+      break
+
     default:
       console.warn(`Unhandled spell category: ${spell.category}`)
       break
   }
 }
-

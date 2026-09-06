@@ -24,6 +24,10 @@ export default function useGameEngine() {
     return layer
   })
 
+  const [effectLayer, setEffectLayer] = useState(() =>
+    terrainLayer.map(row => row.map(() => null))
+  )
+
   const [playerPosition, setPlayerPosition] = useState(() => ({
     x: PLAYER.x,
     y: PLAYER.y
@@ -74,6 +78,7 @@ export default function useGameEngine() {
   } = useMapLoader({
     setTerrainLayer,
     setObjectLayer,
+    setEffectLayer,
     setPlayerPosition,
     setCursor,
     setEnemyPosition,
@@ -95,6 +100,7 @@ export default function useGameEngine() {
     playerPosition,
     enemyPosition,
     setObjectLayer,
+    setEffectLayer,
     PLAYER
   })
 
@@ -113,6 +119,7 @@ export default function useGameEngine() {
   const endTurn = useTurnSystem({
     terrainLayer,
     objectLayer,
+    effectLayer,
     enemyPosition,
     round,
     portalStart,
@@ -122,6 +129,7 @@ export default function useGameEngine() {
     setAp,
     setRound,
     setObjectLayer,
+    setEffectLayer,
     setEnemyPosition,
     setTerrainLayer,
     setPortalPosition,
@@ -136,6 +144,7 @@ export default function useGameEngine() {
     round,
     terrainLayer,
     objectLayer,
+    effectLayer,
     cursor,
     selected,
     playerPosition,

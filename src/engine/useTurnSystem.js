@@ -2,6 +2,7 @@ import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
 import { terrainCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
+import { tickFireEffects } from './environmentEffects.js'
 
 export const MAX_ROUNDS = 30
 export const PORTAL_TURN = Math.round(MAX_ROUNDS * 2 / 3)
@@ -62,6 +63,7 @@ function pickRandomPortalTile(terrainLayer, objectLayer) {
 export default function useTurnSystem({
   terrainLayer,
   objectLayer,
+  effectLayer,
   enemyPosition,
   round,
   portalStart,
@@ -71,6 +73,7 @@ export default function useTurnSystem({
   setAp,
   setRound,
   setObjectLayer,
+  setEffectLayer,
   setEnemyPosition,
   setTerrainLayer,
   setPortalPosition,
@@ -117,6 +120,7 @@ export default function useTurnSystem({
 
     let workingLayer = withCreatureAp
     let workingTerrain = terrainLayer
+    let workingEffectLayer = effectLayer
     let activePortalPosition = portalPosition
     let frames = []
 
@@ -150,8 +154,9 @@ export default function useTurnSystem({
     }
 
     if (enemyPosition) {
-      const wizardResult = runEnemyWizardAI(workingTerrain, workingLayer, activePortalPosition)
+      const wizardResult = runEnemyWizardAI(workingTerrain, workingLayer, activePortalPosition, workingEffectLayer)
       workingLayer = wizardResult.objectLayer
+      workingEffectLayer = wizardResult.effectLayer
       frames = frames.concat(wizardResult.frames)
 
       if (wizardResult.selfDefeated) {
@@ -187,6 +192,20 @@ export default function useTurnSystem({
       newMessage = 'Your wizard has fallen!'
     }
 
+    const fireResult = tickFireEffects(workingTerrain, workingLayer, workingEffectLayer)
+    workingLayer = fireResult.objectLayer
+    workingEffectLayer = fireResult.effectLayer
+    frames.push(workingLayer)
+
+    if (!newStatus && fireResult.defeatedTargets.includes('player')) {
+      newStatus = 'lost'
+      newMessage = 'Your wizard has burned to death!'
+    }
+
+    if (fireResult.defeatedTargets.includes('enemyWizard')) {
+      setEnemyPosition(null)
+    }
+
     if (!newStatus && nextRound >= MAX_ROUNDS) {
       newStatus = 'lost'
       newMessage = "Time's up — you failed to reach the portal in time."
@@ -198,6 +217,7 @@ export default function useTurnSystem({
       setIsAnimating(false)
     })
 
+    setEffectLayer(workingEffectLayer)
     setRound(nextRound)
 
     if (newStatus) {

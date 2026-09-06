@@ -1,5 +1,6 @@
 import { CREATURES } from '../data/creatures.js'
 import { castSpell } from './spellCaster.js'
+import { FIRE_DURATION_TURNS, isTileIgnitable as checkTileIgnitable } from './environmentEffects.js'
 
 export default function useSpellcasting({
   terrainLayer,
@@ -7,9 +8,9 @@ export default function useSpellcasting({
   playerPosition,
   enemyPosition,
   setObjectLayer,
+  setEffectLayer,
   PLAYER
 }) {
-
   const isTileFree = (tile) => {
     const { x, y } = tile
 
@@ -30,6 +31,8 @@ export default function useSpellcasting({
     return true
   }
 
+  const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, tile.x, tile.y)
+
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
 
@@ -45,6 +48,14 @@ export default function useSpellcasting({
         current_health: creatureData.constitution,
         stats: creatureData
       }
+      return copy
+    })
+  }
+
+  const igniteTile = (tile) => {
+    setEffectLayer(prev => {
+      const copy = prev.map(row => [...row])
+      copy[tile.y][tile.x] = { type: 'fire', turnsRemaining: FIRE_DURATION_TURNS }
       return copy
     })
   }
@@ -69,7 +80,9 @@ export default function useSpellcasting({
       spell,
       casterPos: playerPosition,
       isTileFree,
-      spawnCreature
+      spawnCreature,
+      isTileIgnitable,
+      igniteTile
     })
 
     PLAYER.current_mana -= cost

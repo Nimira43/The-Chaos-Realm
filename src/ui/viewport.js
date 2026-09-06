@@ -1,23 +1,47 @@
 import { terrainColours } from '../engine/terrain.js'
-import { wrap } from '../engine/utils.js'
+import { wrap, wrappedDelta } from '../engine/utils.js'
 import { CREATURES } from '../data/creatures.js'
 
 function getCreatureCode(name) {
   const creature = CREATURES.find(c => c.name === name)
   if (creature?.code) return creature.code
 
-  // Auto-generate fallback: first 3 consonants or letters
   return name
     .replace(/[^A-Z]/gi, '')
     .substring(0, 3)
     .toUpperCase()
 }
 
-function wrappedDelta(value, size) {
-  let d = value % size
-  if (d > size / 2) d -= size
-  if (d < -size / 2) d += size
-  return d
+function drawFireTile(ctx, screenX, screenY, tileSize) {
+  const flicker = (Date.now() % 400 < 200)
+  const pad = tileSize * 0.12
+  const left = screenX + pad
+  const right = screenX + tileSize - pad
+  const top = screenY + pad
+  const bottom = screenY + tileSize - pad
+  const midX = screenX + tileSize / 2
+
+  ctx.fillStyle = flicker ? '#ff7b00' : '#ff9500'
+  ctx.beginPath()
+  ctx.moveTo(midX, top)
+  ctx.lineTo(left, bottom)
+  ctx.lineTo(right, bottom)
+  ctx.closePath()
+  ctx.fill()
+
+  const innerPad = tileSize * 0.28
+  const innerLeft = screenX + innerPad
+  const innerRight = screenX + tileSize - innerPad
+  const innerTop = screenY + pad + tileSize * 0.12
+  const innerBottom = screenY + tileSize - pad
+
+  ctx.fillStyle = '#fff173'
+  ctx.beginPath()
+  ctx.moveTo(midX, innerTop)
+  ctx.lineTo(innerLeft, innerBottom)
+  ctx.lineTo(innerRight, innerBottom)
+  ctx.closePath()
+  ctx.fill()
 }
 
 export function drawViewport(
@@ -28,7 +52,8 @@ export function drawViewport(
   viewTiles,
   cursor,
   selected,
-  objectLayer
+  objectLayer,
+  effectLayer
 ) {
   const radius = Math.floor(viewTiles / 2)
   const centreX = selected?.type === 'player' ? player.x : cursor.x
@@ -42,6 +67,20 @@ export function drawViewport(
 
       ctx.fillStyle = terrainColours[map[worldY][worldX]]
       ctx.fillRect(vx * tileSize, vy * tileSize, tileSize, tileSize)
+    }
+  }
+
+  if (effectLayer) {
+    for (let vy = 0; vy < viewTiles; vy++) {
+      for (let vx = 0; vx < viewTiles; vx++) {
+
+        const worldX = wrap(centreX + (vx - radius), map[0].length)
+        const worldY = wrap(centreY + (vy - radius), map.length)
+
+        if (effectLayer[worldY][worldX]?.type === 'fire') {
+          drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        }
+      }
     }
   }
 
