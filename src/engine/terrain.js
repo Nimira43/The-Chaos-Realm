@@ -12,10 +12,11 @@ export const terrainColours = {
   wall: '#800000',
   road: '#999999',
   door: '#003366',
-  key: '#000000',
+  key: '#b12fe9',
   floor: '#dddddd',
   mountain: '#7a7a6e',
   lava: '#d88729',
+  wasteland: '#2b2b2b',
   creature: '#ff4500',
   enemyWizard: '#ff0e0e',
   playerWizard: '#ffffff',
@@ -36,6 +37,7 @@ export const terrainCost = {
   floor: 2,
   mountain: 999,
   lava: 2,
+  wasteland: 2,
   creature: 999,
   enemyWizard: 999,
   playerWizard: 999,
@@ -55,7 +57,8 @@ export function isTerrain(tile) {
     'key',
     'floor',
     'mountain',
-    'lava'
+    'lava',
+    'wasteland'
   ].includes(tile)
 }
 

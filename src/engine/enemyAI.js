@@ -268,7 +268,7 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
 
   const igniteTile = (tile) => {
     workingEffectLayer = workingEffectLayer.map(row => [...row])
-    workingEffectLayer[tile.y][tile.x] = { type: 'fire', turnsRemaining: FIRE_DURATION_TURNS }
+    workingEffectLayer[tile.y][tile.x] = { type: 'fire', turnsRemaining: FIRE_DURATION_TURNS, owner: 'enemy' }
   }
 
   castSpell({

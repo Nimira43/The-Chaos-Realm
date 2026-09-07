@@ -30,7 +30,7 @@ export function buildSpellbook() {
     { name: 'Vampire', manaCost: 29, initialSpellLevel: 2, currentSpellLevel: 2, category: 'creature', duration: 'permanent' },
     { name: 'Spectre', manaCost: 29, initialSpellLevel: 0, currentSpellLevel: 0, category: 'creature', duration: 'permanent' },
     { name: 'Demon', manaCost: 40, initialSpellLevel: 4, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
-    { name: 'Magic Fire', manaCost: 15, currentSpellLevel: 5, category: 'environment', duration: 'spreading' }
+    { name: 'Magic Fire', manaCost: 15, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'spreading' }
   ]
 
   // --- POTIONS (4 turns except healing) ---

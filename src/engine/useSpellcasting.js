@@ -55,7 +55,7 @@ export default function useSpellcasting({
   const igniteTile = (tile) => {
     setEffectLayer(prev => {
       const copy = prev.map(row => [...row])
-      copy[tile.y][tile.x] = { type: 'fire', turnsRemaining: FIRE_DURATION_TURNS }
+      copy[tile.y][tile.x] = { type: 'fire', turnsRemaining: FIRE_DURATION_TURNS, owner: 'player' }
       return copy
     })
   }

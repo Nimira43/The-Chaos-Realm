@@ -138,7 +138,6 @@ export default function useTurnSystem({
 
         workingTerrain = newTerrain
         activePortalPosition = spawnTile
-        setTerrainLayer(newTerrain)
         setPortalPosition(spawnTile)
 
         if (PLAYER.x === spawnTile.x && PLAYER.y === spawnTile.y) {
@@ -195,6 +194,7 @@ export default function useTurnSystem({
     const fireResult = tickFireEffects(workingTerrain, workingLayer, workingEffectLayer)
     workingLayer = fireResult.objectLayer
     workingEffectLayer = fireResult.effectLayer
+    workingTerrain = fireResult.terrainLayer
     frames.push(workingLayer)
 
     if (!newStatus && fireResult.defeatedTargets.includes('player')) {
@@ -217,6 +217,7 @@ export default function useTurnSystem({
       setIsAnimating(false)
     })
 
+    setTerrainLayer(workingTerrain)
     setEffectLayer(workingEffectLayer)
     setRound(nextRound)
 
