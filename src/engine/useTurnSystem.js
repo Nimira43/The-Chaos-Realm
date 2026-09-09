@@ -2,7 +2,8 @@ import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
 import { terrainCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
-import { tickFireEffects } from './environmentEffects.js'
+// import { tickFireEffects } from './environmentEffects.js'
+import { tickEnvironmentEffects } from './environmentEffects.js'
 
 export const MAX_ROUNDS = 30
 export const PORTAL_TURN = Math.round(MAX_ROUNDS * 2 / 3)
@@ -191,20 +192,35 @@ export default function useTurnSystem({
       newMessage = 'Your wizard has fallen!'
     }
 
-    const fireResult = tickFireEffects(workingTerrain, workingLayer, workingEffectLayer)
-    workingLayer = fireResult.objectLayer
-    workingEffectLayer = fireResult.effectLayer
-    workingTerrain = fireResult.terrainLayer
+    const environmentResult = tickEnvironmentEffects(workingTerrain, workingLayer, workingEffectLayer)
+    workingLayer = environmentResult.objectLayer
+    workingEffectLayer = environmentResult.effectLayer
+    workingTerrain = environmentResult.terrainLayer
     frames.push(workingLayer)
 
-    if (!newStatus && fireResult.defeatedTargets.includes('player')) {
+    if (!newStatus && environmentResult.defeatedTargets.includes('player')) {
       newStatus = 'lost'
-      newMessage = 'Your wizard has burned to death!'
+      newMessage = 'Your wizard has been destroyed by the environment!'
     }
 
-    if (fireResult.defeatedTargets.includes('enemyWizard')) {
+    if (environmentResult.defeatedTargets.includes('enemyWizard')) {
       setEnemyPosition(null)
     }
+
+    // const fireResult = tickFireEffects(workingTerrain, workingLayer, workingEffectLayer)
+    // workingLayer = fireResult.objectLayer
+    // workingEffectLayer = fireResult.effectLayer
+    // workingTerrain = fireResult.terrainLayer
+    // frames.push(workingLayer)
+
+    // if (!newStatus && fireResult.defeatedTargets.includes('player')) {
+    //   newStatus = 'lost'
+    //   newMessage = 'Your wizard has burned to death!'
+    // }
+
+    // if (fireResult.defeatedTargets.includes('enemyWizard')) {
+    //   setEnemyPosition(null)
+    // }
 
     if (!newStatus && nextRound >= MAX_ROUNDS) {
       newStatus = 'lost'

@@ -44,6 +44,31 @@ function drawFireTile(ctx, screenX, screenY, tileSize) {
   ctx.fill()
 }
 
+function drawGooeyBlobTile(ctx, screenX, screenY, tileSize) {
+  const pulse = (Date.now() % 900 < 450)
+
+  const centreX = screenX + tileSize / 2
+  const centreY = screenY + tileSize / 2
+  const radius = (tileSize / 2) * (pulse ? 0.42 : 0.38)
+
+  ctx.fillStyle = '#39ff14'
+  ctx.beginPath()
+  ctx.arc(centreX, centreY, radius, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = '#d4ffcf'
+  ctx.beginPath()
+  ctx.ellipse(
+    centreX - radius * 0.35,
+    centreY - radius * 0.35,
+    radius * 0.28,
+    radius * 0.18,
+    -0.6,
+    0,
+    Math.PI * 2
+  )
+  ctx.fill()
+}
+
 export function drawViewport(
   ctx,
   map,
@@ -77,12 +102,33 @@ export function drawViewport(
         const worldX = wrap(centreX + (vx - radius), map[0].length)
         const worldY = wrap(centreY + (vy - radius), map.length)
 
-        if (effectLayer[worldY][worldX]?.type === 'fire') {
+        const cell = effectLayer[worldY][worldX]
+        if (!cell) continue
+
+        if (cell.blob) {
+          drawGooeyBlobTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        }
+
+        if (cell.fire) {
           drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
       }
     }
   }
+
+  // if (effectLayer) {
+  //   for (let vy = 0; vy < viewTiles; vy++) {
+  //     for (let vx = 0; vx < viewTiles; vx++) {
+
+  //       const worldX = wrap(centreX + (vx - radius), map[0].length)
+  //       const worldY = wrap(centreY + (vy - radius), map.length)
+
+  //       if (effectLayer[worldY][worldX]?.type === 'fire') {
+  //         drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+  //       }
+  //     }
+  //   }
+  // }
 
   for (let vy = 0; vy < viewTiles; vy++) {
     for (let vx = 0; vx < viewTiles; vx++) {

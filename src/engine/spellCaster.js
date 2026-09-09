@@ -55,12 +55,7 @@ export function castCreatureSummonSpell({
   })
 }
 
-export function castMagicFireSpell({
-  casterPos,
-  spellLevel,
-  isTileIgnitable,
-  igniteTile
-}) {
+function castEnvironmentTileSpell({ casterPos, spellLevel, isTileValid, applyToTile }) {
   const tileCount = SUMMON_COUNT_BY_LEVEL[spellLevel] || 1
 
   const adjacentTiles = ADJACENT_OFFSETS.map(offset => ({
@@ -68,37 +63,61 @@ export function castMagicFireSpell({
     y: casterPos.y + offset.y
   }))
 
-  const validTiles = adjacentTiles.filter(tile => isTileIgnitable(tile))
+  const validTiles = adjacentTiles.filter(tile => isTileValid(tile))
 
-  let tilesToIgnite
+  let tilesToAffect
 
   if (validTiles.length <= tileCount) {
-    tilesToIgnite = validTiles
+    tilesToAffect = validTiles
   } else {
-    tilesToIgnite = []
+    tilesToAffect = []
     const pool = [...validTiles]
 
-    while (tilesToIgnite.length < tileCount) {
+    while (tilesToAffect.length < tileCount) {
       const index = Math.floor(Math.random() * pool.length)
-      tilesToIgnite.push(pool[index])
+      tilesToAffect.push(pool[index])
       pool.splice(index, 1)
     }
   }
 
-  tilesToIgnite.forEach(tile => {
-    igniteTile(tile)
+  tilesToAffect.forEach(tile => {
+    applyToTile(tile)
   })
 }
 
-function castEnvironmentSpell({ spell, casterPos, isTileIgnitable, igniteTile }) {
+export function castMagicFireSpell({ casterPos, spellLevel, isTileIgnitable, igniteTile }) {
+  castEnvironmentTileSpell({
+    casterPos,
+    spellLevel,
+    isTileValid: isTileIgnitable,
+    applyToTile: igniteTile
+  })
+}
+
+export function castGooeyBlobSpell({ casterPos, spellLevel, isTileSpreadableForBlob, spreadBlobTile }) {
+  castEnvironmentTileSpell({
+    casterPos,
+    spellLevel,
+    isTileValid: isTileSpreadableForBlob,
+    applyToTile: spreadBlobTile
+  })
+}
+
+function castEnvironmentSpell({
+  spell,
+  casterPos,
+  isTileIgnitable,
+  igniteTile,
+  isTileSpreadableForBlob,
+  spreadBlobTile
+}) {
   switch (spell.name) {
     case 'Magic Fire':
-      castMagicFireSpell({
-        casterPos,
-        spellLevel: spell.currentSpellLevel,
-        isTileIgnitable,
-        igniteTile
-      })
+      castMagicFireSpell({ casterPos, spellLevel: spell.currentSpellLevel, isTileIgnitable, igniteTile })
+      break
+
+    case 'Gooey Blob':
+      castGooeyBlobSpell({ casterPos, spellLevel: spell.currentSpellLevel, isTileSpreadableForBlob, spreadBlobTile })
       break
 
     default:
@@ -113,7 +132,9 @@ export function castSpell({
   isTileFree,
   spawnCreature,
   isTileIgnitable,
-  igniteTile
+  igniteTile,
+  isTileSpreadableForBlob,
+  spreadBlobTile
 }) {
   if (!spell) {
     console.warn('castSpell called with no spell')
@@ -132,7 +153,14 @@ export function castSpell({
       break
 
     case 'environment':
-      castEnvironmentSpell({ spell, casterPos, isTileIgnitable, igniteTile })
+      castEnvironmentSpell({
+        spell,
+        casterPos,
+        isTileIgnitable,
+        igniteTile,
+        isTileSpreadableForBlob,
+        spreadBlobTile
+      })
       break
 
     default:

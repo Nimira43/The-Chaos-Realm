@@ -1,6 +1,11 @@
 import { CREATURES } from '../data/creatures.js'
 import { castSpell } from './spellCaster.js'
-import { FIRE_DURATION_TURNS, isTileIgnitable as checkTileIgnitable } from './environmentEffects.js'
+import {
+  isTileIgnitable as checkTileIgnitable,
+  isTileSpreadableForBlob as checkTileSpreadableForBlob,
+  withFire,
+  withBlob
+} from './environmentEffects.js'
 
 export default function useSpellcasting({
   terrainLayer,
@@ -32,6 +37,7 @@ export default function useSpellcasting({
   }
 
   const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, tile.x, tile.y)
+  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -55,7 +61,15 @@ export default function useSpellcasting({
   const igniteTile = (tile) => {
     setEffectLayer(prev => {
       const copy = prev.map(row => [...row])
-      copy[tile.y][tile.x] = { type: 'fire', turnsRemaining: FIRE_DURATION_TURNS, owner: 'player' }
+      copy[tile.y][tile.x] = withFire(copy[tile.y][tile.x], 'player')
+      return copy
+    })
+  }
+
+  const spreadBlobTile = (tile) => {
+    setEffectLayer(prev => {
+      const copy = prev.map(row => [...row])
+      copy[tile.y][tile.x] = withBlob(copy[tile.y][tile.x], 'player')
       return copy
     })
   }
@@ -82,7 +96,9 @@ export default function useSpellcasting({
       isTileFree,
       spawnCreature,
       isTileIgnitable,
-      igniteTile
+      igniteTile,
+      isTileSpreadableForBlob,
+      spreadBlobTile
     })
 
     PLAYER.current_mana -= cost

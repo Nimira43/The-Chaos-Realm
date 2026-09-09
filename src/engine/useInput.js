@@ -3,13 +3,15 @@ import { wrap } from './utils.js'
 import { tryMove } from './movement.js'
 import { PLAYER } from '../data/player.js'
 import { getMovementCost } from './terrain.js'
-import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
+import { resolveAttack, applyLavaDamage, resolveBlobAttack, ATTACK_AP_COST } from './combat.js'
+import { scarGooeyDestroyedTile } from './environmentEffects.js'
 
 export default function useInput({
   cursor,
   selected,
   terrainLayer,
   objectLayer,
+  effectLayer,
   playerPosition,
   enemyPosition,
   setCursor,
@@ -17,7 +19,9 @@ export default function useInput({
   setPlayerPosition,
   setAp,
   setObjectLayer,
+  setEffectLayer,
   setEnemyPosition,
+  setTerrainLayer,
   showLoadModal,
   gameStatus,
   setGameStatus,
@@ -122,6 +126,27 @@ export default function useInput({
             return
           }
 
+          if (effectLayer[newY][newX]?.blob) {
+            if (PLAYER.ap < ATTACK_AP_COST) return
+
+            const result = resolveBlobAttack({
+              effectLayer,
+              attackerCombat: PLAYER.combat,
+              pos: { x: newX, y: newY }
+            })
+
+            PLAYER.ap -= ATTACK_AP_COST
+            setAp(PLAYER.ap)
+            setEffectLayer(result.effectLayer)
+
+            if (result.destroyed) {
+              const scarred = scarGooeyDestroyedTile(terrainLayer, newX, newY)
+              if (scarred !== terrainLayer) setTerrainLayer(scarred)
+            }
+
+            return
+          }
+
           const moved = tryMove(PLAYER, dx, dy, map)
           if (moved) {
             const newPos = { x: PLAYER.x, y: PLAYER.y }
@@ -202,6 +227,31 @@ export default function useInput({
             return
           }
 
+          if (effectLayer[newY][newX]?.blob) {
+            if (creature.ap < ATTACK_AP_COST) return
+
+            const result = resolveBlobAttack({
+              effectLayer,
+              attackerCombat: creature.stats.combat,
+              pos: { x: newX, y: newY }
+            })
+
+            setObjectLayer(prev => {
+              const copy = prev.map(row => [...row])
+              copy[y][x] = { ...creature, ap: creature.ap - ATTACK_AP_COST }
+              return copy
+            })
+
+            setEffectLayer(result.effectLayer)
+
+            if (result.destroyed) {
+              const scarred = scarGooeyDestroyedTile(terrainLayer, newX, newY)
+              if (scarred !== terrainLayer) setTerrainLayer(scarred)
+            }
+
+            return
+          }
+
           const terrainType = terrainLayer[newY][newX]
           const cost = getMovementCost(terrainType, creature.stats)
 
@@ -244,6 +294,7 @@ export default function useInput({
     selected,
     terrainLayer,
     objectLayer,
+    effectLayer,
     playerPosition,
     enemyPosition,
     setCursor,
@@ -251,7 +302,9 @@ export default function useInput({
     setPlayerPosition,
     setAp,
     setObjectLayer,
+    setEffectLayer,
     setEnemyPosition,
+    setTerrainLayer,
     showLoadModal,
     gameStatus,
     setGameStatus,

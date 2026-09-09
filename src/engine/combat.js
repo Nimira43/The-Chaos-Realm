@@ -6,6 +6,9 @@ const DAMAGE_ROLL_MAX = 6
 const LAVA_DAMAGE_PERCENT = 0.10
 
 export const FIRE_DAMAGE_PER_TURN = 8
+export const GOOEY_DAMAGE_PER_TURN = 8
+export const GOOEY_BLOB_DEFENCE = 15
+export const GOOEY_BLOB_HEALTH = 40
 
 function rollDamage(attackerCombat, defenderDefence) {
   const swing = Math.floor(Math.random() * DAMAGE_ROLL_MAX) + 1
@@ -186,7 +189,8 @@ export function applyLavaDamage(objectLayer, pos) {
 export function applyFireDamage(objectLayer, pos) {
   const cell = objectLayer[pos.y][pos.x]
   if (!cell) return {
-    objectLayer, damage: 0,
+    objectLayer,
+    damage: 0,
     defeated: false,
     targetType: null
   }
@@ -206,5 +210,62 @@ export function applyFireDamage(objectLayer, pos) {
     damage: result.damage,
     defeated: result.defeated,
     targetType: result.targetType
+  }
+}
+
+export function applyGooeyBlobDamage(objectLayer, pos) {
+  const cell = objectLayer[pos.y][pos.x]
+  if (!cell) return {
+    objectLayer,
+    damage: 0,
+    defeated: false,
+    targetType: null
+  }
+
+  const profile = getCombatProfile(cell)
+  if (!profile) return {
+    objectLayer,
+    damage: 0,
+    defeated: false,
+    targetType: null
+  }
+
+  const result = applyDamageToCell(objectLayer, pos, GOOEY_DAMAGE_PER_TURN)
+
+  return {
+    objectLayer: result.objectLayer,
+    damage: result.damage,
+    defeated: result.defeated,
+    targetType: result.targetType
+  }
+}
+
+export function resolveBlobAttack({ effectLayer, attackerCombat, pos }) {
+  const cell = effectLayer[pos.y][pos.x]
+
+  if (!cell?.blob) {
+    return {
+      effectLayer, damage: 0,
+      destroyed: false
+    }
+  }
+
+  const damage = rollDamage(attackerCombat, GOOEY_BLOB_DEFENCE)
+  const newHealth = cell.blob.health - damage
+  const destroyed = newHealth <= 0
+
+  const newLayer = effectLayer.map(row => [...row])
+
+  if (destroyed) {
+    const { blob, ...remainingEffects } = cell
+    newLayer[pos.y][pos.x] = Object.keys(remainingEffects).length > 0 ? remainingEffects : null
+  } else {
+    newLayer[pos.y][pos.x] = { ...cell, blob: { ...cell.blob, health: newHealth } }
+  }
+
+  return {
+    effectLayer: newLayer,
+    damage,
+    destroyed
   }
 }
