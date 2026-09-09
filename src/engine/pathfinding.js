@@ -8,6 +8,10 @@ export const NEIGHBOUR_OFFSETS = [
 
 const LAVA_AVOIDANCE_PENALTY = 500
 
+function isFireBlockingLocal(effectLayer, x, y) {
+  return effectLayer?.[y]?.[x]?.type === 'fire'
+}
+
 export function getAdjacentTiles(x, y) {
   return NEIGHBOUR_OFFSETS.map(offset => ({
     x: wrap(x + offset.x, MAP_WIDTH),
@@ -15,7 +19,7 @@ export function getAdjacentTiles(x, y) {
   }))
 }
 
-export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals, entity, maxExplored = 1500, forbidLava = false }) {
+export function findPathToNearestGoal({ terrainLayer, objectLayer, effectLayer, start, goals, entity, maxExplored = 1500, forbidLava = false }) {
   const goalSet = new Set(goals.map(g => `${g.x},${g.y}`))
   if (goalSet.size === 0) return []
 
@@ -58,6 +62,7 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
 
       if (visited.has(nKey)) continue
       if (objectLayer[ny][nx] !== null) continue
+      if (isFireBlockingLocal(effectLayer, nx, ny)) continue // fire = impassable wall, no exceptions
 
       const terrainType = terrainLayer[ny][nx]
       const cost = getMovementCost(terrainType, entity)
@@ -66,8 +71,10 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
       if (offset.x !== 0 && offset.y !== 0) {
         const flankACost = getMovementCost(terrainLayer[current.y][nx], entity)
         const flankBCost = getMovementCost(terrainLayer[ny][current.x], entity)
+        const flankABlocked = flankACost >= 999 || isFireBlockingLocal(effectLayer, nx, current.y)
+        const flankBBlocked = flankBCost >= 999 || isFireBlockingLocal(effectLayer, current.x, ny)
 
-        if (flankACost >= 999 || flankBCost >= 999) continue
+        if (flankABlocked || flankBBlocked) continue
       }
 
       const isLava = terrainType === 'lava'
@@ -76,6 +83,7 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, start, goals,
       if (lavaIsHazardHere && forbidLava) continue
 
       const pathCost = lavaIsHazardHere ? cost + LAVA_AVOIDANCE_PENALTY : cost
+
       const newCost = current.cost + pathCost
       const known = bestCost.get(nKey)
 

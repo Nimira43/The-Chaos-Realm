@@ -105,31 +105,15 @@ export function drawViewport(
         const cell = effectLayer[worldY][worldX]
         if (!cell) continue
 
-        if (cell.blob) {
+        if (cell.type === 'blob') {
           drawGooeyBlobTile(ctx, vx * tileSize, vy * tileSize, tileSize)
-        }
-
-        if (cell.fire) {
+        } else if (cell.type === 'fire') {
           drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
       }
     }
   }
-
-  // if (effectLayer) {
-  //   for (let vy = 0; vy < viewTiles; vy++) {
-  //     for (let vx = 0; vx < viewTiles; vx++) {
-
-  //       const worldX = wrap(centreX + (vx - radius), map[0].length)
-  //       const worldY = wrap(centreY + (vy - radius), map.length)
-
-  //       if (effectLayer[worldY][worldX]?.type === 'fire') {
-  //         drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
-  //       }
-  //     }
-  //   }
-  // }
-
+  
   for (let vy = 0; vy < viewTiles; vy++) {
     for (let vx = 0; vx < viewTiles; vx++) {
 

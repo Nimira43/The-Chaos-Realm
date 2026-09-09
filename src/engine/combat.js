@@ -1,4 +1,5 @@
 import { PLAYER } from '../data/player.js'
+import { scarGooeyDestroyedTile } from './environmentEffects.js'
 
 export const ATTACK_AP_COST = 2
 
@@ -60,20 +61,10 @@ function getCombatProfile(cell) {
 
 function applyDamageToCell(objectLayer, pos, damage) {
   const cell = objectLayer[pos.y][pos.x]
-  if (!cell) return {
-    objectLayer,
-    damage: 0,
-    defeated: false,
-    targetType: null
-  }
+  if (!cell) return { objectLayer, damage: 0, defeated: false, targetType: null }
 
   const profile = getCombatProfile(cell)
-  if (!profile) return {
-    objectLayer,
-    damage: 0,
-    defeated: false,
-    targetType: null
-  }
+  if (!profile) return { objectLayer, damage: 0, defeated: false, targetType: null }
 
   const newHealth = Math.max(0, profile.health - damage)
   const defeated = newHealth <= 0
@@ -240,31 +231,35 @@ export function applyGooeyBlobDamage(objectLayer, pos) {
   }
 }
 
-export function resolveBlobAttack({ effectLayer, attackerCombat, pos }) {
+export function resolveBlobAttack({ effectLayer, terrainLayer, attackerCombat, pos }) {
   const cell = effectLayer[pos.y][pos.x]
 
-  if (!cell?.blob) {
+  if (cell?.type !== 'blob') {
     return {
-      effectLayer, damage: 0,
+      effectLayer,
+      terrainLayer,
+      damage: 0,
       destroyed: false
     }
   }
 
   const damage = rollDamage(attackerCombat, GOOEY_BLOB_DEFENCE)
-  const newHealth = cell.blob.health - damage
+  const newHealth = cell.health - damage
   const destroyed = newHealth <= 0
 
-  const newLayer = effectLayer.map(row => [...row])
+  const newEffectLayer = effectLayer.map(row => [...row])
+  let newTerrainLayer = terrainLayer
 
   if (destroyed) {
-    const { blob, ...remainingEffects } = cell
-    newLayer[pos.y][pos.x] = Object.keys(remainingEffects).length > 0 ? remainingEffects : null
+    newEffectLayer[pos.y][pos.x] = null
+    newTerrainLayer = scarGooeyDestroyedTile(terrainLayer, pos.x, pos.y)
   } else {
-    newLayer[pos.y][pos.x] = { ...cell, blob: { ...cell.blob, health: newHealth } }
+    newEffectLayer[pos.y][pos.x] = { ...cell, health: newHealth }
   }
 
   return {
-    effectLayer: newLayer,
+    effectLayer: newEffectLayer,
+    terrainLayer: newTerrainLayer,
     damage,
     destroyed
   }

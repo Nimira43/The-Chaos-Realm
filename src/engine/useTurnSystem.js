@@ -2,7 +2,6 @@ import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
 import { terrainCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
-// import { tickFireEffects } from './environmentEffects.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
 
 export const MAX_ROUNDS = 30
@@ -206,21 +205,6 @@ export default function useTurnSystem({
     if (environmentResult.defeatedTargets.includes('enemyWizard')) {
       setEnemyPosition(null)
     }
-
-    // const fireResult = tickFireEffects(workingTerrain, workingLayer, workingEffectLayer)
-    // workingLayer = fireResult.objectLayer
-    // workingEffectLayer = fireResult.effectLayer
-    // workingTerrain = fireResult.terrainLayer
-    // frames.push(workingLayer)
-
-    // if (!newStatus && fireResult.defeatedTargets.includes('player')) {
-    //   newStatus = 'lost'
-    //   newMessage = 'Your wizard has burned to death!'
-    // }
-
-    // if (fireResult.defeatedTargets.includes('enemyWizard')) {
-    //   setEnemyPosition(null)
-    // }
 
     if (!newStatus && nextRound >= MAX_ROUNDS) {
       newStatus = 'lost'

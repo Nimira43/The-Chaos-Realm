@@ -100,6 +100,7 @@ export default function useGameEngine() {
   const castSpellForPlayer = useSpellcasting({
     terrainLayer,
     objectLayer,
+    effectLayer,
     playerPosition,
     enemyPosition,
     setObjectLayer,

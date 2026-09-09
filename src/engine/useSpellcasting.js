@@ -3,19 +3,21 @@ import { castSpell } from './spellCaster.js'
 import {
   isTileIgnitable as checkTileIgnitable,
   isTileSpreadableForBlob as checkTileSpreadableForBlob,
-  withFire,
-  withBlob
+  createFireEffect,
+  createBlobEffect
 } from './environmentEffects.js'
 
 export default function useSpellcasting({
   terrainLayer,
   objectLayer,
+  effectLayer,
   playerPosition,
   enemyPosition,
   setObjectLayer,
   setEffectLayer,
   PLAYER
 }) {
+
   const isTileFree = (tile) => {
     const { x, y } = tile
 
@@ -36,8 +38,8 @@ export default function useSpellcasting({
     return true
   }
 
-  const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, tile.x, tile.y)
-  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, tile.x, tile.y)
+  const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, effectLayer, tile.x, tile.y)
+  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, effectLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -61,7 +63,7 @@ export default function useSpellcasting({
   const igniteTile = (tile) => {
     setEffectLayer(prev => {
       const copy = prev.map(row => [...row])
-      copy[tile.y][tile.x] = withFire(copy[tile.y][tile.x], 'player')
+      copy[tile.y][tile.x] = createFireEffect('player')
       return copy
     })
   }
@@ -69,7 +71,7 @@ export default function useSpellcasting({
   const spreadBlobTile = (tile) => {
     setEffectLayer(prev => {
       const copy = prev.map(row => [...row])
-      copy[tile.y][tile.x] = withBlob(copy[tile.y][tile.x], 'player')
+      copy[tile.y][tile.x] = createBlobEffect('player')
       return copy
     })
   }

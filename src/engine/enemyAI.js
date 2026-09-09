@@ -8,17 +8,16 @@ import { castSpell } from './spellCaster.js'
 import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 import {
-  withFire,
-  withBlob,
+  createFireEffect,
+  createBlobEffect,
   isTileIgnitable as checkTileIgnitable,
-  isTileSpreadableForBlob as checkTileSpreadableForBlob,
-  FIRE_DURATION_TURNS
+  isTileSpreadableForBlob as checkTileSpreadableForBlob
 } from './environmentEffects.js'
 
 const SIGHT_RANGE = 10
 const WANDER_RADIUS = 10
 const WANDER_ATTEMPTS = 10
-const CAST_CHANCE = 0.5 
+const CAST_CHANCE = 0.5
 
 function chebyshevDist(ax, ay, bx, by) {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by))
@@ -41,7 +40,10 @@ function findNearestPlayerTarget(objectLayer, originX, originY) {
     }
   }
 
-  return { target: nearest, dist: bestDist }
+  return {
+    target: nearest,
+    dist: bestDist
+  }
 }
 
 function pickWanderTarget(originX, originY, terrainLayer, objectLayer, entity) {
@@ -57,7 +59,6 @@ function pickWanderTarget(originX, originY, terrainLayer, objectLayer, entity) {
       return { x, y }
     }
   }
-
   return null
 }
 
@@ -76,7 +77,7 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
     const cost = getMovementCost(terrainType, onStep.entity())
 
     if (cost > remainingAp) break
-    if (currentLayer[step.y][step.x] !== null) break 
+    if (currentLayer[step.y][step.x] !== null) break
 
     remainingAp -= cost
     currentLayer = onStep.move(currentLayer, step, remainingAp)
@@ -98,12 +99,13 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
   return {
     objectLayer: currentLayer,
     ap: remainingAp,
-    moved, lastPosition,
+    moved,
+    lastPosition,
     selfDefeated, frames
   }
 }
 
-function moveEnemyWizard(terrainLayer, objectLayer, portalPosition) {
+function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer) {
   const { target, dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
   const seekingPlayer = dist <= SIGHT_RANGE
   const adjacentToPlayerNow = seekingPlayer && chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, target.x, target.y) <= 1
@@ -114,8 +116,7 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition) {
   if (portalPosition && !adjacentToPlayerNow && !alreadyAtPortal) {
     ENEMY_WIZARD.wanderTarget = null
     path = findPathToNearestGoal({
-      terrainLayer,
-      objectLayer,
+      terrainLayer, objectLayer, effectLayer,
       start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
       goals: [portalPosition],
       entity: ENEMY_WIZARD
@@ -125,8 +126,7 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition) {
   if (path.length === 0 && !alreadyAtPortal && seekingPlayer) {
     ENEMY_WIZARD.wanderTarget = null
     path = findPathToNearestGoal({
-      terrainLayer,
-      objectLayer,
+      terrainLayer, objectLayer, effectLayer,
       start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
       goals: getAdjacentTiles(target.x, target.y),
       entity: ENEMY_WIZARD
@@ -145,8 +145,7 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition) {
 
     if (ENEMY_WIZARD.wanderTarget) {
       path = findPathToNearestGoal({
-        terrainLayer,
-        objectLayer,
+        terrainLayer, objectLayer, effectLayer,
         start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
         goals: [ENEMY_WIZARD.wanderTarget],
         entity: ENEMY_WIZARD,
@@ -236,67 +235,6 @@ function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
   return true
 }
 
-// function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
-//   const { dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
-//   if (dist > SIGHT_RANGE) return { objectLayer, effectLayer, cast: false }
-//   if (Math.random() > CAST_CHANCE) return { objectLayer, effectLayer, cast: false }
-
-//   const usableSpells = ENEMY_SPELLBOOK.filter(spell =>
-//     spell.currentSpellLevel > 0 &&
-//     ENEMY_WIZARD.current_mana >= spell.manaCost * spell.currentSpellLevel
-//   )
-
-//   if (usableSpells.length === 0) return { objectLayer, effectLayer, cast: false }
-
-//   const spell = usableSpells[Math.floor(Math.random() * usableSpells.length)]
-
-//   let workingLayer = objectLayer
-//   let workingEffectLayer = effectLayer
-
-//   const isTileFree = (tile) => isTileFreeForCast(terrainLayer, workingLayer, tile.x, tile.y)
-//   const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, tile.x, tile.y)
-
-//   const spawnCreature = (creatureName, tile) => {
-//     const creatureData = CREATURES.find(c => c.name === creatureName)
-//     workingLayer = workingLayer.map(row => [...row])
-//     workingLayer[tile.y][tile.x] = {
-//       type: 'creature',
-//       owner: 'enemy',
-//       name: creatureName,
-//       x: tile.x,
-//       y: tile.y,
-//       ap: creatureData.action_points_ground,
-//       current_health: creatureData.constitution,
-//       stats: creatureData,
-//       wanderTarget: null
-//     }
-//   }
-
-//   const igniteTile = (tile) => {
-//     workingEffectLayer = workingEffectLayer.map(row => [...row])
-//     workingEffectLayer[tile.y][tile.x] = { type: 'fire', turnsRemaining: FIRE_DURATION_TURNS, owner: 'enemy' }
-//   }
-
-//   castSpell({
-//     spell,
-//     casterPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
-//     isTileFree,
-//     spawnCreature,
-//     isTileIgnitable,
-//     igniteTile
-//   })
-
-//   const cost = spell.manaCost * spell.currentSpellLevel
-//   ENEMY_WIZARD.current_mana -= cost
-//   spell.currentSpellLevel = Math.max(0, spell.currentSpellLevel - 1)
-
-//   return {
-//     objectLayer: workingLayer,
-//     effectLayer: workingEffectLayer,
-//     cast: true
-//   }
-// }
-
 function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   const { dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
   if (dist > SIGHT_RANGE) return { objectLayer, effectLayer, cast: false }
@@ -315,8 +253,8 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   let workingEffectLayer = effectLayer
 
   const isTileFree = (tile) => isTileFreeForCast(terrainLayer, workingLayer, tile.x, tile.y)
-  const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, tile.x, tile.y)
-  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, tile.x, tile.y)
+  const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, workingEffectLayer, tile.x, tile.y)
+  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, workingEffectLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -336,12 +274,12 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
 
   const igniteTile = (tile) => {
     workingEffectLayer = workingEffectLayer.map(row => [...row])
-    workingEffectLayer[tile.y][tile.x] = withFire(workingEffectLayer[tile.y][tile.x], 'enemy')
+    workingEffectLayer[tile.y][tile.x] = createFireEffect('enemy')
   }
 
   const spreadBlobTile = (tile) => {
     workingEffectLayer = workingEffectLayer.map(row => [...row])
-    workingEffectLayer[tile.y][tile.x] = withBlob(workingEffectLayer[tile.y][tile.x], 'enemy')
+    workingEffectLayer[tile.y][tile.x] = createBlobEffect('enemy')
   }
 
   castSpell({
@@ -359,11 +297,15 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   ENEMY_WIZARD.current_mana -= cost
   spell.currentSpellLevel = Math.max(0, spell.currentSpellLevel - 1)
 
-  return { objectLayer: workingLayer, effectLayer: workingEffectLayer, cast: true }
+  return {
+    objectLayer: workingLayer,
+    effectLayer: workingEffectLayer,
+    cast: true
+  }
 }
 
 export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effectLayer) {
-  const moveResult = moveEnemyWizard(terrainLayer, objectLayer, portalPosition)
+  const moveResult = moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer)
 
   if (moveResult.selfDefeated) {
     return {
@@ -391,9 +333,15 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
   }
 }
 
-function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
+function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLayer) {
   const creature = objectLayer[startY][startX]
-  if (!creature) return { objectLayer, moved: false, defeatedTarget: null, selfDefeated: false, frames: [] }
+  if (!creature) return {
+    objectLayer,
+    moved: false,
+    defeatedTarget: null,
+    selfDefeated: false,
+    frames: []
+  }
 
   const { target, dist } = findNearestPlayerTarget(objectLayer, startX, startY)
   const seekingPlayer = dist <= SIGHT_RANGE
@@ -404,8 +352,7 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
   if (seekingPlayer) {
     wanderTarget = null
     path = findPathToNearestGoal({
-      terrainLayer,
-      objectLayer,
+      terrainLayer, objectLayer, effectLayer,
       start: { x: startX, y: startY },
       goals: getAdjacentTiles(target.x, target.y),
       entity: creature.stats
@@ -421,8 +368,7 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
 
     if (wanderTarget) {
       path = findPathToNearestGoal({
-        terrainLayer,
-        objectLayer,
+        terrainLayer, objectLayer, effectLayer,
         start: { x: startX, y: startY },
         goals: [wanderTarget],
         entity: creature.stats,
@@ -504,7 +450,7 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY) {
   }
 }
 
-export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
+export function runEnemyCreaturesAI(terrainLayer, objectLayer, effectLayer) {
   let workingLayer = objectLayer
   const defeatedTargets = []
   const frames = []
@@ -520,7 +466,7 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
   }
 
   startingPositions.forEach(({ x, y }) => {
-    const result = moveCreatureToward(terrainLayer, workingLayer, x, y)
+    const result = moveCreatureToward(terrainLayer, workingLayer, x, y, effectLayer)
     workingLayer = result.objectLayer
     frames.push(...result.frames)
     if (result.defeatedTarget) defeatedTargets.push(result.defeatedTarget)
@@ -528,7 +474,7 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer) {
 
   return {
     objectLayer: workingLayer,
-    defeatedTargets, frames
+    defeatedTargets,
+    frames
   }
 }
-

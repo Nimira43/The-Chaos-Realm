@@ -4,7 +4,7 @@ import { tryMove } from './movement.js'
 import { PLAYER } from '../data/player.js'
 import { getMovementCost } from './terrain.js'
 import { resolveAttack, applyLavaDamage, resolveBlobAttack, ATTACK_AP_COST } from './combat.js'
-import { scarGooeyDestroyedTile } from './environmentEffects.js'
+import { isFireBlocking } from './environmentEffects.js'
 
 export default function useInput({
   cursor,
@@ -96,6 +96,11 @@ export default function useInput({
           const newX = wrap(PLAYER.x + dx, map[0].length)
           const newY = wrap(PLAYER.y + dy, map.length)
 
+          if (isFireBlocking(effectLayer, newX, newY)) {
+            console.log('Magic Fire blocks the way!')
+            return
+          }
+
           const occupant = objectLayer[newY][newX]
 
           if (occupant !== null) {
@@ -126,11 +131,12 @@ export default function useInput({
             return
           }
 
-          if (effectLayer[newY][newX]?.blob) {
+          if (effectLayer[newY][newX]?.type === 'blob') {
             if (PLAYER.ap < ATTACK_AP_COST) return
 
             const result = resolveBlobAttack({
               effectLayer,
+              terrainLayer,
               attackerCombat: PLAYER.combat,
               pos: { x: newX, y: newY }
             })
@@ -140,8 +146,7 @@ export default function useInput({
             setEffectLayer(result.effectLayer)
 
             if (result.destroyed) {
-              const scarred = scarGooeyDestroyedTile(terrainLayer, newX, newY)
-              if (scarred !== terrainLayer) setTerrainLayer(scarred)
+              setTerrainLayer(result.terrainLayer)
             }
 
             return
@@ -193,6 +198,11 @@ export default function useInput({
           const newX = wrap(x + dx, map[0].length)
           const newY = wrap(y + dy, map.length)
 
+          if (isFireBlocking(effectLayer, newX, newY)) {
+            console.log('Magic Fire blocks the way!')
+            return
+          }
+
           const occupant = objectLayer[newY][newX]
 
           if (occupant !== null) {
@@ -227,11 +237,12 @@ export default function useInput({
             return
           }
 
-          if (effectLayer[newY][newX]?.blob) {
+          if (effectLayer[newY][newX]?.type === 'blob') {
             if (creature.ap < ATTACK_AP_COST) return
 
             const result = resolveBlobAttack({
               effectLayer,
+              terrainLayer,
               attackerCombat: creature.stats.combat,
               pos: { x: newX, y: newY }
             })
@@ -245,8 +256,7 @@ export default function useInput({
             setEffectLayer(result.effectLayer)
 
             if (result.destroyed) {
-              const scarred = scarGooeyDestroyedTile(terrainLayer, newX, newY)
-              if (scarred !== terrainLayer) setTerrainLayer(scarred)
+              setTerrainLayer(result.terrainLayer)
             }
 
             return

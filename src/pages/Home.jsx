@@ -6,7 +6,7 @@ export default function Home() {
       <h1 className='home-logo'>
         The Chaos Realm
       </h1>
-      <div clasName='home-wrapper'>
+      <div className='home-wrapper'>
         <Link to='/game'>
           <button className='home-btn'>
             Game Engine
