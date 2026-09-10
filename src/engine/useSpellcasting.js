@@ -1,10 +1,14 @@
 import { CREATURES } from '../data/creatures.js'
-import { castSpell } from './spellCaster.js'
+import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
+import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
+import { wrappedChebyshevDistance } from './utils.js'
 import {
   isTileIgnitable as checkTileIgnitable,
   isTileSpreadableForBlob as checkTileSpreadableForBlob,
+  isTileValidForVineCast as checkTileValidForVineCast,
   createFireEffect,
-  createBlobEffect
+  createBlobEffect,
+  createVineEffect
 } from './environmentEffects.js'
 
 export default function useSpellcasting({
@@ -13,6 +17,7 @@ export default function useSpellcasting({
   effectLayer,
   playerPosition,
   enemyPosition,
+  cursor,
   setObjectLayer,
   setEffectLayer,
   PLAYER
@@ -40,6 +45,7 @@ export default function useSpellcasting({
 
   const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, effectLayer, tile.x, tile.y)
   const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, effectLayer, tile.x, tile.y)
+  const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, effectLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -76,6 +82,14 @@ export default function useSpellcasting({
     })
   }
 
+  const applyVineToTile = (tile) => {
+    setEffectLayer(prev => {
+      const copy = prev.map(row => [...row])
+      copy[tile.y][tile.x] = createVineEffect('player')
+      return copy
+    })
+  }
+
   const castSpellForPlayer = (spell) => {
     if (!spell) return
 
@@ -92,15 +106,28 @@ export default function useSpellcasting({
       return
     }
 
+    if (spell.ranged) {
+      const maxRange = RANGED_SPELL_BASE_RANGE + level
+      const distance = wrappedChebyshevDistance(playerPosition.x, playerPosition.y, cursor.x, cursor.y, MAP_WIDTH, MAP_HEIGHT)
+
+      if (distance > maxRange) {
+        alert('Out of range')
+        return
+      }
+    }
+
     castSpell({
       spell,
       casterPos: playerPosition,
+      aimPos: cursor,
       isTileFree,
       spawnCreature,
       isTileIgnitable,
       igniteTile,
       isTileSpreadableForBlob,
-      spreadBlobTile
+      spreadBlobTile,
+      isTileValidForVine,
+      applyVineToTile
     })
 
     PLAYER.current_mana -= cost

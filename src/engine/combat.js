@@ -1,5 +1,5 @@
 import { PLAYER } from '../data/player.js'
-import { scarGooeyDestroyedTile } from './environmentEffects.js'
+import { scarWallEffectDestroyedTile } from './environmentEffects.js'
 
 export const ATTACK_AP_COST = 2
 
@@ -7,9 +7,14 @@ const DAMAGE_ROLL_MAX = 6
 const LAVA_DAMAGE_PERCENT = 0.10
 
 export const FIRE_DAMAGE_PER_TURN = 8
+
 export const GOOEY_DAMAGE_PER_TURN = 8
 export const GOOEY_BLOB_DEFENCE = 15
 export const GOOEY_BLOB_HEALTH = 40
+
+export const TANGLE_VINE_DAMAGE_PER_TURN = 8
+export const TANGLE_VINE_DEFENCE = 15
+export const TANGLE_VINE_HEALTH = 40
 
 function rollDamage(attackerCombat, defenderDefence) {
   const swing = Math.floor(Math.random() * DAMAGE_ROLL_MAX) + 1
@@ -88,8 +93,7 @@ function applyDamageToCell(objectLayer, pos, damage) {
 
   return {
     objectLayer: newLayer,
-    damage,
-    defeated,
+    damage, defeated,
     targetType: cell.type
   }
 }
@@ -231,10 +235,39 @@ export function applyGooeyBlobDamage(objectLayer, pos) {
   }
 }
 
-export function resolveBlobAttack({ effectLayer, terrainLayer, attackerCombat, pos }) {
+export function applyTangleVineDamage(objectLayer, pos) {
+  const cell = objectLayer[pos.y][pos.x]
+  if (!cell) return {
+    objectLayer,
+    damage: 0,
+    defeated: false,
+    targetType: null
+  }
+
+  const profile = getCombatProfile(cell)
+  if (!profile) return {
+    objectLayer,
+    damage: 0,
+    defeated: false,
+    targetType: null
+  }
+
+  const result = applyDamageToCell(objectLayer, pos, TANGLE_VINE_DAMAGE_PER_TURN)
+
+  return {
+    objectLayer: result.objectLayer,
+    damage: result.damage,
+    defeated: result.defeated,
+    targetType: result.targetType
+  }
+}
+
+const WALL_DEFENCE = { blob: GOOEY_BLOB_DEFENCE, vine: TANGLE_VINE_DEFENCE }
+
+export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCombat, pos }) {
   const cell = effectLayer[pos.y][pos.x]
 
-  if (cell?.type !== 'blob') {
+  if (!cell || (cell.type !== 'blob' && cell.type !== 'vine')) {
     return {
       effectLayer,
       terrainLayer,
@@ -243,7 +276,7 @@ export function resolveBlobAttack({ effectLayer, terrainLayer, attackerCombat, p
     }
   }
 
-  const damage = rollDamage(attackerCombat, GOOEY_BLOB_DEFENCE)
+  const damage = rollDamage(attackerCombat, WALL_DEFENCE[cell.type])
   const newHealth = cell.health - damage
   const destroyed = newHealth <= 0
 
@@ -252,7 +285,7 @@ export function resolveBlobAttack({ effectLayer, terrainLayer, attackerCombat, p
 
   if (destroyed) {
     newEffectLayer[pos.y][pos.x] = null
-    newTerrainLayer = scarGooeyDestroyedTile(terrainLayer, pos.x, pos.y)
+    newTerrainLayer = scarWallEffectDestroyedTile(terrainLayer, pos.x, pos.y, cell.type)
   } else {
     newEffectLayer[pos.y][pos.x] = { ...cell, health: newHealth }
   }

@@ -3,8 +3,8 @@ import { wrap } from './utils.js'
 import { tryMove } from './movement.js'
 import { PLAYER } from '../data/player.js'
 import { getMovementCost } from './terrain.js'
-import { resolveAttack, applyLavaDamage, resolveBlobAttack, ATTACK_AP_COST } from './combat.js'
-import { isFireBlocking } from './environmentEffects.js'
+import { resolveAttack, applyLavaDamage, resolveWallEffectAttack, ATTACK_AP_COST } from './combat.js'
+import { isEnvironmentEffectBlocking, ATTACKABLE_EFFECT_TYPES } from './environmentEffects.js'
 
 export default function useInput({
   cursor,
@@ -96,8 +96,59 @@ export default function useInput({
           const newX = wrap(PLAYER.x + dx, map[0].length)
           const newY = wrap(PLAYER.y + dy, map.length)
 
-          if (isFireBlocking(effectLayer, newX, newY)) {
-            console.log('Magic Fire blocks the way!')
+          if (isEnvironmentEffectBlocking(effectLayer, newX, newY)) {
+            const occupant = objectLayer[newY][newX]
+
+            if (occupant !== null) {
+              if (occupant.owner === 'enemy') {
+                if (PLAYER.ap < ATTACK_AP_COST) return
+
+                const result = resolveAttack({
+                  objectLayer,
+                  attackerPos: { x: PLAYER.x, y: PLAYER.y },
+                  defenderPos: { x: newX, y: newY }
+                })
+
+                if (result.blocked) {
+                  console.log('Normal attacks cannot harm the undead!')
+                  return
+                }
+
+                PLAYER.ap -= ATTACK_AP_COST
+                setAp(PLAYER.ap)
+                setObjectLayer(result.objectLayer)
+
+                if (result.defeated && result.defenderType === 'enemyWizard') {
+                  setEnemyPosition(null)
+                }
+              } else {
+                console.log('Cannot move onto an occupied tile')
+              }
+              return
+            }
+
+            const effectType = effectLayer[newY][newX].type
+
+            if (ATTACKABLE_EFFECT_TYPES.includes(effectType)) {
+              if (PLAYER.ap < ATTACK_AP_COST) return
+
+              const result = resolveWallEffectAttack({
+                effectLayer,
+                terrainLayer,
+                attackerCombat: PLAYER.combat,
+                pos: { x: newX, y: newY }
+              })
+
+              PLAYER.ap -= ATTACK_AP_COST
+              setAp(PLAYER.ap)
+              setEffectLayer(result.effectLayer)
+
+              if (result.destroyed) {
+                setTerrainLayer(result.terrainLayer)
+              }
+            } else {
+              console.log('Magic Fire blocks the way!')
+            }
             return
           }
 
@@ -128,27 +179,6 @@ export default function useInput({
             } else {
               console.log("Player cannot move onto an occupied tile")
             }
-            return
-          }
-
-          if (effectLayer[newY][newX]?.type === 'blob') {
-            if (PLAYER.ap < ATTACK_AP_COST) return
-
-            const result = resolveBlobAttack({
-              effectLayer,
-              terrainLayer,
-              attackerCombat: PLAYER.combat,
-              pos: { x: newX, y: newY }
-            })
-
-            PLAYER.ap -= ATTACK_AP_COST
-            setAp(PLAYER.ap)
-            setEffectLayer(result.effectLayer)
-
-            if (result.destroyed) {
-              setTerrainLayer(result.terrainLayer)
-            }
-
             return
           }
 
@@ -198,8 +228,65 @@ export default function useInput({
           const newX = wrap(x + dx, map[0].length)
           const newY = wrap(y + dy, map.length)
 
-          if (isFireBlocking(effectLayer, newX, newY)) {
-            console.log('Magic Fire blocks the way!')
+          if (isEnvironmentEffectBlocking(effectLayer, newX, newY)) {
+            const occupant = objectLayer[newY][newX]
+
+            if (occupant !== null) {
+              if (occupant.owner === 'enemy') {
+                if (creature.ap < ATTACK_AP_COST) return
+
+                const result = resolveAttack({
+                  objectLayer,
+                  attackerPos: { x, y },
+                  defenderPos: { x: newX, y: newY }
+                })
+
+                if (result.blocked) {
+                  console.log(`${creature.name} cannot harm the undead with a normal attack!`)
+                  return
+                }
+
+                let updatedLayer = result.objectLayer
+                const attackerCellNow = updatedLayer[y][x]
+
+                if (attackerCellNow) {
+                  updatedLayer = updatedLayer.map(row => [...row])
+                  updatedLayer[y][x] = { ...attackerCellNow, ap: attackerCellNow.ap - ATTACK_AP_COST }
+                }
+
+                setObjectLayer(updatedLayer)
+
+                if (result.defeated && result.defenderType === 'enemyWizard') {
+                  setEnemyPosition(null)
+                }
+              }
+              return
+            }
+
+            const effectType = effectLayer[newY][newX].type
+
+            if (ATTACKABLE_EFFECT_TYPES.includes(effectType)) {
+              if (creature.ap < ATTACK_AP_COST) return
+
+              const result = resolveWallEffectAttack({
+                effectLayer,
+                terrainLayer,
+                attackerCombat: creature.stats.combat,
+                pos: { x: newX, y: newY }
+              })
+
+              setObjectLayer(prev => {
+                const copy = prev.map(row => [...row])
+                copy[y][x] = { ...creature, ap: creature.ap - ATTACK_AP_COST }
+                return copy
+              })
+
+              setEffectLayer(result.effectLayer)
+
+              if (result.destroyed) {
+                setTerrainLayer(result.terrainLayer)
+              }
+            }
             return
           }
 
@@ -234,31 +321,6 @@ export default function useInput({
                 setEnemyPosition(null)
               }
             }
-            return
-          }
-
-          if (effectLayer[newY][newX]?.type === 'blob') {
-            if (creature.ap < ATTACK_AP_COST) return
-
-            const result = resolveBlobAttack({
-              effectLayer,
-              terrainLayer,
-              attackerCombat: creature.stats.combat,
-              pos: { x: newX, y: newY }
-            })
-
-            setObjectLayer(prev => {
-              const copy = prev.map(row => [...row])
-              copy[y][x] = { ...creature, ap: creature.ap - ATTACK_AP_COST }
-              return copy
-            })
-
-            setEffectLayer(result.effectLayer)
-
-            if (result.destroyed) {
-              setTerrainLayer(result.terrainLayer)
-            }
-
             return
           }
 

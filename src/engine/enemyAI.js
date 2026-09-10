@@ -3,15 +3,17 @@ import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { PLAYER } from '../data/player.js'
 import { CREATURES } from '../data/creatures.js'
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
-import { wrap, wrappedManhattanDistance } from './utils.js'
-import { castSpell } from './spellCaster.js'
+import { wrap, wrappedManhattanDistance, wrappedChebyshevDistance } from './utils.js'
+import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
 import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 import {
   createFireEffect,
   createBlobEffect,
+  createVineEffect,
   isTileIgnitable as checkTileIgnitable,
-  isTileSpreadableForBlob as checkTileSpreadableForBlob
+  isTileSpreadableForBlob as checkTileSpreadableForBlob,
+  isTileValidForVineCast as checkTileValidForVineCast
 } from './environmentEffects.js'
 
 const SIGHT_RANGE = 10
@@ -59,6 +61,7 @@ function pickWanderTarget(originX, originY, terrainLayer, objectLayer, entity) {
       return { x, y }
     }
   }
+
   return null
 }
 
@@ -235,15 +238,30 @@ function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
   return true
 }
 
+function pickTangleVineTarget(objectLayer, casterX, casterY, maxRange) {
+  const { target, dist } = findNearestPlayerTarget(objectLayer, casterX, casterY)
+  const chebyshevDistWrapped = wrappedChebyshevDistance(casterX, casterY, target.x, target.y, MAP_WIDTH, MAP_HEIGHT)
+
+  if (chebyshevDistWrapped <= maxRange) return { x: target.x, y: target.y }
+  return null
+}
+
 function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   const { dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
   if (dist > SIGHT_RANGE) return { objectLayer, effectLayer, cast: false }
   if (Math.random() > CAST_CHANCE) return { objectLayer, effectLayer, cast: false }
 
-  const usableSpells = ENEMY_SPELLBOOK.filter(spell =>
-    spell.currentSpellLevel > 0 &&
-    ENEMY_WIZARD.current_mana >= spell.manaCost * spell.currentSpellLevel
-  )
+  const usableSpells = ENEMY_SPELLBOOK.filter(spell => {
+    if (spell.currentSpellLevel <= 0) return false
+    if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel) return false
+
+    if (spell.ranged) {
+      const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
+      return pickTangleVineTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange) !== null
+    }
+
+    return true
+  })
 
   if (usableSpells.length === 0) return { objectLayer, effectLayer, cast: false }
 
@@ -255,6 +273,7 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   const isTileFree = (tile) => isTileFreeForCast(terrainLayer, workingLayer, tile.x, tile.y)
   const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, workingEffectLayer, tile.x, tile.y)
   const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, workingEffectLayer, tile.x, tile.y)
+  const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, workingEffectLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -282,15 +301,29 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
     workingEffectLayer[tile.y][tile.x] = createBlobEffect('enemy')
   }
 
+  const applyVineToTile = (tile) => {
+    workingEffectLayer = workingEffectLayer.map(row => [...row])
+    workingEffectLayer[tile.y][tile.x] = createVineEffect('enemy')
+  }
+
+  let aimPos = null
+  if (spell.ranged) {
+    const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
+    aimPos = pickTangleVineTarget(workingLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange)
+  }
+
   castSpell({
     spell,
     casterPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+    aimPos,
     isTileFree,
     spawnCreature,
     isTileIgnitable,
     igniteTile,
     isTileSpreadableForBlob,
-    spreadBlobTile
+    spreadBlobTile,
+    isTileValidForVine,
+    applyVineToTile
   })
 
   const cost = spell.manaCost * spell.currentSpellLevel
@@ -335,9 +368,9 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
 
 function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLayer) {
   const creature = objectLayer[startY][startX]
+  
   if (!creature) return {
-    objectLayer,
-    moved: false,
+    objectLayer, moved: false,
     defeatedTarget: null,
     selfDefeated: false,
     frames: []
@@ -474,7 +507,6 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer, effectLayer) {
 
   return {
     objectLayer: workingLayer,
-    defeatedTargets,
-    frames
+    defeatedTargets, frames
   }
 }

@@ -103,6 +103,7 @@ export default function useGameEngine() {
     effectLayer,
     playerPosition,
     enemyPosition,
+    cursor,
     setObjectLayer,
     setEffectLayer,
     PLAYER

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { drawViewport } from './viewport.js'
 import { PLAYER } from '../data/player.js'
 
-export function useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer) {
+export function useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !terrainLayer.length) return
@@ -21,7 +21,8 @@ export function useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor
         cursor,
         selected,
         objectLayer,
-        effectLayer
+        effectLayer,
+        rangeHighlight
       )
     }
 
@@ -29,5 +30,5 @@ export function useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor
 
     const interval = setInterval(render, 100)
     return () => clearInterval(interval)
-  }, [canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer])
+  }, [canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight])
 }

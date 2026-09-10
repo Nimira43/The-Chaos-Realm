@@ -1,11 +1,19 @@
 import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap } from './utils.js'
 import { NEIGHBOUR_OFFSETS } from './pathfinding.js'
-import { applyFireDamage, applyGooeyBlobDamage, GOOEY_BLOB_HEALTH } from './combat.js'
+import { applyFireDamage, applyGooeyBlobDamage, applyTangleVineDamage, GOOEY_BLOB_HEALTH, TANGLE_VINE_HEALTH } from './combat.js'
+
+export const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine']
+export const ATTACKABLE_EFFECT_TYPES = ['blob', 'vine']
+
+export function isEnvironmentEffectBlocking(effectLayer, x, y) {
+  const type = effectLayer?.[y]?.[x]?.type
+  return WALL_EFFECT_TYPES.includes(type)
+}
 
 export const FIRE_DURATION_TURNS = 4
 export const FIRE_SPREAD_CHANCE = 0.4
-export const GOOEY_DURATION_TURNS = 4 
+export const GOOEY_DURATION_TURNS = 4
 export const GOOEY_SPREAD_CHANCE = 0.4
 
 export function createFireEffect(owner) {
@@ -25,12 +33,20 @@ export function createBlobEffect(owner) {
   }
 }
 
+export function createVineEffect(owner) {
+  return {
+    type: 'vine',
+    health: TANGLE_VINE_HEALTH,
+    owner
+  }
+}
+
 const FIRE_UNIGNITABLE_TERRAIN = ['rock', 'swamp', 'water', 'mountain', 'key', 'portal', 'wasteland']
 const FIRE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'door']
 const GOOEY_UNSPREADABLE_TERRAIN = ['mountain', 'key', 'portal', 'wasteland']
 const GOOEY_DESTROYS_TERRAIN = ['swamp', 'water', 'forest', 'rough', 'grass', 'floor', 'road', 'wall', 'door', 'rock']
-const FIRE_RESPECTS_FACTION = true
-const GOOEY_RESPECTS_FACTION = true
+const TANGLE_UNCASTABLE_TERRAIN = ['mountain', 'portal', 'key']
+const TANGLE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'door', 'rock', 'swamp']
 
 export function isTileIgnitable(terrainLayer, effectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
@@ -40,16 +56,30 @@ export function isTileIgnitable(terrainLayer, effectLayer, x, y) {
   return !FIRE_UNIGNITABLE_TERRAIN.includes(terrainLayer[y][x])
 }
 
+function isFireSpreadTarget(terrainLayer, effectLayer, x, y) {
+  if (y < 0 || y >= terrainLayer.length) return false
+  if (x < 0 || x >= terrainLayer[0].length) return false
+  if (!FIRE_UNIGNITABLE_TERRAIN.includes(terrainLayer[y][x]) === false) return false
+
+  const existing = effectLayer[y][x]
+  return existing === null || existing.type === 'vine'
+}
+
 export function isTileSpreadableForBlob(terrainLayer, effectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
   if (x < 0 || x >= terrainLayer[0].length) return false
-  if (effectLayer[y][x] !== null) return false
+  if (effectLayer[y][x] !== null) return false 
 
   return !GOOEY_UNSPREADABLE_TERRAIN.includes(terrainLayer[y][x])
 }
 
-export function isFireBlocking(effectLayer, x, y) {
-  return effectLayer[y]?.[x]?.type === 'fire'
+export function isTileValidForVineCast(terrainLayer, effectLayer, x, y) {
+  if (y < 0 || y >= terrainLayer.length) return false
+  if (x < 0 || x >= terrainLayer[0].length) return false
+  if (TANGLE_UNCASTABLE_TERRAIN.includes(terrainLayer[y][x])) return false
+
+  const existing = effectLayer[y][x]
+  return !existing || existing.type !== 'fire'
 }
 
 function scarTileToWasteland(terrainLayer, x, y, destroysList) {
@@ -62,9 +92,12 @@ function scarTileToWasteland(terrainLayer, x, y, destroysList) {
   return newLayer
 }
 
-export function scarGooeyDestroyedTile(terrainLayer, x, y) {
-  return scarTileToWasteland(terrainLayer, x, y, GOOEY_DESTROYS_TERRAIN)
+export function scarWallEffectDestroyedTile(terrainLayer, x, y, effectType) {
+  const destroysList = effectType === 'vine' ? TANGLE_DESTROYS_TERRAIN : GOOEY_DESTROYS_TERRAIN
+  return scarTileToWasteland(terrainLayer, x, y, destroysList)
 }
+
+const RESPECTS_FACTION = { fire: true, blob: true, vine: false }
 
 export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   let workingObjects = objectLayer
@@ -76,10 +109,13 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
       if (!effect) continue
 
       const occupant = workingObjects[y][x]
-      const respectsFaction = effect.type === 'fire' ? FIRE_RESPECTS_FACTION : GOOEY_RESPECTS_FACTION
-      if (respectsFaction && occupant && occupant.owner === effect.owner) continue
+      if (RESPECTS_FACTION[effect.type] && occupant && occupant.owner === effect.owner) continue
 
-      const damageFn = effect.type === 'fire' ? applyFireDamage : applyGooeyBlobDamage
+      const damageFn =
+        effect.type === 'fire' ? applyFireDamage :
+        effect.type === 'blob' ? applyGooeyBlobDamage :
+        applyTangleVineDamage
+
       const result = damageFn(workingObjects, { x, y })
       workingObjects = result.objectLayer
       if (result.defeated && result.targetType) defeatedTargets.push(result.targetType)
@@ -92,13 +128,13 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   for (let y = 0; y < effectLayer.length; y++) {
     for (let x = 0; x < effectLayer[0].length; x++) {
       const effect = effectLayer[y][x]
-      if (!effect) continue
+      if (!effect || effect.type === 'vine') continue
 
       const spreadChance = effect.type === 'fire' ? FIRE_SPREAD_CHANCE : GOOEY_SPREAD_CHANCE
       if (Math.random() >= spreadChance) continue
 
       const isEligible = effect.type === 'fire'
-        ? (n) => isTileIgnitable(terrainLayer, effectLayer, n.x, n.y)
+        ? (n) => isFireSpreadTarget(terrainLayer, effectLayer, n.x, n.y)
         : (n) => isTileSpreadableForBlob(terrainLayer, effectLayer, n.x, n.y)
 
       const candidates = NEIGHBOUR_OFFSETS
@@ -118,7 +154,7 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   const newEffectLayer = effectLayer.map(row => [...row])
 
   fireSpreadTargets.forEach(({ x, y, owner }) => {
-    if (newEffectLayer[y][x] === null) newEffectLayer[y][x] = createFireEffect(owner)
+    newEffectLayer[y][x] = createFireEffect(owner)
   })
 
   blobSpreadTargets.forEach(({ x, y, owner }) => {
@@ -130,7 +166,7 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   for (let y = 0; y < newEffectLayer.length; y++) {
     for (let x = 0; x < newEffectLayer[0].length; x++) {
       const original = effectLayer[y][x]
-      if (!original) continue
+      if (!original || original.turnsRemaining === undefined) continue
 
       const remaining = original.turnsRemaining - 1
 

@@ -1,5 +1,5 @@
 import { terrainColours } from '../engine/terrain.js'
-import { wrap, wrappedDelta } from '../engine/utils.js'
+import { wrap, wrappedDelta, wrappedChebyshevDistance } from '../engine/utils.js'
 import { CREATURES } from '../data/creatures.js'
 
 function getCreatureCode(name) {
@@ -69,6 +69,30 @@ function drawGooeyBlobTile(ctx, screenX, screenY, tileSize) {
   ctx.fill()
 }
 
+function drawTangleVineTile(ctx, screenX, screenY, tileSize) {
+  const centreX = screenX + tileSize / 2
+  const centreY = screenY + tileSize / 2
+  const outerRadius = tileSize * 0.4
+  const innerRadius = tileSize * 0.1
+
+  ctx.strokeStyle = '#adff2f'
+  ctx.lineWidth = Math.max(2, tileSize * 0.09)
+  ctx.lineCap = 'round'
+
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i
+    ctx.beginPath()
+    ctx.moveTo(centreX + Math.cos(angle) * innerRadius, centreY + Math.sin(angle) * innerRadius)
+    ctx.lineTo(centreX + Math.cos(angle) * outerRadius, centreY + Math.sin(angle) * outerRadius)
+    ctx.stroke()
+  }
+
+  ctx.fillStyle = '#adff2f'
+  ctx.beginPath()
+  ctx.arc(centreX, centreY, innerRadius, 0, Math.PI * 2)
+  ctx.fill()
+}
+
 export function drawViewport(
   ctx,
   map,
@@ -78,7 +102,8 @@ export function drawViewport(
   cursor,
   selected,
   objectLayer,
-  effectLayer
+  effectLayer,
+  rangeHighlight
 ) {
   const radius = Math.floor(viewTiles / 2)
   const centreX = selected?.type === 'player' ? player.x : cursor.x
@@ -92,6 +117,27 @@ export function drawViewport(
 
       ctx.fillStyle = terrainColours[map[worldY][worldX]]
       ctx.fillRect(vx * tileSize, vy * tileSize, tileSize, tileSize)
+    }
+  }
+
+  if (rangeHighlight) {
+    ctx.fillStyle = 'rgba(135, 206, 235, 0.35)'
+    for (let vy = 0; vy < viewTiles; vy++) {
+      for (let vx = 0; vx < viewTiles; vx++) {
+
+        const worldX = wrap(centreX + (vx - radius), map[0].length)
+        const worldY = wrap(centreY + (vy - radius), map.length)
+
+        const dist = wrappedChebyshevDistance(
+          rangeHighlight.origin.x, rangeHighlight.origin.y,
+          worldX, worldY,
+          map[0].length, map.length
+        )
+
+        if (dist <= rangeHighlight.radius) {
+          ctx.fillRect(vx * tileSize, vy * tileSize, tileSize, tileSize)
+        }
+      }
     }
   }
 
@@ -109,11 +155,13 @@ export function drawViewport(
           drawGooeyBlobTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         } else if (cell.type === 'fire') {
           drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        } else if (cell.type === 'vine') {
+          drawTangleVineTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
       }
     }
   }
-  
+
   for (let vy = 0; vy < viewTiles; vy++) {
     for (let vx = 0; vx < viewTiles; vx++) {
 

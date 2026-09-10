@@ -7,12 +7,14 @@ import { getMovementCost } from '../engine/terrain.js'
 import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
 import '../index.css'
 import { useEffect } from 'react'
+import { RANGED_SPELL_BASE_RANGE } from '../engine/spellCaster.js'
 
 export default function GameEngine() {
   const canvasRef = useRef(null)
   const [selectedSpell, setSelectedSpell] = useState(null)
 
   const {
+    playerPosition,  // is this correct
     ap,
     round,
     terrainLayer,
@@ -38,11 +40,15 @@ export default function GameEngine() {
   const gameOver = gameStatus !== 'playing'
   const actionsLocked = gameOver || isAnimating
 
+  const rangeHighlight = selectedSpell?.ranged
+    ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
+    : null
+  
   useEffect(() => {
     restartGame()
   }, [])
-
-  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer)
+  
+  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight)
 
   function handleCastClick(e) {
     if (!selectedSpell || actionsLocked) return

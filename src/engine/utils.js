@@ -14,3 +14,19 @@ export function wrappedManhattanDistance(ax, ay, bx, by, width, height) {
   const dy = Math.abs(wrappedDelta(ay - by, height))
   return dx + dy
 }
+
+export function wrappedChebyshevDistance(ax, ay, bx, by, width, height) {
+  const dx = Math.abs(wrappedDelta(ax - bx, width))
+  const dy = Math.abs(wrappedDelta(ay - by, height))
+  return Math.max(dx, dy)
+}
+
+export function getAreaTiles(centerX, centerY, radius, width, height) {
+  const tiles = []
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      tiles.push({ x: wrap(centerX + dx, width), y: wrap(centerY + dy, height) })
+    }
+  }
+  return tiles
+}
