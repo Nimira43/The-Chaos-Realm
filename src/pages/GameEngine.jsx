@@ -14,7 +14,7 @@ export default function GameEngine() {
   const [selectedSpell, setSelectedSpell] = useState(null)
 
   const {
-    playerPosition,  // is this correct
+    playerPosition,
     ap,
     round,
     terrainLayer,

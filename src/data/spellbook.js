@@ -32,7 +32,8 @@ export function buildSpellbook() {
     { name: 'Demon', manaCost: 40, initialSpellLevel: 4, currentSpellLevel: 4, category: 'creature', duration: 'permanent' },
     { name: 'Magic Fire', manaCost: 15, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'spreading' },
     { name: 'Gooey Blob', manaCost: 12, initialSpellLevel: 4, currentSpellLevel: 4, category: 'environment', duration: 'spreading' },
-    { name: 'Tangle Vine', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true }
+    { name: 'Tangle Vine', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true },
+    { name: 'Flood', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true }
   ]
 
   // --- POTIONS (4 turns except healing) ---
@@ -43,9 +44,6 @@ export function buildSpellbook() {
   // { name: 'Flying Potion', manaCost: 5, currentSpellLevel: 5, category: 'potion', duration: 4 },
   // { name: 'Super Potion', manaCost: 16, currentSpellLevel: 5, category: 'potion', duration: 4 },
   // { name: 'Healing Potion', manaCost: 5, currentSpellLevel: 5, category: 'potion', duration: 'instant' },
-
-  // --- ENVIRONMENT ---
-  // { name: 'Flood', manaCost: 10, currentSpellLevel: 5, category: 'environment', duration: 'static' },
 
   // --- PERSONAL (4 turns) ---
   // { name: 'Enchant', manaCost: 10, currentSpellLevel: 5, category: 'personal', duration: 4 },

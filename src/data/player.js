@@ -24,4 +24,5 @@ export const PLAYER = {
   water_type: false,
   rock_type: false,
   lava_type: false,
+  floodTrapped: false,
 }

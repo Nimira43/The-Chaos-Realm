@@ -97,6 +97,24 @@ export function castTangleVineSpell({ casterPos, aimPos, spellLevel, isTileValid
   })
 }
 
+export function castFloodSpell({ casterPos, aimPos, spellLevel, isTileValidForFlood, applyFloodToTile }) {
+  if (!aimPos) return
+
+  const maxRange = RANGED_SPELL_BASE_RANGE + spellLevel
+  const distance = wrappedChebyshevDistance(casterPos.x, casterPos.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
+
+  if (distance > maxRange) {
+    console.warn('Flood cast out of range')
+    return
+  }
+
+  const areaTiles = getAreaTiles(aimPos.x, aimPos.y, spellLevel, MAP_WIDTH, MAP_HEIGHT)
+
+  areaTiles.forEach(tile => {
+    if (isTileValidForFlood(tile)) applyFloodToTile(tile)
+  })
+}
+
 function castEnvironmentSpell({
   spell,
   casterPos,
@@ -106,7 +124,9 @@ function castEnvironmentSpell({
   isTileSpreadableForBlob,
   spreadBlobTile,
   isTileValidForVine,
-  applyVineToTile
+  applyVineToTile,
+  isTileValidForFlood,
+  applyFloodToTile
 }) {
   switch (spell.name) {
     case 'Magic Fire':
@@ -119,6 +139,10 @@ function castEnvironmentSpell({
 
     case 'Tangle Vine':
       castTangleVineSpell({ casterPos, aimPos, spellLevel: spell.currentSpellLevel, isTileValidForVine, applyVineToTile })
+      break
+    
+    case 'Flood':
+      castFloodSpell({ casterPos, aimPos, spellLevel: spell.currentSpellLevel, isTileValidForFlood, applyFloodToTile })
       break
 
     default:
@@ -138,7 +162,9 @@ export function castSpell({
   isTileSpreadableForBlob,
   spreadBlobTile,
   isTileValidForVine,
-  applyVineToTile
+  applyVineToTile,
+  isTileValidForFlood,
+  applyFloodToTile
 }) {
   if (!spell) {
     console.warn('castSpell called with no spell')
@@ -166,7 +192,9 @@ export function castSpell({
         isTileSpreadableForBlob,
         spreadBlobTile,
         isTileValidForVine,
-        applyVineToTile
+        applyVineToTile,
+        isTileValidForFlood,
+        applyFloodToTile
       })
       break
 

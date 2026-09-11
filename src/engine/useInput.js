@@ -96,7 +96,7 @@ export default function useInput({
           const newX = wrap(PLAYER.x + dx, map[0].length)
           const newY = wrap(PLAYER.y + dy, map.length)
 
-          if (isEnvironmentEffectBlocking(effectLayer, newX, newY)) {
+          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, PLAYER)) {
             const occupant = objectLayer[newY][newX]
 
             if (occupant !== null) {
@@ -147,7 +147,7 @@ export default function useInput({
                 setTerrainLayer(result.terrainLayer)
               }
             } else {
-              console.log('Magic Fire blocks the way!')
+              console.log(`${effectType} blocks the way!`)
             }
             return
           }
@@ -228,7 +228,7 @@ export default function useInput({
           const newX = wrap(x + dx, map[0].length)
           const newY = wrap(y + dy, map.length)
 
-          if (isEnvironmentEffectBlocking(effectLayer, newX, newY)) {
+          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, creature.stats)) {
             const occupant = objectLayer[newY][newX]
 
             if (occupant !== null) {

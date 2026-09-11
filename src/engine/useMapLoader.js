@@ -41,6 +41,7 @@ export default function useMapLoader({
     PLAYER.ap = PLAYER.max_ap
     PLAYER.current_mana = PLAYER.max_mana
     PLAYER.current_health = PLAYER.constitution
+    PLAYER.floodTrapped = false
 
     objects[PLAYER.y][PLAYER.x] = {
       type: 'player',
@@ -54,6 +55,7 @@ export default function useMapLoader({
     ENEMY_WIZARD.current_mana = ENEMY_WIZARD.max_mana
     ENEMY_WIZARD.current_health = ENEMY_WIZARD.constitution
     ENEMY_WIZARD.wanderTarget = null
+    ENEMY_WIZARD.floodTrapped = false
 
     objects[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = {
       type: 'enemyWizard',
@@ -155,6 +157,7 @@ export default function useMapLoader({
     PLAYER.ap = PLAYER.max_ap
     PLAYER.current_mana = PLAYER.max_mana
     PLAYER.current_health = PLAYER.constitution
+    PLAYER.floodTrapped = false
 
     objects[resolvedPlayerStart.y][resolvedPlayerStart.x] = {
       type: 'player',
@@ -172,6 +175,7 @@ export default function useMapLoader({
       ENEMY_WIZARD.current_mana = ENEMY_WIZARD.max_mana
       ENEMY_WIZARD.current_health = ENEMY_WIZARD.constitution
       ENEMY_WIZARD.wanderTarget = null
+      ENEMY_WIZARD.floodTrapped = false
 
       objects[enemyStart.y][enemyStart.x] = {
         type: 'enemyWizard',

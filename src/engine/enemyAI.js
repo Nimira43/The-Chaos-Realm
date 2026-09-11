@@ -11,9 +11,11 @@ import {
   createFireEffect,
   createBlobEffect,
   createVineEffect,
+  createFloodEffect,
   isTileIgnitable as checkTileIgnitable,
   isTileSpreadableForBlob as checkTileSpreadableForBlob,
-  isTileValidForVineCast as checkTileValidForVineCast
+  isTileValidForVineCast as checkTileValidForVineCast,
+  isTileValidForFloodCast as checkTileValidForFloodCast
 } from './environmentEffects.js'
 
 const SIGHT_RANGE = 10
@@ -238,11 +240,11 @@ function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
   return true
 }
 
-function pickTangleVineTarget(objectLayer, casterX, casterY, maxRange) {
-  const { target, dist } = findNearestPlayerTarget(objectLayer, casterX, casterY)
-  const chebyshevDistWrapped = wrappedChebyshevDistance(casterX, casterY, target.x, target.y, MAP_WIDTH, MAP_HEIGHT)
+function pickRangedSpellTarget(objectLayer, casterX, casterY, maxRange) {
+  const { target } = findNearestPlayerTarget(objectLayer, casterX, casterY)
+  const distance = wrappedChebyshevDistance(casterX, casterY, target.x, target.y, MAP_WIDTH, MAP_HEIGHT)
 
-  if (chebyshevDistWrapped <= maxRange) return { x: target.x, y: target.y }
+  if (distance <= maxRange) return { x: target.x, y: target.y }
   return null
 }
 
@@ -257,7 +259,7 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
 
     if (spell.ranged) {
       const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
-      return pickTangleVineTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange) !== null
+      return pickRangedSpellTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange) !== null
     }
 
     return true
@@ -271,9 +273,14 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   let workingEffectLayer = effectLayer
 
   const isTileFree = (tile) => isTileFreeForCast(terrainLayer, workingLayer, tile.x, tile.y)
+  
   const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, workingEffectLayer, tile.x, tile.y)
+  
   const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, workingEffectLayer, tile.x, tile.y)
+  
   const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, workingEffectLayer, tile.x, tile.y)
+  
+  const isTileValidForFlood = (tile) => checkTileValidForFloodCast(terrainLayer, workingEffectLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -305,11 +312,16 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
     workingEffectLayer = workingEffectLayer.map(row => [...row])
     workingEffectLayer[tile.y][tile.x] = createVineEffect('enemy')
   }
+  
+  const applyFloodToTile = (tile) => {
+    workingEffectLayer = workingEffectLayer.map(row => [...row])
+    workingEffectLayer[tile.y][tile.x] = createFloodEffect('enemy')
+  }
 
   let aimPos = null
   if (spell.ranged) {
     const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
-    aimPos = pickTangleVineTarget(workingLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange)
+    aimPos = pickRangedSpellTarget(workingLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange)
   }
 
   castSpell({
@@ -323,7 +335,9 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
     isTileSpreadableForBlob,
     spreadBlobTile,
     isTileValidForVine,
-    applyVineToTile
+    applyVineToTile,
+    isTileValidForFlood,
+    applyFloodToTile
   })
 
   const cost = spell.manaCost * spell.currentSpellLevel

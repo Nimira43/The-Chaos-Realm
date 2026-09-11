@@ -70,13 +70,16 @@ function drawGooeyBlobTile(ctx, screenX, screenY, tileSize) {
 }
 
 function drawTangleVineTile(ctx, screenX, screenY, tileSize) {
+  const pulse = (Date.now() % 900 < 450)
+  const scale = pulse ? 1 : 0.85
+
   const centreX = screenX + tileSize / 2
   const centreY = screenY + tileSize / 2
-  const outerRadius = tileSize * 0.4
-  const innerRadius = tileSize * 0.1
+  const outerRadius = tileSize * 0.4 * scale
+  const innerRadius = tileSize * 0.1 * scale
 
   ctx.strokeStyle = '#adff2f'
-  ctx.lineWidth = Math.max(2, tileSize * 0.09)
+  ctx.lineWidth = Math.max(2, tileSize * 0.09 * scale)
   ctx.lineCap = 'round'
 
   for (let i = 0; i < 6; i++) {
@@ -91,6 +94,35 @@ function drawTangleVineTile(ctx, screenX, screenY, tileSize) {
   ctx.beginPath()
   ctx.arc(centreX, centreY, innerRadius, 0, Math.PI * 2)
   ctx.fill()
+}
+
+function drawFloodTile(ctx, screenX, screenY, tileSize) {
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(screenX, screenY, tileSize, tileSize)
+  ctx.clip()
+
+  ctx.fillStyle = '#409dfa'
+  ctx.fillRect(screenX, screenY, tileSize, tileSize)
+
+  const t = (Date.now() / 300) % 1
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = Math.max(2, tileSize * 0.06)
+  ctx.lineCap = 'round'
+
+  const dashLength = tileSize * 0.22
+  const rowYs = [tileSize * 0.3, tileSize * 0.55, tileSize * 0.8]
+
+  rowYs.forEach((rowY, i) => {
+    const phase = (t + i * 0.33) % 1
+    const startX = screenX - dashLength + phase * (tileSize + dashLength)
+    ctx.beginPath()
+    ctx.moveTo(startX, screenY + rowY)
+    ctx.lineTo(startX + dashLength, screenY + rowY)
+    ctx.stroke()
+  })
+
+  ctx.restore()
 }
 
 export function drawViewport(
@@ -155,8 +187,10 @@ export function drawViewport(
           drawGooeyBlobTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         } else if (cell.type === 'fire') {
           drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
-        } else if (cell.type === 'vine') {
+         } else if (cell.type === 'vine') {
           drawTangleVineTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        } else if (cell.type === 'flood') {
+          drawFloodTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
       }
     }

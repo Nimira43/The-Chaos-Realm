@@ -7,10 +7,13 @@ export const NEIGHBOUR_OFFSETS = [
 ]
 
 const LAVA_AVOIDANCE_PENALTY = 500
-const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine']
+const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine', 'flood']
 
-function isWallEffectBlocking(effectLayer, x, y) {
-  return WALL_EFFECT_TYPES.includes(effectLayer?.[y]?.[x]?.type)
+function isWallEffectBlocking(effectLayer, x, y, entity) {
+  const type = effectLayer?.[y]?.[x]?.type
+  if (!WALL_EFFECT_TYPES.includes(type)) return false
+  if (type === 'flood' && entity?.water_type) return false
+  return true
 }
 
 export function getAdjacentTiles(x, y) {
@@ -63,7 +66,8 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, effectLayer, 
 
       if (visited.has(nKey)) continue
       if (objectLayer[ny][nx] !== null) continue
-      if (isWallEffectBlocking(effectLayer, nx, ny)) continue
+      
+      if (isWallEffectBlocking(effectLayer, nx, ny, entity)) continue
 
       const terrainType = terrainLayer[ny][nx]
       const cost = getMovementCost(terrainType, entity)
@@ -72,8 +76,8 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, effectLayer, 
       if (offset.x !== 0 && offset.y !== 0) {
         const flankACost = getMovementCost(terrainLayer[current.y][nx], entity)
         const flankBCost = getMovementCost(terrainLayer[ny][current.x], entity)
-        const flankABlocked = flankACost >= 999 || isWallEffectBlocking(effectLayer, nx, current.y)
-        const flankBBlocked = flankBCost >= 999 || isWallEffectBlocking(effectLayer, current.x, ny)
+        const flankABlocked = flankACost >= 999 || isWallEffectBlocking(effectLayer, nx, current.y, entity)
+        const flankBBlocked = flankBCost >= 999 || isWallEffectBlocking(effectLayer, current.x, ny, entity)
 
         if (flankABlocked || flankBBlocked) continue
       }

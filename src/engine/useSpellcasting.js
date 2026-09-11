@@ -6,9 +6,11 @@ import {
   isTileIgnitable as checkTileIgnitable,
   isTileSpreadableForBlob as checkTileSpreadableForBlob,
   isTileValidForVineCast as checkTileValidForVineCast,
+  isTileValidForFloodCast as checkTileValidForFloodCast,
   createFireEffect,
   createBlobEffect,
-  createVineEffect
+  createVineEffect,
+  createFloodEffect
 } from './environmentEffects.js'
 
 export default function useSpellcasting({
@@ -44,8 +46,12 @@ export default function useSpellcasting({
   }
 
   const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, effectLayer, tile.x, tile.y)
+  
   const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, effectLayer, tile.x, tile.y)
+  
   const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, effectLayer, tile.x, tile.y)
+
+  const isTileValidForFlood = (tile) => checkTileValidForFloodCast(terrainLayer, effectLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -90,6 +96,14 @@ export default function useSpellcasting({
     })
   }
 
+   const applyFloodToTile = (tile) => {
+    setEffectLayer(prev => {
+      const copy = prev.map(row => [...row])
+      copy[tile.y][tile.x] = createFloodEffect('player')
+      return copy
+    })
+  }
+
   const castSpellForPlayer = (spell) => {
     if (!spell) return
 
@@ -127,7 +141,8 @@ export default function useSpellcasting({
       isTileSpreadableForBlob,
       spreadBlobTile,
       isTileValidForVine,
-      applyVineToTile
+      applyVineToTile,
+      isTileValidForFlood, applyFloodToTile
     })
 
     PLAYER.current_mana -= cost
