@@ -5,9 +5,47 @@ import useGameEngine from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import { getMovementCost } from '../engine/terrain.js'
 import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
+import { RANGED_SPELL_BASE_RANGE } from '../engine/spellCaster.js'
 import '../index.css'
 import { useEffect } from 'react'
-import { RANGED_SPELL_BASE_RANGE } from '../engine/spellCaster.js'
+
+function getHoverInfo(objectLayer, terrainLayer, cursor) {
+  if (!terrainLayer.length || !objectLayer.length) return null
+
+  const cell = objectLayer[cursor.y]?.[cursor.x]
+  if (!cell) return null
+
+  const terrain = terrainLayer[cursor.y][cursor.x]
+
+  if (cell.type === 'creature') {
+    return {
+      name: cell.name,
+      owner: cell.owner,
+      ap: cell.ap,
+      apMax: cell.stats.action_points_ground,
+      hp: cell.current_health,
+      hpMax: cell.stats.constitution,
+      terrain,
+      moveCost: getMovementCost(terrain, cell.stats)
+    }
+  }
+
+  if (cell.type === 'enemyWizard') {
+    const ref = cell.ref
+    return {
+      name: 'Enemy Wizard',
+      owner: 'enemy',
+      ap: ref.ap,
+      apMax: ref.max_ap,
+      hp: ref.current_health,
+      hpMax: ref.constitution,
+      terrain,
+      moveCost: getMovementCost(terrain, ref)
+    }
+  }
+
+  return null
+}
 
 export default function GameEngine() {
   const canvasRef = useRef(null)
@@ -43,11 +81,13 @@ export default function GameEngine() {
   const rangeHighlight = selectedSpell?.ranged
     ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
     : null
-  
+
+  const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
+
   useEffect(() => {
     restartGame()
   }, [])
-  
+
   useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight)
 
   function handleCastClick(e) {
@@ -155,14 +195,17 @@ export default function GameEngine() {
           </button>
         </div>
 
-        {selected?.type === 'creature' && (
-          <div className='creature-info'>
+        {hoverInfo && (
+          <div
+            className='creature-info'
+            style={{ borderColor: hoverInfo.owner === 'enemy' ? '#ff0e0e' : undefined }}
+          >
             <div className='creature-info-row'>
               <span className='creature-label'>
-                Creature:
+                {hoverInfo.owner === 'enemy' ? 'Enemy' : 'Creature'}:
               </span>
               <span className='creature-value'>
-                {objectLayer[selected.y][selected.x]?.name || 'Unknown'}
+                {hoverInfo.name}
               </span>
             </div>
 
@@ -171,8 +214,7 @@ export default function GameEngine() {
                 AP:
               </span>
               <span className='creature-value'>
-                {objectLayer[selected.y][selected.x]?.ap} /
-                {objectLayer[selected.y][selected.x]?.stats.action_points_ground}
+                {hoverInfo.ap} / {hoverInfo.apMax}
               </span>
             </div>
 
@@ -181,8 +223,7 @@ export default function GameEngine() {
                 HP:
               </span>
               <span className='creature-value'>
-                {objectLayer[selected.y][selected.x]?.current_health} /
-                {objectLayer[selected.y][selected.x]?.stats.constitution}
+                {hoverInfo.hp} / {hoverInfo.hpMax}
               </span>
             </div>
 
@@ -191,7 +232,7 @@ export default function GameEngine() {
                 Terrain:
               </span>
               <span className='creature-value'>
-                {terrainLayer[selected.y][selected.x]}
+                {hoverInfo.terrain}
               </span>
             </div>
 
@@ -200,7 +241,7 @@ export default function GameEngine() {
                 Move Cost:
               </span>
               <span className='creature-value'>
-                {getMovementCost(terrainLayer[selected.y][selected.x], objectLayer[selected.y][selected.x]?.stats)}
+                {hoverInfo.moveCost}
               </span>
             </div>
           </div>
