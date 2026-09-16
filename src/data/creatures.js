@@ -312,7 +312,7 @@ export const CREATURES = [
     lava_type: false,
   },
   {
-    name: 'Grypthon',
+    name: 'Gryphon',
     ident_code: 'GRY',
     manaCost: 19,
     action_points_ground: 42,
