@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { wrap } from './utils.js'
 import { tryMove } from './movement.js'
 import { PLAYER } from '../data/player.js'
-import { getMovementCost } from './terrain.js'
+import { getMovementCost, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { resolveAttack, applyLavaDamage, resolveWallEffectAttack, ATTACK_AP_COST } from './combat.js'
 import { isEnvironmentEffectBlocking, ATTACKABLE_EFFECT_TYPES } from './environmentEffects.js'
 
@@ -327,7 +327,7 @@ export default function useInput({
           const terrainType = terrainLayer[newY][newX]
           const cost = getMovementCost(terrainType, creature.stats)
 
-          if (cost >= 999) return
+          if (cost >= IMPASSABLE_THRESHOLD) return
           if (creature.ap < cost) return
 
           let updatedLayer = objectLayer.map(row => [...row])

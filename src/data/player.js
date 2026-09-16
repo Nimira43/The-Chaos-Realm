@@ -25,4 +25,5 @@ export const PLAYER = {
   rock_type: false,
   lava_type: false,
   floodTrapped: false,
+  inventory: [],
 }

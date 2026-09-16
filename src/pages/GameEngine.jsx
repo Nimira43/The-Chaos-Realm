@@ -26,7 +26,8 @@ function getHoverInfo(objectLayer, terrainLayer, cursor) {
       hp: cell.current_health,
       hpMax: cell.stats.constitution,
       terrain,
-      moveCost: getMovementCost(terrain, cell.stats)
+      moveCost: getMovementCost(terrain, cell.stats),
+      inventory: cell.inventory || []
     }
   }
 
@@ -40,7 +41,8 @@ function getHoverInfo(objectLayer, terrainLayer, cursor) {
       hp: ref.current_health,
       hpMax: ref.constitution,
       terrain,
-      moveCost: getMovementCost(terrain, ref)
+      moveCost: getMovementCost(terrain, ref),
+      inventory: ref.inventory || []
     }
   }
 
@@ -58,6 +60,7 @@ export default function GameEngine() {
     terrainLayer,
     objectLayer,
     effectLayer,
+    itemLayer,
     cursor,
     selected,
     info,
@@ -68,6 +71,11 @@ export default function GameEngine() {
     gameOverMessage,
     isAnimating,
     castSpellForPlayer,
+    pickUpItem,
+    useKeyOnDoor,
+    openDoor,
+    closeDoor,
+    itemActionAvailability,
     setShowLoadModal,
     setMapFilename,
     endTurn,
@@ -88,7 +96,7 @@ export default function GameEngine() {
     restartGame()
   }, [])
 
-  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight)
+  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight, itemLayer)
 
   function handleCastClick(e) {
     if (!selectedSpell || actionsLocked) return
@@ -112,6 +120,21 @@ export default function GameEngine() {
     loadMapFromFile()
     e.currentTarget.blur()
   }
+
+  function makeItemActionHandler(fn) {
+    return (e) => {
+      if (actionsLocked) return
+      fn()
+      e.currentTarget.blur()
+    }
+  }
+
+  const showItemActions = selected && !actionsLocked && (
+    itemActionAvailability.canPickUp ||
+    itemActionAvailability.canUse ||
+    itemActionAvailability.canOpen ||
+    itemActionAvailability.canClose
+  )
 
   return (
     <div id='game-container'>
@@ -190,6 +213,12 @@ export default function GameEngine() {
             </div>
           </div>
 
+          {PLAYER.inventory && PLAYER.inventory.length > 0 && (
+            <div style={{ textAlign: 'center', fontSize: '14px', color: 'var(--grey-3)', marginBottom: '10px' }}>
+              Carrying: {PLAYER.inventory.map(item => item.name).join(', ')}
+            </div>
+          )}
+
           <button id='end-turn-btn' onClick={handleEndTurnClick} disabled={actionsLocked}>
             {isAnimating ? 'Enemy Turn…' : 'End Turn'}
           </button>
@@ -244,6 +273,50 @@ export default function GameEngine() {
                 {hoverInfo.moveCost}
               </span>
             </div>
+
+            {hoverInfo.inventory.length > 0 && (
+              <div className='creature-info-row'>
+                <span className='creature-label'>
+                  Carrying:
+                </span>
+                <span className='creature-value'>
+                  {hoverInfo.inventory.map(item => item.name).join(', ')}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showItemActions && (
+          <div className='item-actions'>
+            {itemActionAvailability.canPickUp && (
+              <button
+                onClick={makeItemActionHandler(pickUpItem)}
+              >
+                Pick Up
+              </button>
+            )}
+            {itemActionAvailability.canUse && (
+              <button
+                onClick={makeItemActionHandler(useKeyOnDoor)}
+              >
+                Use
+              </button>
+            )}
+            {itemActionAvailability.canOpen && (
+              <button
+                onClick={makeItemActionHandler(openDoor)}
+              >
+                Open
+              </button>
+            )}
+            {itemActionAvailability.canClose && (
+              <button
+                onClick={makeItemActionHandler(closeDoor)}
+              >
+                Close
+              </button>
+            )}
           </div>
         )}
 
@@ -260,6 +333,12 @@ export default function GameEngine() {
                 {o.type === 'player' && 'Occupier: Player (ours)'}
               </div>
             ))}
+
+            {info.items.length > 0 && (
+              <div>
+                Item: {info.items.map(item => item.name).join(', ')}
+              </div>
+            )}
 
             <button
               className='load-map-btn'

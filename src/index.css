@@ -338,6 +338,33 @@ canvas {
   color: var(--light);
 }
 
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 12px 12px 12px;
+}
+
+.item-actions button {
+  flex: 1;
+  min-width: 70px;
+  padding: 8px;
+  background: var(--main-dark);
+  border: 1px solid var(--main);
+  color: var(--light);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.item-actions button:hover {
+  background: var(--main);
+}
+
 /* Right Lower Panel */
 
 #right-lower {

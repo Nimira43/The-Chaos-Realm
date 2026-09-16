@@ -5,22 +5,9 @@ import { wrap } from './utils.js'
 import { NEIGHBOUR_OFFSETS } from './pathfinding.js'
 import { applyFireDamage, applyGooeyBlobDamage, applyTangleVineDamage, GOOEY_BLOB_HEALTH, TANGLE_VINE_HEALTH } from './combat.js'
 
-// ---------------------------------------------------------------------------
-// A tile's effect layer entry is either null, or a SINGLE effect object:
-//   { type: 'fire',  turnsRemaining, owner }
-//   { type: 'blob',  turnsRemaining, health, owner }
-//   { type: 'vine',  health, owner }                 <- permanent
-//   { type: 'flood', owner }                          <- permanent, no damage
-// Only one effect per tile, ever. The four-way cycle:
-//   Vine destroys Blob -> Blob destroys Flood -> Flood destroys Fire -> Fire destroys Vine
-// with each effect neutral to the one two steps away (Vine<->Flood, Blob<->Fire).
-// ---------------------------------------------------------------------------
-
 export const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine', 'flood']
 export const ATTACKABLE_EFFECT_TYPES = ['blob', 'vine'] // Fire and Flood cannot be conventionally destroyed
 
-// Whether this tile blocks movement outright — a wall to everyone, EXCEPT
-// Flood specifically lets water_type entities pass through untouched.
 export function isEnvironmentEffectBlocking(effectLayer, x, y, entity) {
   const type = effectLayer?.[y]?.[x]?.type
   if (!WALL_EFFECT_TYPES.includes(type)) return false
@@ -49,16 +36,15 @@ export function createFloodEffect(owner) {
   return { type: 'flood', owner } // no turnsRemaining, no health — permanent, undestroyable by attack
 }
 
-const FIRE_UNIGNITABLE_TERRAIN = ['rock', 'swamp', 'water', 'mountain', 'key', 'portal', 'wasteland']
-const FIRE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'door']
+const FIRE_UNIGNITABLE_TERRAIN = ['rock', 'swamp', 'water', 'mountain', 'portal', 'wasteland']
+const FIRE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'doorLocked', 'doorUnlocked', 'doorOpen']
 
-const GOOEY_UNSPREADABLE_TERRAIN = ['mountain', 'key', 'portal', 'wasteland']
-const GOOEY_DESTROYS_TERRAIN = ['swamp', 'water', 'forest', 'rough', 'grass', 'floor', 'road', 'wall', 'door', 'rock']
+const GOOEY_UNSPREADABLE_TERRAIN = ['mountain', 'portal', 'wasteland']
+const GOOEY_DESTROYS_TERRAIN = ['swamp', 'water', 'forest', 'rough', 'grass', 'floor', 'road', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock']
 
-const TANGLE_UNCASTABLE_TERRAIN = ['mountain', 'portal', 'key']
-const TANGLE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'door', 'rock', 'swamp']
+const TANGLE_UNCASTABLE_TERRAIN = ['mountain', 'portal']
+const TANGLE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock', 'swamp']
 
-// Deliberately does NOT protect 'key' — per design, a flooded key is lost.
 const FLOOD_UNCASTABLE_TERRAIN = ['mountain', 'portal', 'lava']
 
 export function isTileIgnitable(terrainLayer, effectLayer, x, y) {
@@ -69,7 +55,6 @@ export function isTileIgnitable(terrainLayer, effectLayer, x, y) {
   return !FIRE_UNIGNITABLE_TERRAIN.includes(terrainLayer[y][x])
 }
 
-// Fire's SPREAD is additionally allowed onto a Vine tile — Fire destroys Vine.
 function isFireSpreadTarget(terrainLayer, effectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
   if (x < 0 || x >= terrainLayer[0].length) return false
@@ -79,8 +64,6 @@ function isFireSpreadTarget(terrainLayer, effectLayer, x, y) {
   return existing === null || existing.type === 'vine'
 }
 
-// Blob's spread AND cast (same eligibility function serves both) can land
-// on an empty tile OR a Flood tile — Blob destroys Flood.
 export function isTileSpreadableForBlob(terrainLayer, effectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
   if (x < 0 || x >= terrainLayer[0].length) return false
@@ -90,10 +73,6 @@ export function isTileSpreadableForBlob(terrainLayer, effectLayer, x, y) {
   return existing === null || existing.type === 'flood'
 }
 
-// Tangle Vine's cast: empty tile OR an existing Blob tile — Vine destroys
-// Blob. CORRECTED from an earlier version that mistakenly let Vine overwrite
-// anything except Fire — that would have let it wrongly consume Flood too,
-// which the cycle requires to be neutral to Vine.
 export function isTileValidForVineCast(terrainLayer, effectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
   if (x < 0 || x >= terrainLayer[0].length) return false
@@ -103,7 +82,6 @@ export function isTileValidForVineCast(terrainLayer, effectLayer, x, y) {
   return existing === null || existing.type === 'blob'
 }
 
-// Flood's cast: empty tile OR an existing Fire tile — Flood destroys Fire.
 export function isTileValidForFloodCast(terrainLayer, effectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
   if (x < 0 || x >= terrainLayer[0].length) return false
@@ -123,17 +101,11 @@ function scarTileToWasteland(terrainLayer, x, y, destroysList) {
   return newLayer
 }
 
-// Used by combat.js when a Blob/Vine tile is destroyed by direct attack.
-// Flood is never passed here — it isn't in ATTACKABLE_EFFECT_TYPES.
 export function scarWallEffectDestroyedTile(terrainLayer, x, y, effectType) {
   const destroysList = effectType === 'vine' ? TANGLE_DESTROYS_TERRAIN : GOOEY_DESTROYS_TERRAIN
   return scarTileToWasteland(terrainLayer, x, y, destroysList)
 }
 
-// Fire and Blob respect the caster's own side. Tangle Vine and Flood do not
-// — Vine damages everyone including its own caster (hence the range
-// requirement), and Flood deals no periodic damage to anyone at all, so
-// this flag is moot for it either way.
 const RESPECTS_FACTION = { fire: true, blob: true, vine: false, flood: false }
 
 function getNeighbourTiles(x, y) {
@@ -147,9 +119,6 @@ function isAdjacentToFlood(effectLayer, x, y) {
   return getNeighbourTiles(x, y).some(n => effectLayer[n.y][n.x]?.type === 'flood')
 }
 
-// Whether this entity has at least one legal tile to step onto right now —
-// empty, not blocked by any wall effect (for THIS entity — water_type units
-// pass through Flood fine), and passable terrain.
 function hasEscapeRoute(terrainLayer, objectLayer, effectLayer, x, y, entity) {
   return getNeighbourTiles(x, y).some(n => {
     if (objectLayer[n.y][n.x] !== null) return false
@@ -158,13 +127,6 @@ function hasEscapeRoute(terrainLayer, objectLayer, effectLayer, x, y, entity) {
   })
 }
 
-// Drowning pass: anyone adjacent to Flood with NO escape route gets flagged.
-// If they're STILL trapped on the very next tick, they drown. Escaping in
-// between (e.g. Gooey Blob clearing a path) clears the flag and saves them.
-// NOTE: the Sea Wolf mount rescue described in design isn't functional yet
-// — mounting itself doesn't exist as a system. Once it does, a mounted
-// water-type escape will be recognised automatically by hasEscapeRoute
-// above, with no changes needed here.
 function applyFloodDrowning(terrainLayer, objectLayer, effectLayer) {
   let workingObjects = objectLayer
   const defeatedTargets = []
@@ -225,7 +187,6 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   let workingObjects = objectLayer
   const defeatedTargets = []
 
-  // 1. Damage — Fire, Blob, and Vine only. Flood deals none.
   for (let y = 0; y < effectLayer.length; y++) {
     for (let x = 0; x < effectLayer[0].length; x++) {
       const effect = effectLayer[y][x]
@@ -245,7 +206,6 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
     }
   }
 
-  // 2. Spread — Fire and Blob only. Vine and Flood never spread.
   const fireSpreadTargets = []
   const blobSpreadTargets = []
 
@@ -277,8 +237,6 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   fireSpreadTargets.forEach(({ x, y, owner }) => { newEffectLayer[y][x] = createFireEffect(owner) })
   blobSpreadTargets.forEach(({ x, y, owner }) => { newEffectLayer[y][x] = createBlobEffect(owner) })
 
-  // 3. Decay — only effects that carry a turnsRemaining (Fire, Blob). Vine
-  // and Flood have none and are skipped entirely — permanent until destroyed.
   let newTerrainLayer = terrainLayer
 
   for (let y = 0; y < newEffectLayer.length; y++) {
@@ -299,7 +257,6 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
     }
   }
 
-  // 4. Drowning — anyone trapped by Flood with no escape route, two ticks running.
   const drownResult = applyFloodDrowning(newTerrainLayer, workingObjects, newEffectLayer)
   workingObjects = drownResult.objectLayer
   defeatedTargets.push(...drownResult.defeatedTargets)

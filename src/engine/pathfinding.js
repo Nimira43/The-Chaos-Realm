@@ -1,4 +1,4 @@
-import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
+import { getMovementCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { wrap } from './utils.js'
 
 export const NEIGHBOUR_OFFSETS = [
@@ -71,13 +71,13 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, effectLayer, 
 
       const terrainType = terrainLayer[ny][nx]
       const cost = getMovementCost(terrainType, entity)
-      if (cost >= 999) continue
+      if (cost >= IMPASSABLE_THRESHOLD) continue
 
       if (offset.x !== 0 && offset.y !== 0) {
         const flankACost = getMovementCost(terrainLayer[current.y][nx], entity)
         const flankBCost = getMovementCost(terrainLayer[ny][current.x], entity)
-        const flankABlocked = flankACost >= 999 || isWallEffectBlocking(effectLayer, nx, current.y, entity)
-        const flankBBlocked = flankBCost >= 999 || isWallEffectBlocking(effectLayer, current.x, ny, entity)
+        const flankABlocked = flankACost >= IMPASSABLE_THRESHOLD || isWallEffectBlocking(effectLayer, nx, current.y, entity)
+        const flankBBlocked = flankBCost >= IMPASSABLE_THRESHOLD || isWallEffectBlocking(effectLayer, current.x, ny, entity)
 
         if (flankABlocked || flankBBlocked) continue
       }

@@ -5,6 +5,7 @@ import useSpellcasting from './useSpellcasting.js'
 import useMapLoader from './useMapLoader.js'
 import useInput from './useInput.js'
 import useTurnSystem from './useTurnSystem.js'
+import useItemActions, { getActionAvailability } from './useItemActions.js'
 
 export default function useGameEngine() {
   const [terrainLayer, setTerrainLayer] = useState(() => generateProceduralMap())
@@ -25,6 +26,10 @@ export default function useGameEngine() {
   })
 
   const [effectLayer, setEffectLayer] = useState(() =>
+    terrainLayer.map(row => row.map(() => null))
+  )
+
+  const [itemLayer, setItemLayer] = useState(() =>
     terrainLayer.map(row => row.map(() => null))
   )
 
@@ -82,6 +87,7 @@ export default function useGameEngine() {
     setTerrainLayer,
     setObjectLayer,
     setEffectLayer,
+    setItemLayer,
     setPlayerPosition,
     setCursor,
     setEnemyPosition,
@@ -109,6 +115,19 @@ export default function useGameEngine() {
     PLAYER
   })
 
+  const { pickUpItem, useKeyOnDoor, openDoor, closeDoor } = useItemActions({
+    terrainLayer,
+    objectLayer,
+    itemLayer,
+    selected,
+    setObjectLayer,
+    setItemLayer,
+    setTerrainLayer,
+    setAp
+  })
+
+  const itemActionAvailability = getActionAvailability(selected, terrainLayer, objectLayer, itemLayer)
+
   const info = {
     terrain:
       terrainLayer.length
@@ -118,6 +137,11 @@ export default function useGameEngine() {
     occupiers:
       objectLayer[cursor.y][cursor.x]
         ? [objectLayer[cursor.y][cursor.x]]
+        : [],
+
+    items:
+      itemLayer.length
+        ? (itemLayer[cursor.y][cursor.x] || [])
         : []
   }
 
@@ -150,6 +174,7 @@ export default function useGameEngine() {
     terrainLayer,
     objectLayer,
     effectLayer,
+    itemLayer,
     cursor,
     selected,
     playerPosition,
@@ -162,6 +187,11 @@ export default function useGameEngine() {
     gameOverMessage,
     isAnimating,
     castSpellForPlayer,
+    pickUpItem,
+    useKeyOnDoor,
+    openDoor,
+    closeDoor,
+    itemActionAvailability,
     setShowLoadModal,
     setMapFilename,
     endTurn,

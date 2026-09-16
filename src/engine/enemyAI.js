@@ -232,7 +232,7 @@ function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
   if (x < 0 || x >= terrainLayer[0].length) return false
 
   const terrain = terrainLayer[y][x]
-  const blockedTerrain = ['wall', 'water', 'door', 'mountain', 'lava']
+  const blockedTerrain = ['wall', 'water', 'mountain', 'lava', 'doorLocked', 'doorUnlocked']
   if (blockedTerrain.includes(terrain)) return false
 
   if (objectLayer[y][x] !== null) return false
@@ -281,7 +281,7 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, workingEffectLayer, tile.x, tile.y)
   
   const isTileValidForFlood = (tile) => checkTileValidForFloodCast(terrainLayer, workingEffectLayer, tile.x, tile.y)
-
+  
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
     workingLayer = workingLayer.map(row => [...row])
@@ -294,7 +294,8 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
       ap: creatureData.action_points_ground,
       current_health: creatureData.constitution,
       stats: creatureData,
-      wanderTarget: null
+      wanderTarget: null,
+      inventory: []
     }
   }
 

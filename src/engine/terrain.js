@@ -1,5 +1,6 @@
 export const MAP_WIDTH = 32
 export const MAP_HEIGHT = 32
+export const IMPASSABLE_THRESHOLD = 500
 
 export const terrainColours = {
   grass: '#3cb043',
@@ -11,7 +12,9 @@ export const terrainColours = {
   portal: '#ffcc00',
   wall: '#800000',
   road: '#999999',
-  door: '#003366',
+  doorLocked: '#00495d',
+  doorUnlocked: '#016f8e',
+  doorOpen: '#000000',
   key: '#b12fe9',
   floor: '#dddddd',
   mountain: '#7a7a6e',
@@ -32,8 +35,9 @@ export const terrainCost = {
   portal: 1,
   wall: 999,
   road: 1,
-  door: 999,
-  key: 1,
+  doorLocked: 666,
+  doorUnlocked: 666,
+  doorOpen: 2,
   floor: 2,
   mountain: 999,
   lava: 2,
@@ -53,8 +57,9 @@ export function isTerrain(tile) {
     'forest',
     'wall',
     'road',
-    'door',
-    'key',
+    'doorLocked',
+    'doorUnlocked',
+    'doorOpen',
     'floor',
     'mountain',
     'lava',

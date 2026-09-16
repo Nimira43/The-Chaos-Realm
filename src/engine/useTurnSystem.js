@@ -1,7 +1,7 @@
 import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
-import { terrainCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
+import { terrainCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
 
 export const MAX_ROUNDS = 30
@@ -41,7 +41,7 @@ function pickRandomPortalTile(terrainLayer, objectLayer) {
     const terrain = terrainLayer[y][x]
 
     if (terrain === 'lava') continue
-    if ((terrainCost[terrain] ?? 999) >= 999) continue
+    if ((terrainCost[terrain] ?? 999) >= IMPASSABLE_THRESHOLD) continue
     if (objectLayer[y][x] !== null) continue
 
     return { x, y }
@@ -51,7 +51,7 @@ function pickRandomPortalTile(terrainLayer, objectLayer) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       const terrain = terrainLayer[y][x]
       if (terrain === 'lava') continue
-      if ((terrainCost[terrain] ?? 999) >= 999) continue
+      if ((terrainCost[terrain] ?? 999) >= IMPASSABLE_THRESHOLD) continue
       if (objectLayer[y][x] !== null) continue
       return { x, y }
     }

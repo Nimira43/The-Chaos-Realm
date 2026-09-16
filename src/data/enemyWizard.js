@@ -25,6 +25,7 @@ export const ENEMY_WIZARD = {
   rock_type: false,
   lava_type: false,
   floodTrapped: false,
+  inventory: [],
   owner: 'enemy',
   wanderTarget: null,
 }

@@ -24,8 +24,7 @@ export default function useSpellcasting({
   setEffectLayer,
   PLAYER
 }) {
-
-  const isTileFree = (tile) => {
+    const isTileFree = (tile) => {
     const { x, y } = tile
 
     if (y < 0 || y >= terrainLayer.length) return false
@@ -34,7 +33,7 @@ export default function useSpellcasting({
     const terrain = terrainLayer[y][x]
     const object = objectLayer[y][x]
 
-    const blockedTerrain = ['wall', 'water', 'door', 'mountain']
+    const blockedTerrain = ['wall', 'water', 'mountain', 'doorLocked', 'doorUnlocked']
     if (blockedTerrain.includes(terrain)) return false
 
     if (object !== null) return false
@@ -46,11 +45,8 @@ export default function useSpellcasting({
   }
 
   const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, effectLayer, tile.x, tile.y)
-  
   const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, effectLayer, tile.x, tile.y)
-  
   const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, effectLayer, tile.x, tile.y)
-
   const isTileValidForFlood = (tile) => checkTileValidForFloodCast(terrainLayer, effectLayer, tile.x, tile.y)
 
   const spawnCreature = (creatureName, tile) => {
@@ -66,7 +62,8 @@ export default function useSpellcasting({
         y: tile.y,
         ap: creatureData.action_points_ground,
         current_health: creatureData.constitution,
-        stats: creatureData
+        stats: creatureData,
+        inventory: []
       }
       return copy
     })

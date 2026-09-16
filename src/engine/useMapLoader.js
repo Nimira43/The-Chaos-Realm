@@ -4,11 +4,13 @@ import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { SPELLBOOK, resetSpellbook } from '../data/spellbook.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
+import { createKeyItem } from './items.js'
 
 export default function useMapLoader({
   setTerrainLayer,
   setObjectLayer,
   setEffectLayer,
+  setItemLayer,
   setPlayerPosition,
   setCursor,
   setEnemyPosition,
@@ -32,6 +34,7 @@ export default function useMapLoader({
     setTerrainLayer(generated)
     const objects = generated.map(row => row.map(() => null))
     const effects = generated.map(row => row.map(() => null))
+    const items = generated.map(row => row.map(() => null))
 
     resetSpellbook(SPELLBOOK)
     resetSpellbook(ENEMY_SPELLBOOK)
@@ -42,6 +45,7 @@ export default function useMapLoader({
     PLAYER.current_mana = PLAYER.max_mana
     PLAYER.current_health = PLAYER.constitution
     PLAYER.floodTrapped = false
+    PLAYER.inventory = []
 
     objects[PLAYER.y][PLAYER.x] = {
       type: 'player',
@@ -56,6 +60,7 @@ export default function useMapLoader({
     ENEMY_WIZARD.current_health = ENEMY_WIZARD.constitution
     ENEMY_WIZARD.wanderTarget = null
     ENEMY_WIZARD.floodTrapped = false
+    ENEMY_WIZARD.inventory = []
 
     objects[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = {
       type: 'enemyWizard',
@@ -68,6 +73,7 @@ export default function useMapLoader({
 
     setObjectLayer(objects)
     setEffectLayer(effects)
+    setItemLayer(items)
 
     const start = { x: PLAYER.x, y: PLAYER.y }
     setPlayerPosition(start)
@@ -103,18 +109,22 @@ export default function useMapLoader({
     const terrain = []
     const objects = []
     const effects = []
+    const items = []
     let playerStart = null
     let enemyStart = null
     let portalStart = null
+    const keyPositions = []
 
     for (let y = 0; y < height; y++) {
       terrain[y] = []
       objects[y] = []
       effects[y] = []
+      items[y] = []
 
       for (let x = 0; x < width; x++) {
         const tile = jsonMap[y][x]
         effects[y][x] = null
+        items[y][x] = null
 
         if (isTerrain(tile)) {
           terrain[y][x] = tile
@@ -134,9 +144,17 @@ export default function useMapLoader({
           if (tile === 'portal') {
             portalStart = { x, y }
           }
+
+          if (tile === 'key') {
+            keyPositions.push({ x, y })
+          }
         }
       }
     }
+
+    keyPositions.forEach(({ x, y }) => {
+      items[y][x] = [createKeyItem()]
+    })
 
     setTerrainLayer(terrain)
 
@@ -158,6 +176,7 @@ export default function useMapLoader({
     PLAYER.current_mana = PLAYER.max_mana
     PLAYER.current_health = PLAYER.constitution
     PLAYER.floodTrapped = false
+    PLAYER.inventory = []
 
     objects[resolvedPlayerStart.y][resolvedPlayerStart.x] = {
       type: 'player',
@@ -176,6 +195,7 @@ export default function useMapLoader({
       ENEMY_WIZARD.current_health = ENEMY_WIZARD.constitution
       ENEMY_WIZARD.wanderTarget = null
       ENEMY_WIZARD.floodTrapped = false
+      ENEMY_WIZARD.inventory = []
 
       objects[enemyStart.y][enemyStart.x] = {
         type: 'enemyWizard',
@@ -191,6 +211,7 @@ export default function useMapLoader({
 
     setObjectLayer(objects)
     setEffectLayer(effects)
+    setItemLayer(items)
 
     setAp(PLAYER.ap)
     setRound(1)

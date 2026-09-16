@@ -125,6 +125,25 @@ function drawFloodTile(ctx, screenX, screenY, tileSize) {
   ctx.restore()
 }
 
+function drawDoorOpenEdges(ctx, screenX, screenY, tileSize) {
+  const barWidth = tileSize * 0.18
+  ctx.fillStyle = '#016f8e'
+  ctx.fillRect(screenX, screenY, barWidth, tileSize)
+  ctx.fillRect(screenX + tileSize - barWidth, screenY, barWidth, tileSize)
+}
+
+function drawKeyItemTile(ctx, screenX, screenY, tileSize) {
+  const size = tileSize * 0.24
+  ctx.fillStyle = '#b12fe9'
+  ctx.fillRect(screenX + 2, screenY + 2, size, size)
+
+  ctx.fillStyle = 'white'
+  ctx.font = `bold ${Math.max(9, size * 0.75)}px monospace`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('K', screenX + 2 + size / 2, screenY + 2 + size / 2)
+}
+
 export function drawViewport(
   ctx,
   map,
@@ -135,7 +154,8 @@ export function drawViewport(
   selected,
   objectLayer,
   effectLayer,
-  rangeHighlight
+  rangeHighlight,
+  itemLayer
 ) {
   const radius = Math.floor(viewTiles / 2)
   const centreX = selected?.type === 'player' ? player.x : cursor.x
@@ -149,6 +169,10 @@ export function drawViewport(
 
       ctx.fillStyle = terrainColours[map[worldY][worldX]]
       ctx.fillRect(vx * tileSize, vy * tileSize, tileSize, tileSize)
+
+      if (map[worldY][worldX] === 'doorOpen') {
+        drawDoorOpenEdges(ctx, vx * tileSize, vy * tileSize, tileSize)
+      }
     }
   }
 
@@ -173,6 +197,21 @@ export function drawViewport(
     }
   }
 
+  if (itemLayer) {
+    for (let vy = 0; vy < viewTiles; vy++) {
+      for (let vx = 0; vx < viewTiles; vx++) {
+
+        const worldX = wrap(centreX + (vx - radius), map[0].length)
+        const worldY = wrap(centreY + (vy - radius), map.length)
+
+        const items = itemLayer[worldY][worldX]
+        if (items && items.some(item => item.type === 'key')) {
+          drawKeyItemTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        }
+      }
+    }
+  }
+
   if (effectLayer) {
     for (let vy = 0; vy < viewTiles; vy++) {
       for (let vx = 0; vx < viewTiles; vx++) {
@@ -187,7 +226,7 @@ export function drawViewport(
           drawGooeyBlobTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         } else if (cell.type === 'fire') {
           drawFireTile(ctx, vx * tileSize, vy * tileSize, tileSize)
-         } else if (cell.type === 'vine') {
+        } else if (cell.type === 'vine') {
           drawTangleVineTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         } else if (cell.type === 'flood') {
           drawFloodTile(ctx, vx * tileSize, vy * tileSize, tileSize)
