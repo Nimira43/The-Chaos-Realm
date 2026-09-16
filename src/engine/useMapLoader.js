@@ -1,10 +1,44 @@
 import { isTerrain } from './terrain.js'
 import { generateProceduralMap } from './map.js'
+import { wrap } from './utils.js'
 import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { SPELLBOOK, resetSpellbook } from '../data/spellbook.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { createKeyItem } from './items.js'
+
+const SPAWN_TERRAIN_EXCLUDED = ['mountain', 'wall', 'lava', 'water', 'doorLocked', 'doorUnlocked']
+
+function inferSpawnTerrain(terrain, x, y, width, height) {
+  const tally = {}
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue
+
+      const nx = wrap(x + dx, width)
+      const ny = wrap(y + dy, height)
+      const neighbourTerrain = terrain[ny][nx]
+
+      if (!neighbourTerrain) continue // another unresolved marker — skip
+      if (SPAWN_TERRAIN_EXCLUDED.includes(neighbourTerrain)) continue
+
+      tally[neighbourTerrain] = (tally[neighbourTerrain] || 0) + 1
+    }
+  }
+
+  let best = null
+  let bestCount = 0
+
+  for (const [terrainType, count] of Object.entries(tally)) {
+    if (count > bestCount) {
+      best = terrainType
+      bestCount = count
+    }
+  }
+
+  return best || 'grass'
+}
 
 export default function useMapLoader({
   setTerrainLayer,
@@ -115,6 +149,8 @@ export default function useMapLoader({
     let portalStart = null
     const keyPositions = []
 
+    const spawnMarkerPositions = []
+
     for (let y = 0; y < height; y++) {
       terrain[y] = []
       objects[y] = []
@@ -130,8 +166,9 @@ export default function useMapLoader({
           terrain[y][x] = tile
           objects[y][x] = null
         } else {
-          terrain[y][x] = 'grass'
+          terrain[y][x] = null
           objects[y][x] = null
+          spawnMarkerPositions.push({ x, y })
 
           if (tile === 'playerWizard') {
             playerStart = { x, y }
@@ -151,6 +188,10 @@ export default function useMapLoader({
         }
       }
     }
+
+    spawnMarkerPositions.forEach(({ x, y }) => {
+      terrain[y][x] = inferSpawnTerrain(terrain, x, y, width, height)
+    })
 
     keyPositions.forEach(({ x, y }) => {
       items[y][x] = [createKeyItem()]
