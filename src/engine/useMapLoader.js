@@ -5,7 +5,7 @@ import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { SPELLBOOK, resetSpellbook } from '../data/spellbook.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
-import { createKeyItem } from './items.js'
+import { createKeyItem, placeRandomApples } from './items.js'
 
 const SPAWN_TERRAIN_EXCLUDED = ['mountain', 'wall', 'lava', 'water', 'doorLocked', 'doorUnlocked']
 
@@ -20,7 +20,7 @@ function inferSpawnTerrain(terrain, x, y, width, height) {
       const ny = wrap(y + dy, height)
       const neighbourTerrain = terrain[ny][nx]
 
-      if (!neighbourTerrain) continue // another unresolved marker — skip
+      if (!neighbourTerrain) continue 
       if (SPAWN_TERRAIN_EXCLUDED.includes(neighbourTerrain)) continue
 
       tally[neighbourTerrain] = (tally[neighbourTerrain] || 0) + 1
@@ -68,7 +68,7 @@ export default function useMapLoader({
     setTerrainLayer(generated)
     const objects = generated.map(row => row.map(() => null))
     const effects = generated.map(row => row.map(() => null))
-    const items = generated.map(row => row.map(() => null))
+    let items = generated.map(row => row.map(() => null))
 
     resetSpellbook(SPELLBOOK)
     resetSpellbook(ENEMY_SPELLBOOK)
@@ -105,6 +105,7 @@ export default function useMapLoader({
 
     setEnemyPosition({ x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y })
 
+    items = placeRandomApples(generated, objects, items)
     setObjectLayer(objects)
     setEffectLayer(effects)
     setItemLayer(items)
@@ -143,7 +144,7 @@ export default function useMapLoader({
     const terrain = []
     const objects = []
     const effects = []
-    const items = []
+    let items = []
     let playerStart = null
     let enemyStart = null
     let portalStart = null
@@ -250,6 +251,7 @@ export default function useMapLoader({
       setEnemyPosition(null)
     }
 
+    items = placeRandomApples(terrain, objects, items)
     setObjectLayer(objects)
     setEffectLayer(effects)
     setItemLayer(items)

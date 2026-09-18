@@ -33,32 +33,15 @@ export function buildSpellbook() {
     { name: 'Magic Fire', manaCost: 15, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'spreading' },
     { name: 'Gooey Blob', manaCost: 12, initialSpellLevel: 4, currentSpellLevel: 4, category: 'environment', duration: 'spreading' },
     { name: 'Tangle Vine', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true },
-    { name: 'Flood', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true }
+    { name: 'Flood', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true },
+    { name: 'Healing Potion', manaCost: 5, initialSpellLevel: 0, currentSpellLevel: 0, category: 'potion', duration: 'instant', healing: true }
   ]
-
-  // --- POTIONS (4 turns except healing) ---
-  // { name: 'Strength Potion', manaCost: 8, currentSpellLevel: 5, category: 'potion', duration: 4 },
-  // { name: 'Protection Potion', manaCost: 6, currentSpellLevel: 5, category: 'potion', duration: 4 },
-  // { name: 'Invisibility Potion', manaCost: 16, currentSpellLevel: 5, category: 'potion', duration: 4 },
-  // { name: 'Speed Potion', manaCost: 8, currentSpellLevel: 5, category: 'potion', duration: 4 },
-  // { name: 'Flying Potion', manaCost: 5, currentSpellLevel: 5, category: 'potion', duration: 4 },
-  // { name: 'Super Potion', manaCost: 16, currentSpellLevel: 5, category: 'potion', duration: 4 },
-  // { name: 'Healing Potion', manaCost: 5, currentSpellLevel: 5, category: 'potion', duration: 'instant' },
-
-  // --- PERSONAL (4 turns) ---
-  // { name: 'Enchant', manaCost: 10, currentSpellLevel: 5, category: 'personal', duration: 4 },
-  // { name: 'Subversion', manaCost: 10, currentSpellLevel: 5, category: 'personal', duration: 4 },
-  // { name: 'Curse', manaCost: 8, currentSpellLevel: 5, category: 'personal', duration: 4 },
-
-  // --- OFFENSIVE (instant) ---
-  // { name: 'Magic Attack', manaCost: 10, currentSpellLevel: 5, category: 'offensive', duration: 'instant' },
+  // --- OFFENSIVE (instant) ---,
   // { name: 'Magic Bolt', manaCost: 6, currentSpellLevel: 5, category: 'offensive', duration: 'instant' },
   // { name: 'Magic Lightning', manaCost: 12, currentSpellLevel: 5, category: 'offensive', duration: 'instant' },
-
   // --- UTILITY (instant) ---
-  //   { name: 'Teleport', manaCost: 16, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
-  //   { name: 'Magic Eye', manaCost: 8, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
-  //   { name: 'Magic Shield', manaCost: 6, currentSpellLevel: 5, category: 'utility', duration: 4 }
+  // { name: 'Teleport', manaCost: 16, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
+  // { name: 'Magic Eye', manaCost: 8, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
 }
 
 export function resetSpellbook(spellbook) {

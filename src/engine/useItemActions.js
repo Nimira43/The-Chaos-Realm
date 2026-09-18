@@ -1,5 +1,6 @@
 import { PLAYER } from '../data/player.js'
 import { wrap } from './utils.js'
+import { SPELLBOOK } from '../data/spellbook.js'
 import { canCarryItem, hasKey, removeFirstKey } from './items.js'
 
 export const ITEM_ACTION_AP_COST = 2
@@ -56,6 +57,11 @@ function getSelectedEntity(selected, objectLayer) {
   return null
 }
 
+function canPickThisItem(entity, item) {
+  if (item.type === 'apple') return true
+  return canCarryItem(entity.carryLimit, entity.inventory, item)
+}
+
 export function getActionAvailability(selected, terrainLayer, objectLayer, itemLayer) {
   const none = { canPickUp: false, canUse: false, canOpen: false, canClose: false, doorPos: null }
 
@@ -64,8 +70,8 @@ export function getActionAvailability(selected, terrainLayer, objectLayer, itemL
   if (entity.ap < ITEM_ACTION_AP_COST) return none
 
   const itemsHere = itemLayer[entity.y]?.[entity.x]
-  const canPickUp = !!itemsHere && itemsHere.length > 0 &&
-    itemsHere.some(item => canCarryItem(entity.carryLimit, entity.inventory, item))
+
+  const canPickUp = !!itemsHere && itemsHere.length > 0 && itemsHere.some(item => canPickThisItem(entity, item))
 
   const door = findAdjacentDoor(terrainLayer, entity.x, entity.y)
 
@@ -144,7 +150,8 @@ export default function useItemActions({
     const itemsHere = itemLayer[entity.y]?.[entity.x]
     if (!itemsHere || itemsHere.length === 0) return
 
-    const itemIndex = itemsHere.findIndex(item => canCarryItem(entity.carryLimit, entity.inventory, item))
+    const itemIndex = itemsHere.findIndex(item => canPickThisItem(entity, item))
+    
     if (itemIndex === -1) return
     const item = itemsHere[itemIndex]
 
@@ -156,7 +163,13 @@ export default function useItemActions({
       return copy
     })
 
-    addToActorInventory(item)
+    if (item.type === 'apple') {
+      const healingSpell = SPELLBOOK.find(s => s.name === 'Healing Potion')
+      if (healingSpell) healingSpell.currentSpellLevel += 1
+    } else {
+      addToActorInventory(item)
+    }
+
     spendActorAp()
   }
 

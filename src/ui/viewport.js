@@ -144,6 +144,32 @@ function drawKeyItemTile(ctx, screenX, screenY, tileSize) {
   ctx.fillText('K', screenX + 2 + size / 2, screenY + 2 + size / 2)
 }
 
+function drawAppleTile(ctx, screenX, screenY, tileSize) {
+  const pulse = (Date.now() % 900 < 450)
+
+  const centreX = screenX + tileSize / 2
+  const centreY = screenY + tileSize / 2
+  const radius = (tileSize / 2) * (pulse ? 0.42 : 0.38)
+
+  ctx.fillStyle = '#d21f1f'
+  ctx.beginPath()
+  ctx.arc(centreX, centreY, radius, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.fillStyle = '#3fae3f'
+  ctx.beginPath()
+  ctx.ellipse(
+    centreX - radius * 0.35,
+    centreY - radius * 0.35,
+    radius * 0.28,
+    radius * 0.18,
+    -0.6,
+    0,
+    Math.PI * 2
+  )
+  ctx.fill()
+}
+
 export function drawViewport(
   ctx,
   map,
@@ -205,8 +231,14 @@ export function drawViewport(
         const worldY = wrap(centreY + (vy - radius), map.length)
 
         const items = itemLayer[worldY][worldX]
-        if (items && items.some(item => item.type === 'key')) {
+        if (!items) continue
+
+        if (items.some(item => item.type === 'key')) {
           drawKeyItemTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        }
+
+        if (items.some(item => item.type === 'apple')) {
+          drawAppleTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
       }
     }

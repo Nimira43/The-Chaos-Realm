@@ -5,7 +5,7 @@ import useGameEngine from '../engine/useGameEngine.js'
 import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import { getMovementCost } from '../engine/terrain.js'
 import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
-import { RANGED_SPELL_BASE_RANGE } from '../engine/spellCaster.js'
+import { RANGED_SPELL_BASE_RANGE, HEALING_RANGE} from '../engine/spellCaster.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -86,7 +86,9 @@ export default function GameEngine() {
   const gameOver = gameStatus !== 'playing'
   const actionsLocked = gameOver || isAnimating
 
-  const rangeHighlight = selectedSpell?.ranged
+  const rangeHighlight = selectedSpell?.healing
+  ? { origin: playerPosition, radius: HEALING_RANGE }
+  : selectedSpell?.ranged
     ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
     : null
 

@@ -1,5 +1,5 @@
 import { CREATURES } from '../data/creatures.js'
-import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
+import { castSpell, RANGED_SPELL_BASE_RANGE, HEALING_RANGE } from './spellCaster.js'
 import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrappedChebyshevDistance } from './utils.js'
 import {
@@ -24,7 +24,8 @@ export default function useSpellcasting({
   setEffectLayer,
   PLAYER
 }) {
-    const isTileFree = (tile) => {
+
+  const isTileFree = (tile) => {
     const { x, y } = tile
 
     if (y < 0 || y >= terrainLayer.length) return false
@@ -48,6 +49,36 @@ export default function useSpellcasting({
   const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, effectLayer, tile.x, tile.y)
   const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, effectLayer, tile.x, tile.y)
   const isTileValidForFlood = (tile) => checkTileValidForFloodCast(terrainLayer, effectLayer, tile.x, tile.y)
+
+  const isTileValidForHeal = (tile) => {
+    const { x, y } = tile
+    if (y < 0 || y >= objectLayer.length) return false
+    if (x < 0 || x >= objectLayer[0].length) return false
+
+    const occupant = objectLayer[y][x]
+    if (!occupant) return false
+
+    return occupant.type === 'player' || (occupant.type === 'creature' && occupant.owner === 'player')
+  }
+
+  const healTile = (tile) => {
+    const occupant = objectLayer[tile.y][tile.x]
+    if (!occupant) return
+
+    if (occupant.type === 'player') {
+      PLAYER.current_health = PLAYER.constitution
+      return
+    }
+
+    if (occupant.type === 'creature') {
+      setObjectLayer(prev => {
+        const copy = prev.map(row => [...row])
+        const cell = copy[tile.y][tile.x]
+        copy[tile.y][tile.x] = { ...cell, current_health: cell.stats.constitution }
+        return copy
+      })
+    }
+  }
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
@@ -93,7 +124,7 @@ export default function useSpellcasting({
     })
   }
 
-   const applyFloodToTile = (tile) => {
+  const applyFloodToTile = (tile) => {
     setEffectLayer(prev => {
       const copy = prev.map(row => [...row])
       copy[tile.y][tile.x] = createFloodEffect('player')
@@ -127,6 +158,15 @@ export default function useSpellcasting({
       }
     }
 
+    if (spell.healing) {
+      const distance = wrappedChebyshevDistance(playerPosition.x, playerPosition.y, cursor.x, cursor.y, MAP_WIDTH, MAP_HEIGHT)
+
+      if (distance > HEALING_RANGE || !isTileValidForHeal(cursor)) {
+        alert('Select yourself or an adjacent creature to heal')
+        return
+      }
+    }
+
     castSpell({
       spell,
       casterPos: playerPosition,
@@ -139,7 +179,10 @@ export default function useSpellcasting({
       spreadBlobTile,
       isTileValidForVine,
       applyVineToTile,
-      isTileValidForFlood, applyFloodToTile
+      isTileValidForFlood,
+      applyFloodToTile,
+      isTileValidForHeal,
+      healTile
     })
 
     PLAYER.current_mana -= cost

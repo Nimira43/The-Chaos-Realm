@@ -182,7 +182,7 @@ export default function useTurnSystem({
       }
     }
 
-    const creatureResult = runEnemyCreaturesAI(workingTerrain, workingLayer)
+    const creatureResult = runEnemyCreaturesAI(workingTerrain, workingLayer, workingEffectLayer)
     workingLayer = creatureResult.objectLayer
     frames = frames.concat(creatureResult.frames)
 

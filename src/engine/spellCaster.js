@@ -6,6 +6,7 @@ export const SUMMON_COUNT_BY_LEVEL = {
 }
 
 export const RANGED_SPELL_BASE_RANGE = 8
+export const HEALING_RANGE = 1
 
 const ADJACENT_OFFSETS = [
   { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
@@ -115,6 +116,24 @@ export function castFloodSpell({ casterPos, aimPos, spellLevel, isTileValidForFl
   })
 }
 
+export function castHealingSpell({ casterPos, aimPos, isTileValidForHeal, healTile }) {
+  if (!aimPos) return
+
+  const distance = wrappedChebyshevDistance(casterPos.x, casterPos.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
+
+  if (distance > HEALING_RANGE) {
+    console.warn('Healing Potion cast out of range')
+    return
+  }
+
+  if (!isTileValidForHeal(aimPos)) {
+    console.warn('Healing Potion — no valid target on that tile')
+    return
+  }
+
+  healTile(aimPos)
+}
+
 function castEnvironmentSpell({
   spell,
   casterPos,
@@ -140,13 +159,25 @@ function castEnvironmentSpell({
     case 'Tangle Vine':
       castTangleVineSpell({ casterPos, aimPos, spellLevel: spell.currentSpellLevel, isTileValidForVine, applyVineToTile })
       break
-    
+
     case 'Flood':
       castFloodSpell({ casterPos, aimPos, spellLevel: spell.currentSpellLevel, isTileValidForFlood, applyFloodToTile })
       break
 
     default:
       console.warn(`Unhandled environment spell: ${spell.name}`)
+      break
+  }
+}
+
+function castPotionSpell({ spell, casterPos, aimPos, isTileValidForHeal, healTile }) {
+  switch (spell.name) {
+    case 'Healing Potion':
+      castHealingSpell({ casterPos, aimPos, isTileValidForHeal, healTile })
+      break
+
+    default:
+      console.warn(`Unhandled potion spell: ${spell.name}`)
       break
   }
 }
@@ -164,7 +195,9 @@ export function castSpell({
   isTileValidForVine,
   applyVineToTile,
   isTileValidForFlood,
-  applyFloodToTile
+  applyFloodToTile,
+  isTileValidForHeal,
+  healTile
 }) {
   if (!spell) {
     console.warn('castSpell called with no spell')
@@ -196,6 +229,10 @@ export function castSpell({
         isTileValidForFlood,
         applyFloodToTile
       })
+      break
+
+    case 'potion':
+      castPotionSpell({ spell, casterPos, aimPos, isTileValidForHeal, healTile })
       break
 
     default:
