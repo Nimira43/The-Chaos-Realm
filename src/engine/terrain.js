@@ -1,8 +1,9 @@
-import { isFlyingMount, FLYING_MOVE_COST, FLYING_BLOCKED_TERRAIN } from './mounts.js'
-
 export const MAP_WIDTH = 32
 export const MAP_HEIGHT = 32
 export const IMPASSABLE_THRESHOLD = 500
+
+const FLYING_MOVE_COST = 2
+const FLYING_BLOCKED_TERRAIN = ['wall', 'doorLocked', 'doorUnlocked']
 
 export const terrainColours = {
   grass: '#3cb043',
@@ -51,26 +52,13 @@ export const terrainCost = {
 
 export function isTerrain(tile) {
   return [
-    'grass',
-    'rough',
-    'rock',
-    'swamp',
-    'water',
-    'forest',
-    'wall',
-    'road',
-    'doorLocked',
-    'doorUnlocked',
-    'doorOpen',
-    'floor',
-    'mountain',
-    'lava',
-    'wasteland'
+    'grass', 'rough', 'rock', 'swamp', 'water', 'forest', 'wall', 'road',
+    'doorLocked', 'doorUnlocked', 'doorOpen', 'floor', 'mountain', 'lava', 'wasteland'
   ].includes(tile)
 }
 
 export function getMovementCost(terrainType, entity) {
-  if (isFlyingMount(entity)) {
+  if (entity?.isFlyingNow) {
     return FLYING_BLOCKED_TERRAIN.includes(terrainType) ? 999 : FLYING_MOVE_COST
   }
 

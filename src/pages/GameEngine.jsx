@@ -6,7 +6,7 @@ import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import { getMovementCost } from '../engine/terrain.js'
 import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
 import { RANGED_SPELL_BASE_RANGE, HEALING_RANGE} from '../engine/spellCaster.js'
-import { getMaxAp, getMoverStats, getMoverAp, getMountDescription } from '../engine/mounts.js'
+import { getMaxAp, getMoverStats, getMoverAp, getMoverMaxAp, getMountDescription } from '../engine/mounts.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -18,13 +18,12 @@ function getHoverInfo(objectLayer, terrainLayer, cursor) {
 
   const terrain = terrainLayer[cursor.y][cursor.x]
 
-  // Whilst mounted, AP and move cost are the mount's, as it does the moving.
   const withMountInfo = (info, riderStats, riderAp, riderMaxAp) => {
     const moverStats = getMoverStats(cell, riderStats)
     return {
       ...info,
       ap: getMoverAp(cell, riderAp),
-      apMax: cell.mount ? getMaxAp(cell.mount.stats) : riderMaxAp,
+      apMax: cell.mount ? getMoverMaxAp(cell, riderStats) : riderMaxAp,
       moveCost: getMovementCost(terrain, moverStats),
       riding: getMountDescription(info.name, cell),
       mountHp: cell.mount?.current_health,
@@ -34,6 +33,8 @@ function getHoverInfo(objectLayer, terrainLayer, cursor) {
   }
 
   if (cell.type === 'creature') {
+    const ownMaxAp = (!cell.mount && cell.flying) ? cell.stats.action_points_flying : getMaxAp(cell.stats)
+
     return withMountInfo({
       name: cell.name,
       owner: cell.owner,
@@ -41,7 +42,7 @@ function getHoverInfo(objectLayer, terrainLayer, cursor) {
       hp: cell.current_health,
       hpMax: cell.stats.constitution,
       inventory: cell.inventory || []
-    }, cell.stats, cell.ap, getMaxAp(cell.stats))
+    }, cell.stats, cell.ap, ownMaxAp)
   }
 
   if (cell.type === 'enemyWizard') {
@@ -99,6 +100,8 @@ export default function GameEngine() {
     itemActionAvailability,
     rideMount,
     dismountMount,
+    takeFlight,
+    land,
     mountActionAvailability,
     setShowLoadModal,
     setMapFilename,
@@ -158,7 +161,9 @@ export default function GameEngine() {
 
   const showMountActions = selected && !actionsLocked && (
     mountActionAvailability.canRide ||
-    mountActionAvailability.canDismount
+    mountActionAvailability.canDismount ||
+    mountActionAvailability.canFly ||
+    mountActionAvailability.canLand
   )
 
   const showItemActions = selected && !actionsLocked && (
@@ -345,17 +350,23 @@ export default function GameEngine() {
         {showMountActions && (
           <div className='item-actions'>
             {mountActionAvailability.canRide && (
-              <button
-                onClick={makeItemActionHandler(rideMount)}
-              >
+              <button onClick={makeItemActionHandler(rideMount)}>
                 Ride
               </button>
             )}
             {mountActionAvailability.canDismount && (
-              <button
-                onClick={makeItemActionHandler(dismountMount)}
-              >
+              <button onClick={makeItemActionHandler(dismountMount)}>
                 Dismount
+              </button>
+            )}
+            {mountActionAvailability.canFly && (
+              <button onClick={makeItemActionHandler(takeFlight)}>
+                Fly
+              </button>
+            )}
+            {mountActionAvailability.canLand && (
+              <button onClick={makeItemActionHandler(land)}>
+                Land
               </button>
             )}
           </div>

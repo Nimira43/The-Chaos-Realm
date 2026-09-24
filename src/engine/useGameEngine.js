@@ -129,7 +129,7 @@ export default function useGameEngine() {
 
   const itemActionAvailability = getActionAvailability(selected, terrainLayer, objectLayer, itemLayer)
 
-  const { rideMount, dismountMount } = useMountActions({
+  const { rideMount, dismountMount, takeFlight, land } = useMountActions({
     terrainLayer,
     objectLayer,
     effectLayer,
@@ -208,6 +208,8 @@ export default function useGameEngine() {
     itemActionAvailability,
     rideMount,
     dismountMount,
+    takeFlight,
+    land,
     mountActionAvailability,
     setShowLoadModal,
     setMapFilename,

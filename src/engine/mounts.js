@@ -1,8 +1,7 @@
 export const RIDE_AP_COST = 2
 export const DISMOUNT_AP_COST = 2
+export const FLY_TOGGLE_AP_COST = 2 
 
-// Flying mounts pay a flat cost per tile, whatever the terrain beneath them.
-// Walls and closed doors still block them, so keys and doors keep their purpose.
 export const FLYING_MOVE_COST = 2
 export const FLYING_BLOCKED_TERRAIN = ['wall', 'doorLocked', 'doorUnlocked']
 
@@ -14,21 +13,22 @@ export function isMountCreature(stats) {
   return !!stats?.mount
 }
 
-export function isFlyingMount(stats) {
+export function canFly(stats) {
   return isMountCreature(stats) && (stats?.action_points_flying ?? 0) > 0
-}
-
-export function getMaxAp(stats) {
-  return isFlyingMount(stats) ? stats.action_points_flying : stats.action_points_ground
 }
 
 export function isMounted(cell) {
   return !!cell?.mount
 }
 
-// Whilst mounted, the mount does the moving and the fighting, so its stats and AP are used.
+export function isCurrentlyFlying(cell) {
+  if (!cell) return false
+  return cell.mount ? !!cell.mount.flying : !!cell.flying
+}
+
 export function getMoverStats(cell, riderStats) {
-  return cell?.mount ? cell.mount.stats : riderStats
+  const stats = cell?.mount ? cell.mount.stats : riderStats
+  return { ...stats, isFlyingNow: isCurrentlyFlying(cell) }
 }
 
 export function getMoverAp(cell, riderAp) {
@@ -38,6 +38,20 @@ export function getMoverAp(cell, riderAp) {
 export function withMoverAp(cell, ap) {
   if (cell.mount) return { ...cell, mount: { ...cell.mount, ap } }
   return { ...cell, ap }
+}
+
+export function getMoverMaxAp(cell, riderStats) {
+  const s = getMoverStats(cell, riderStats)
+  return s.isFlyingNow ? s.action_points_flying : s.action_points_ground
+}
+
+export function getMaxAp(stats) {
+  return stats.action_points_ground
+}
+
+export function withFlying(cell, flying) {
+  if (cell.mount) return { ...cell, mount: { ...cell.mount, flying } }
+  return { ...cell, flying }
 }
 
 export function createMountCell(mount, x, y) {
@@ -51,6 +65,7 @@ export function createMountCell(mount, x, y) {
     current_health: mount.current_health,
     stats: mount.stats,
     inventory: mount.inventory || [],
+    flying: mount.flying || false,
     wanderTarget: null
   }
 }
@@ -69,7 +84,8 @@ export function mountRider(objectLayer, riderPos, mountPos) {
       ap: mountCell.ap,
       current_health: mountCell.current_health,
       stats: mountCell.stats,
-      inventory: mountCell.inventory || []
+      inventory: mountCell.inventory || [],
+      flying: false
     }
   }
 
@@ -87,5 +103,6 @@ export function dismountRider(objectLayer, riderPos, mountPos) {
 }
 
 export function getMountDescription(riderName, cell) {
-  return cell?.mount ? `${riderName} riding ${cell.mount.name}` : null
+  if (!cell?.mount) return null
+  return `${riderName} riding ${cell.mount.name}${cell.mount.flying ? ' (flying)' : ''}`
 }

@@ -3,7 +3,6 @@ import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
 import { terrainCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
-import { getMaxAp } from './mounts.js'
 
 export const MAX_ROUNDS = 30
 export const PORTAL_TURN = Math.round(MAX_ROUNDS * 2 / 3)
@@ -112,26 +111,24 @@ export default function useTurnSystem({
       ENEMY_WIZARD.max_mana
     )
 
-    // Old Code
-
-    // const withCreatureAp = objectLayer.map(row =>
-    //   row.map(cell => {
-    //     if (cell && cell.type === 'creature') {
-    //       return { ...cell, ap: cell.stats.action_points_ground }
-    //     }
-    //     return cell
-    //   })
-    // )
-
     const resetActionPoints = (layer) => layer.map(row => row.map(cell => {
       if (!cell) return cell
       let updated = cell
+
       if (cell.type === 'creature') {
-        updated = { ...updated, ap: getMaxAp(updated.stats) }
+        const ownMaxAp = (!updated.mount && updated.flying)
+          ? updated.stats.action_points_flying
+          : updated.stats.action_points_ground
+        updated = { ...updated, ap: ownMaxAp }
       }
+
       if (updated.mount) {
-        updated = { ...updated, mount: { ...updated.mount, ap: getMaxAp(updated.mount.stats) } }
+        const mountMaxAp = updated.mount.flying
+          ? updated.mount.stats.action_points_flying
+          : updated.mount.stats.action_points_ground
+        updated = { ...updated, mount: { ...updated.mount, ap: mountMaxAp } }
       }
+
       return updated
     }))
 

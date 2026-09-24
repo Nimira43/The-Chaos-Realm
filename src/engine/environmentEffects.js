@@ -3,7 +3,7 @@ import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { MAP_WIDTH, MAP_HEIGHT, getMovementCost } from './terrain.js'
 import { wrap } from './utils.js'
 import { NEIGHBOUR_OFFSETS } from './pathfinding.js'
-import { isFlyingMount, getMoverStats } from './mounts.js'
+import { getMoverStats } from './mounts.js'
 import { applyFireDamage, applyGooeyBlobDamage, applyTangleVineDamage, GOOEY_BLOB_HEALTH, TANGLE_VINE_HEALTH } from './combat.js'
 
 export const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine', 'flood']
@@ -12,7 +12,7 @@ export const ATTACKABLE_EFFECT_TYPES = ['blob', 'vine'] // Fire and Flood cannot
 export function isEnvironmentEffectBlocking(effectLayer, x, y, entity) {
   const type = effectLayer?.[y]?.[x]?.type
   if (!WALL_EFFECT_TYPES.includes(type)) return false
-  if (type === 'flood' && (entity?.water_type || isFlyingMount(entity))) return false
+  if (type === 'flood' && (entity?.water_type || entity?.isFlyingNow)) return false
   return true
 }
 

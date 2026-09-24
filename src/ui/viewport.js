@@ -144,17 +144,17 @@ function drawKeyItemTile(ctx, screenX, screenY, tileSize) {
   ctx.fillText('K', screenX + 2 + size / 2, screenY + 2 + size / 2)
 }
 
-function drawRiderIndicator(ctx, screenX, screenY, tileSize) {
+function drawMountBadge(ctx, screenX, screenY, tileSize, letter, colour) {
   const size = tileSize * 0.36
   const inset = 4
-  ctx.fillStyle = '#ffd700'
+  ctx.fillStyle = colour
   ctx.fillRect(screenX + inset, screenY + inset, size, size)
 
   ctx.fillStyle = 'black'
   ctx.font = `bold ${Math.max(10, size * 0.8)}px monospace`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText('R', screenX + inset + size / 2, screenY + inset + size / 2 + 1)
+  ctx.fillText(letter, screenX + inset + size / 2, screenY + inset + size / 2 + 1)
 }
 
 function drawAppleTile(ctx, screenX, screenY, tileSize) {
@@ -330,8 +330,12 @@ export function drawViewport(
         )
       }
 
-      if (obj?.mount && obj.type !== 'player') {
-        drawRiderIndicator(ctx, vx * tileSize, vy * tileSize, tileSize)
+      if (obj?.mount) {
+        const flying = !!obj.mount.flying
+        drawMountBadge(ctx, vx * tileSize, vy * tileSize, tileSize, flying ? 'F' : 'R', flying ? '#87ceeb' : '#3cb043')
+      } else if (obj?.flying) {
+        // An unridden mount, flying on its own
+        drawMountBadge(ctx, vx * tileSize, vy * tileSize, tileSize, 'F', '#87ceeb')
       }
 
     }
@@ -345,8 +349,10 @@ export function drawViewport(
   ctx.fillStyle = 'white'
   ctx.fillRect(playerScreenX, playerScreenY, tileSize, tileSize)
 
-  if (objectLayer[player.y]?.[player.x]?.mount) {
-    drawRiderIndicator(ctx, playerScreenX, playerScreenY, tileSize)
+  const playerCellNow = objectLayer[player.y]?.[player.x]
+  if (playerCellNow?.mount) {
+    const flying = !!playerCellNow.mount.flying
+    drawMountBadge(ctx, playerScreenX, playerScreenY, tileSize, flying ? 'F' : 'R', flying ? '#87ceeb' : '#3cb043')
   }
 
   if (!selected) {

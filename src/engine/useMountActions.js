@@ -3,7 +3,18 @@ import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { wrap } from './utils.js'
 import { getMovementCost, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { isEnvironmentEffectBlocking } from './environmentEffects.js'
-import { canRide, isMountCreature, mountRider, dismountRider, RIDE_AP_COST, DISMOUNT_AP_COST } from './mounts.js'
+import {
+  canRide,
+  isMountCreature,
+  canFly,
+  mountRider,
+  dismountRider,
+  withMoverAp,
+  withFlying,
+  RIDE_AP_COST,
+  DISMOUNT_AP_COST,
+  FLY_TOGGLE_AP_COST
+} from './mounts.js'
 
 function getNeighbours(x, y, width, height) {
   const offsets = [
@@ -13,7 +24,6 @@ function getNeighbours(x, y, width, height) {
   return offsets.map(o => ({ x: wrap(x + o.x, width), y: wrap(y + o.y, height) }))
 }
 
-// The stats that decide whether a rider may ride, and where they may stand once dismounted.
 export function getRiderStats(cell) {
   if (!cell) return null
   if (cell.type === 'player') return PLAYER
@@ -65,8 +75,6 @@ function findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, x, y, moun
   return null
 }
 
-// The rider stays where they are and the mount steps aside, so the rider must be
-// able to stand on the current tile (e.g. no dismounting in mid-air over water or lava).
 export function findDismountTile(terrainLayer, objectLayer, effectLayer, x, y, riderStats) {
   const cell = objectLayer[y][x]
   if (!cell?.mount) return null
@@ -79,19 +87,46 @@ export function findDismountTile(terrainLayer, objectLayer, effectLayer, x, y, r
 }
 
 export function getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer) {
-  const none = { canRide: false, canDismount: false }
+  const none = { canRide: false, canDismount: false, canFly: false, canLand: false }
   const rider = getSelectedRider(selected, objectLayer)
-  if (!rider || !canRide(rider.stats)) return none
+  if (!rider) return none
 
-  if (rider.cell?.mount) {
-    const canDismount =
-      rider.ap >= DISMOUNT_AP_COST &&
-      !!findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
-    return { canRide: false, canDismount }
+  let canRideFlag = false
+  let canDismountFlag = false
+
+  if (canRide(rider.stats)) {
+    if (rider.cell?.mount) {
+      canDismountFlag =
+        rider.cell.mount.ap >= DISMOUNT_AP_COST &&
+        !!findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
+    } else {
+      const mount = findAdjacentMount(objectLayer, terrainLayer, rider.x, rider.y, rider.owner)
+      canRideFlag = !!mount && rider.ap >= RIDE_AP_COST
+    }
   }
 
-  const mount = findAdjacentMount(objectLayer, terrainLayer, rider.x, rider.y, rider.owner)
-  return { canRide: !!mount && rider.ap >= RIDE_AP_COST, canDismount: false }
+  let flyer = null
+
+  if (rider.cell?.mount) {
+    flyer = { stats: rider.cell.mount.stats, ap: rider.cell.mount.ap, flying: !!rider.cell.mount.flying }
+  } else if (rider.cell?.type === 'creature' && isMountCreature(rider.cell.stats)) {
+    flyer = { stats: rider.cell.stats, ap: rider.cell.ap, flying: !!rider.cell.flying }
+  }
+
+  let canFlyFlag = false
+  let canLandFlag = false
+
+  if (flyer && canFly(flyer.stats)) {
+    if (flyer.flying) canLandFlag = flyer.ap >= FLY_TOGGLE_AP_COST
+    else canFlyFlag = flyer.ap >= FLY_TOGGLE_AP_COST
+  }
+
+  return {
+    canRide: canRideFlag,
+    canDismount: canDismountFlag,
+    canFly: canFlyFlag,
+    canLand: canLandFlag
+  }
 }
 
 export default function useMountActions({ terrainLayer, objectLayer, effectLayer, selected, setObjectLayer, setAp }) {
@@ -125,14 +160,55 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
   const dismountMount = () => {
     const rider = getSelectedRider(selected, objectLayer)
     if (!rider || !rider.cell?.mount) return
-    if (rider.ap < DISMOUNT_AP_COST) return
+    // FIX: check and spend the MOUNT's AP, not the rider's own.
+    if (rider.cell.mount.ap < DISMOUNT_AP_COST) return
 
     const freeTile = findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
     if (!freeTile) return
 
-    setObjectLayer(prev => dismountRider(prev, { x: rider.x, y: rider.y }, freeTile))
-    spendRiderAp(DISMOUNT_AP_COST)
+    setObjectLayer(prev => {
+      const copy = dismountRider(prev, { x: rider.x, y: rider.y }, freeTile)
+      copy[freeTile.y][freeTile.x] = { ...copy[freeTile.y][freeTile.x], ap: copy[freeTile.y][freeTile.x].ap - DISMOUNT_AP_COST }
+      return copy
+    })
   }
 
-  return { rideMount, dismountMount }
+  const takeFlight = () => {
+    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer)
+    if (!avail.canFly) return
+
+    setObjectLayer(prev => {
+      const rider = getSelectedRider(selected, prev)
+      if (!rider) return prev
+      const copy = prev.map(row => [...row])
+      const flown = withFlying(copy[rider.y][rider.x], true)
+      copy[rider.y][rider.x] = flown.mount
+        ? withMoverAp(flown, flown.mount.ap - FLY_TOGGLE_AP_COST)
+        : { ...flown, ap: flown.ap - FLY_TOGGLE_AP_COST }
+      return copy
+    })
+  }
+
+  const land = () => {
+    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer)
+    if (!avail.canLand) return
+
+    setObjectLayer(prev => {
+      const rider = getSelectedRider(selected, prev)
+      if (!rider) return prev
+      const copy = prev.map(row => [...row])
+      const landed = withFlying(copy[rider.y][rider.x], false)
+      copy[rider.y][rider.x] = landed.mount
+        ? withMoverAp(landed, landed.mount.ap - FLY_TOGGLE_AP_COST)
+        : { ...landed, ap: landed.ap - FLY_TOGGLE_AP_COST }
+      return copy
+    })
+  }
+
+  return {
+    rideMount,
+    dismountMount,
+    takeFlight,
+    land
+  }
 }
