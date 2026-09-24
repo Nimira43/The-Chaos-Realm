@@ -109,14 +109,30 @@ export default function useTurnSystem({
       ENEMY_WIZARD.max_mana
     )
 
-    const withCreatureAp = objectLayer.map(row =>
-      row.map(cell => {
-        if (cell && cell.type === 'creature') {
-          return { ...cell, ap: cell.stats.action_points_ground }
-        }
-        return cell
-      })
-    )
+    // Old Code
+
+    // const withCreatureAp = objectLayer.map(row =>
+    //   row.map(cell => {
+    //     if (cell && cell.type === 'creature') {
+    //       return { ...cell, ap: cell.stats.action_points_ground }
+    //     }
+    //     return cell
+    //   })
+    // )
+
+    const resetActionPoints = (layer) => layer.map(row => row.map(cell => {
+      if (!cell) return cell
+      let updated = cell
+      if (cell.type === 'creature') {
+        updated = { ...updated, ap: updated.stats.action_points_ground }
+      }
+      if (updated.mount) {
+        updated = { ...updated, mount: { ...updated.mount, ap: updated.mount.stats.action_points_ground } }
+      }
+      return updated
+    }))
+
+    const withCreatureAp = resetActionPoints(objectLayer)
 
     let workingLayer = withCreatureAp
     let workingTerrain = terrainLayer

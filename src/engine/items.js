@@ -61,3 +61,15 @@ export function placeRandomApples(terrainLayer, objectLayer, itemLayer) {
 
   return newItemLayer
 }
+
+export function findPickupCandidate(itemLayer, x, y, carryLimit, inventory) {
+  const itemsHere = itemLayer[y]?.[x]
+  if (!itemsHere || itemsHere.length === 0) return null
+
+  const index = itemsHere.findIndex(item =>
+    item.type === 'apple' || canCarryItem(carryLimit, inventory, item)
+  )
+  if (index === -1) return null
+
+  return { item: itemsHere[index], index }
+}
