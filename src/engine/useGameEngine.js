@@ -6,6 +6,7 @@ import useMapLoader from './useMapLoader.js'
 import useInput from './useInput.js'
 import useTurnSystem from './useTurnSystem.js'
 import useItemActions, { getActionAvailability } from './useItemActions.js'
+import useMountActions, { getMountActionAvailability } from './useMountActions.js'
 
 export default function useGameEngine() {
   const [terrainLayer, setTerrainLayer] = useState(() => generateProceduralMap())
@@ -128,6 +129,17 @@ export default function useGameEngine() {
 
   const itemActionAvailability = getActionAvailability(selected, terrainLayer, objectLayer, itemLayer)
 
+  const { rideMount, dismountMount } = useMountActions({
+    terrainLayer,
+    objectLayer,
+    effectLayer,
+    selected,
+    setObjectLayer,
+    setAp
+  })
+
+  const mountActionAvailability = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer)
+
   const info = {
     terrain:
       terrainLayer.length
@@ -149,6 +161,7 @@ export default function useGameEngine() {
     terrainLayer,
     objectLayer,
     effectLayer,
+    itemLayer,
     enemyPosition,
     round,
     portalStart,
@@ -159,6 +172,7 @@ export default function useGameEngine() {
     setRound,
     setObjectLayer,
     setEffectLayer,
+    setItemLayer,
     setEnemyPosition,
     setTerrainLayer,
     setPortalPosition,
@@ -192,6 +206,9 @@ export default function useGameEngine() {
     openDoor,
     closeDoor,
     itemActionAvailability,
+    rideMount,
+    dismountMount,
+    mountActionAvailability,
     setShowLoadModal,
     setMapFilename,
     endTurn,

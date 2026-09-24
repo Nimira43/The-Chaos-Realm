@@ -370,6 +370,12 @@ canvas {
   flex-shrink: 0;
 }
 
+.creature-info-riding {
+  text-align: center;
+  font-weight: 700;
+  color: var(--main);
+}
+
 .creature-info-row {
   display: flex;
   justify-content: space-between;
