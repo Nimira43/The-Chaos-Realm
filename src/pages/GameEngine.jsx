@@ -6,6 +6,7 @@ import { useViewportRenderer } from '../ui/useViewportRenderer.js'
 import { getMovementCost } from '../engine/terrain.js'
 import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
 import { RANGED_SPELL_BASE_RANGE, HEALING_RANGE} from '../engine/spellCaster.js'
+import { getMaxAp, getMoverStats, getMoverAp, getMountDescription } from '../engine/mounts.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -17,33 +18,53 @@ function getHoverInfo(objectLayer, terrainLayer, cursor) {
 
   const terrain = terrainLayer[cursor.y][cursor.x]
 
-  if (cell.type === 'creature') {
+  // Whilst mounted, AP and move cost are the mount's, as it does the moving.
+  const withMountInfo = (info, riderStats, riderAp, riderMaxAp) => {
+    const moverStats = getMoverStats(cell, riderStats)
     return {
+      ...info,
+      ap: getMoverAp(cell, riderAp),
+      apMax: cell.mount ? getMaxAp(cell.mount.stats) : riderMaxAp,
+      moveCost: getMovementCost(terrain, moverStats),
+      riding: getMountDescription(info.name, cell),
+      mountHp: cell.mount?.current_health,
+      mountHpMax: cell.mount?.stats.constitution,
+      terrain
+    }
+  }
+
+  if (cell.type === 'creature') {
+    return withMountInfo({
       name: cell.name,
       owner: cell.owner,
-      ap: cell.ap,
-      apMax: cell.stats.action_points_ground,
+      label: cell.owner === 'enemy' ? 'Enemy' : 'Creature',
       hp: cell.current_health,
       hpMax: cell.stats.constitution,
-      terrain,
-      moveCost: getMovementCost(terrain, cell.stats),
       inventory: cell.inventory || []
-    }
+    }, cell.stats, cell.ap, getMaxAp(cell.stats))
   }
 
   if (cell.type === 'enemyWizard') {
     const ref = cell.ref
-    return {
+    return withMountInfo({
       name: 'Enemy Wizard',
       owner: 'enemy',
-      ap: ref.ap,
-      apMax: ref.max_ap,
+      label: 'Enemy',
       hp: ref.current_health,
       hpMax: ref.constitution,
-      terrain,
-      moveCost: getMovementCost(terrain, ref),
       inventory: ref.inventory || []
-    }
+    }, ref, ref.ap, ref.max_ap)
+  }
+
+  if (cell.type === 'player' && cell.mount) {
+    return withMountInfo({
+      name: 'Wizard',
+      owner: 'player',
+      label: 'Player',
+      hp: PLAYER.current_health,
+      hpMax: PLAYER.constitution,
+      inventory: PLAYER.inventory || []
+    }, PLAYER, PLAYER.ap, PLAYER.max_ap)
   }
 
   return null
@@ -76,6 +97,9 @@ export default function GameEngine() {
     openDoor,
     closeDoor,
     itemActionAvailability,
+    rideMount,
+    dismountMount,
+    mountActionAvailability,
     setShowLoadModal,
     setMapFilename,
     endTurn,
@@ -93,6 +117,7 @@ export default function GameEngine() {
     : null
 
   const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
+  const playerMount = objectLayer[PLAYER.y]?.[PLAYER.x]?.mount
 
   useEffect(() => {
     restartGame()
@@ -130,6 +155,11 @@ export default function GameEngine() {
       e.currentTarget.blur()
     }
   }
+
+  const showMountActions = selected && !actionsLocked && (
+    mountActionAvailability.canRide ||
+    mountActionAvailability.canDismount
+  )
 
   const showItemActions = selected && !actionsLocked && (
     itemActionAvailability.canPickUp ||
@@ -215,6 +245,12 @@ export default function GameEngine() {
             </div>
           </div>
 
+          {playerMount && (
+            <div style={{ textAlign: 'center', fontSize: '14px', color: 'var(--grey-3)', marginBottom: '10px' }}>
+              Riding {playerMount.name} (AP: {playerMount.ap}/{getMaxAp(playerMount.stats)}, HP: {playerMount.current_health}/{playerMount.stats.constitution})
+            </div>
+          )}
+
           {PLAYER.inventory && PLAYER.inventory.length > 0 && (
             <div style={{ textAlign: 'center', fontSize: '14px', color: 'var(--grey-3)', marginBottom: '10px' }}>
               Carrying: {PLAYER.inventory.map(item => item.name).join(', ')}
@@ -233,12 +269,18 @@ export default function GameEngine() {
           >
             <div className='creature-info-row'>
               <span className='creature-label'>
-                {hoverInfo.owner === 'enemy' ? 'Enemy' : 'Creature'}:
+                {hoverInfo.label}:
               </span>
               <span className='creature-value'>
                 {hoverInfo.name}
               </span>
             </div>
+
+            {hoverInfo.riding && (
+              <div className='creature-info-riding'>
+                {hoverInfo.riding}
+              </div>
+            )}
 
             <div className='creature-info-row'>
               <span className='creature-label'>
@@ -257,6 +299,17 @@ export default function GameEngine() {
                 {hoverInfo.hp} / {hoverInfo.hpMax}
               </span>
             </div>
+
+            {hoverInfo.riding && (
+              <div className='creature-info-row'>
+                <span className='creature-label'>
+                  Mount HP:
+                </span>
+                <span className='creature-value'>
+                  {hoverInfo.mountHp} / {hoverInfo.mountHpMax}
+                </span>
+              </div>
+            )}
 
             <div className='creature-info-row'>
               <span className='creature-label'>
@@ -285,6 +338,25 @@ export default function GameEngine() {
                   {hoverInfo.inventory.map(item => item.name).join(', ')}
                 </span>
               </div>
+            )}
+          </div>
+        )}
+
+        {showMountActions && (
+          <div className='item-actions'>
+            {mountActionAvailability.canRide && (
+              <button
+                onClick={makeItemActionHandler(rideMount)}
+              >
+                Ride
+              </button>
+            )}
+            {mountActionAvailability.canDismount && (
+              <button
+                onClick={makeItemActionHandler(dismountMount)}
+              >
+                Dismount
+              </button>
             )}
           </div>
         )}

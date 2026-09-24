@@ -4,7 +4,7 @@ import { CREATURES } from '../data/creatures.js'
 
 function getCreatureCode(name) {
   const creature = CREATURES.find(c => c.name === name)
-  if (creature?.code) return creature.code
+  if (creature?.ident_code) return creature.ident_code
 
   return name
     .replace(/[^A-Z]/gi, '')
@@ -142,6 +142,19 @@ function drawKeyItemTile(ctx, screenX, screenY, tileSize) {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText('K', screenX + 2 + size / 2, screenY + 2 + size / 2)
+}
+
+function drawRiderIndicator(ctx, screenX, screenY, tileSize) {
+  const size = tileSize * 0.36
+  const inset = 4
+  ctx.fillStyle = '#ffd700'
+  ctx.fillRect(screenX + inset, screenY + inset, size, size)
+
+  ctx.fillStyle = 'black'
+  ctx.font = `bold ${Math.max(10, size * 0.8)}px monospace`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('R', screenX + inset + size / 2, screenY + inset + size / 2 + 1)
 }
 
 function drawAppleTile(ctx, screenX, screenY, tileSize) {
@@ -317,6 +330,10 @@ export function drawViewport(
         )
       }
 
+      if (obj?.mount && obj.type !== 'player') {
+        drawRiderIndicator(ctx, vx * tileSize, vy * tileSize, tileSize)
+      }
+
     }
   }
 
@@ -327,6 +344,10 @@ export function drawViewport(
 
   ctx.fillStyle = 'white'
   ctx.fillRect(playerScreenX, playerScreenY, tileSize, tileSize)
+
+  if (objectLayer[player.y]?.[player.x]?.mount) {
+    drawRiderIndicator(ctx, playerScreenX, playerScreenY, tileSize)
+  }
 
   if (!selected) {
     const flash = (Date.now() % 600 < 300)

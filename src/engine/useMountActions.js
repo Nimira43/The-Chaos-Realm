@@ -1,8 +1,9 @@
 import { PLAYER } from '../data/player.js'
+import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { wrap } from './utils.js'
 import { getMovementCost, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { isEnvironmentEffectBlocking } from './environmentEffects.js'
-import { canRide, isMountCreature, RIDE_AP_COST, DISMOUNT_AP_COST } from './mounts.js'
+import { canRide, isMountCreature, mountRider, dismountRider, RIDE_AP_COST, DISMOUNT_AP_COST } from './mounts.js'
 
 function getNeighbours(x, y, width, height) {
   const offsets = [
@@ -12,24 +13,33 @@ function getNeighbours(x, y, width, height) {
   return offsets.map(o => ({ x: wrap(x + o.x, width), y: wrap(y + o.y, height) }))
 }
 
+// The stats that decide whether a rider may ride, and where they may stand once dismounted.
+export function getRiderStats(cell) {
+  if (!cell) return null
+  if (cell.type === 'player') return PLAYER
+  if (cell.type === 'enemyWizard') return cell.ref || ENEMY_WIZARD
+  if (cell.type === 'creature') return cell.stats
+  return null
+}
+
 function getSelectedRider(selected, objectLayer) {
   if (!selected) return null
 
   if (selected.type === 'player') {
     const cell = objectLayer[PLAYER.y][PLAYER.x]
-    return { x: PLAYER.x, y: PLAYER.y, ap: PLAYER.ap, canRideFlag: canRide(PLAYER), mounted: !!cell?.mount, owner: 'player' }
+    return { x: PLAYER.x, y: PLAYER.y, ap: PLAYER.ap, stats: PLAYER, cell, owner: 'player' }
   }
 
   if (selected.type === 'creature') {
     const cell = objectLayer[selected.y]?.[selected.x]
     if (!cell || cell.type !== 'creature') return null
-    return { x: selected.x, y: selected.y, ap: cell.ap, canRideFlag: canRide(cell.stats), mounted: !!cell.mount, owner: cell.owner }
+    return { x: selected.x, y: selected.y, ap: cell.ap, stats: cell.stats, cell, owner: cell.owner }
   }
 
   return null
 }
 
-function findAdjacentMount(objectLayer, terrainLayer, x, y, riderOwner) {
+export function findAdjacentMount(objectLayer, terrainLayer, x, y, riderOwner) {
   const height = terrainLayer.length
   const width = terrainLayer[0].length
 
@@ -55,13 +65,29 @@ function findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, x, y, moun
   return null
 }
 
-export function getMountActionAvailability(selected, terrainLayer, objectLayer) {
+// The rider stays where they are and the mount steps aside, so the rider must be
+// able to stand on the current tile (e.g. no dismounting in mid-air over water or lava).
+export function findDismountTile(terrainLayer, objectLayer, effectLayer, x, y, riderStats) {
+  const cell = objectLayer[y][x]
+  if (!cell?.mount) return null
+
+  const terrainHere = terrainLayer[y][x]
+  if (getMovementCost(terrainHere, riderStats) >= IMPASSABLE_THRESHOLD) return null
+  if (terrainHere === 'lava' && !riderStats?.lava_type) return null
+
+  return findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, x, y, cell.mount.stats)
+}
+
+export function getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer) {
   const none = { canRide: false, canDismount: false }
   const rider = getSelectedRider(selected, objectLayer)
-  if (!rider || !rider.canRideFlag) return none
+  if (!rider || !canRide(rider.stats)) return none
 
-  if (rider.mounted) {
-    return { canRide: false, canDismount: true }
+  if (rider.cell?.mount) {
+    const canDismount =
+      rider.ap >= DISMOUNT_AP_COST &&
+      !!findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
+    return { canRide: false, canDismount }
   }
 
   const mount = findAdjacentMount(objectLayer, terrainLayer, rider.x, rider.y, rider.owner)
@@ -70,80 +96,42 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer) 
 
 export default function useMountActions({ terrainLayer, objectLayer, effectLayer, selected, setObjectLayer, setAp }) {
 
-  const rideMount = () => {
-    const rider = getSelectedRider(selected, objectLayer)
-    if (!rider || !rider.canRideFlag || rider.mounted) return
-    if (rider.ap < RIDE_AP_COST) return
-
-    const found = findAdjacentMount(objectLayer, terrainLayer, rider.x, rider.y, rider.owner)
-    if (!found) return
-
-    setObjectLayer(prev => {
-      const copy = prev.map(row => [...row])
-      const mountCell = copy[found.pos.y][found.pos.x]
-      copy[found.pos.y][found.pos.x] = null
-
-      const riderCell = copy[rider.y][rider.x]
-      copy[rider.y][rider.x] = {
-        ...riderCell,
-        mount: {
-          name: mountCell.name,
-          owner: mountCell.owner,
-          ap: mountCell.ap,
-          current_health: mountCell.current_health,
-          stats: mountCell.stats,
-          inventory: mountCell.inventory || []
-        }
-      }
-
-      return copy
-    })
-
+  const spendRiderAp = (cost) => {
     if (selected.type === 'player') {
-      PLAYER.ap -= RIDE_AP_COST
+      PLAYER.ap -= cost
       setAp(PLAYER.ap)
     } else {
       setObjectLayer(prev => {
         const copy = prev.map(row => [...row])
         const cell = copy[selected.y][selected.x]
-        copy[selected.y][selected.x] = { ...cell, ap: cell.ap - RIDE_AP_COST }
+        copy[selected.y][selected.x] = { ...cell, ap: cell.ap - cost }
         return copy
       })
     }
   }
 
+  const rideMount = () => {
+    const rider = getSelectedRider(selected, objectLayer)
+    if (!rider || !canRide(rider.stats) || rider.cell?.mount) return
+    if (rider.ap < RIDE_AP_COST) return
+
+    const found = findAdjacentMount(objectLayer, terrainLayer, rider.x, rider.y, rider.owner)
+    if (!found) return
+
+    setObjectLayer(prev => mountRider(prev, { x: rider.x, y: rider.y }, found.pos))
+    spendRiderAp(RIDE_AP_COST)
+  }
+
   const dismountMount = () => {
     const rider = getSelectedRider(selected, objectLayer)
-    if (!rider || !rider.mounted) return
+    if (!rider || !rider.cell?.mount) return
+    if (rider.ap < DISMOUNT_AP_COST) return
 
-    const riderCell = objectLayer[rider.y][rider.x]
-    const mount = riderCell.mount
-    if (!mount || mount.ap < DISMOUNT_AP_COST) return
+    const freeTile = findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
+    if (!freeTile) return
 
-    const freeTile = findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, mount.stats)
-    if (!freeTile) return // no room to dismount into right now
-
-    setObjectLayer(prev => {
-      const copy = prev.map(row => [...row])
-      const cell = copy[rider.y][rider.x]
-      const { mount: droppedMount, ...riderOnly } = cell
-      copy[rider.y][rider.x] = riderOnly
-
-      copy[freeTile.y][freeTile.x] = {
-        type: 'creature',
-        owner: droppedMount.owner,
-        name: droppedMount.name,
-        x: freeTile.x,
-        y: freeTile.y,
-        ap: droppedMount.ap - DISMOUNT_AP_COST,
-        current_health: droppedMount.current_health,
-        stats: droppedMount.stats,
-        inventory: droppedMount.inventory || [],
-        wanderTarget: null
-      }
-
-      return copy
-    })
+    setObjectLayer(prev => dismountRider(prev, { x: rider.x, y: rider.y }, freeTile))
+    spendRiderAp(DISMOUNT_AP_COST)
   }
 
   return { rideMount, dismountMount }

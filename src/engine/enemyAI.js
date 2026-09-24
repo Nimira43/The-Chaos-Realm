@@ -7,6 +7,19 @@ import { wrap, wrappedManhattanDistance, wrappedChebyshevDistance } from './util
 import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
 import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
+import { canCarryItem, hasKey, removeFirstKey } from './items.js'
+import { ITEM_ACTION_AP_COST } from './useItemActions.js'
+import { findAdjacentMount } from './useMountActions.js'
+import {
+  canRide,
+  isMounted,
+  getMaxAp,
+  getMoverStats,
+  getMoverAp,
+  withMoverAp,
+  mountRider,
+  RIDE_AP_COST
+} from './mounts.js'
 import {
   createFireEffect,
   createBlobEffect,
@@ -22,6 +35,9 @@ const SIGHT_RANGE = 10
 const WANDER_RADIUS = 10
 const WANDER_ATTEMPTS = 10
 const CAST_CHANCE = 0.5
+
+// How many times per turn the enemy wizard may stop (to pick up a key or work a door) and set off again.
+const MAX_WIZARD_MOVE_LEGS = 4
 
 function chebyshevDist(ax, ay, bx, by) {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by))
@@ -91,6 +107,7 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
     frames.push(currentLayer)
 
     if (terrainType === 'lava') {
+      const wasMounted = isMounted(currentLayer[step.y][step.x])
       const lavaResult = applyLavaDamage(currentLayer, step)
       currentLayer = lavaResult.objectLayer
       frames.push(currentLayer)
@@ -98,6 +115,8 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
         selfDefeated = true
         break
       }
+      // The mount perished beneath its rider, so the walk it was making is over.
+      if (wasMounted && !isMounted(currentLayer[step.y][step.x])) break
     }
   }
 
@@ -110,32 +129,151 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
   }
 }
 
-function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer) {
+function tryRideAdjacentMount(objectLayer, terrainLayer, x, y, owner, riderStats, riderAp) {
+  const riderCell = objectLayer[y][x]
+  if (!canRide(riderStats) || isMounted(riderCell) || riderAp < RIDE_AP_COST) return null
+
+  const found = findAdjacentMount(objectLayer, terrainLayer, x, y, owner)
+  if (!found) return null
+
+  return mountRider(objectLayer, { x, y }, found.pos)
+}
+
+function findItemTiles(itemLayer, predicate) {
+  const tiles = []
+  for (let y = 0; y < itemLayer.length; y++) {
+    for (let x = 0; x < itemLayer[y].length; x++) {
+      if ((itemLayer[y][x] || []).some(predicate)) tiles.push({ x, y })
+    }
+  }
+  return tiles
+}
+
+function findTerrainTiles(terrainLayer, states) {
+  const tiles = []
+  for (let y = 0; y < terrainLayer.length; y++) {
+    for (let x = 0; x < terrainLayer[y].length; x++) {
+      if (states.includes(terrainLayer[y][x])) tiles.push({ x, y })
+    }
+  }
+  return tiles
+}
+
+function findAdjacentDoorInState(terrainLayer, x, y, state) {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = wrap(x + dx, terrainLayer[0].length)
+      const ny = wrap(y + dy, terrainLayer.length)
+      if (terrainLayer[ny][nx] === state) return { x: nx, y: ny }
+    }
+  }
+  return null
+}
+
+function isCarryableKey(item) {
+  return item.type === 'key' && canCarryItem(ENEMY_WIZARD.carry_limit, ENEMY_WIZARD.inventory, item)
+}
+
+// Picks up any keys underfoot, then unlocks and opens any doors within reach.
+function performEnemyWizardItemActions(terrainLayer, itemLayer) {
+  let workingTerrain = terrainLayer
+  let workingItems = itemLayer
+  let acted = false
+
+  if (!ENEMY_WIZARD.use_options) return { terrainLayer, itemLayer, acted }
+
+  const setDoor = (door, state) => {
+    workingTerrain = workingTerrain.map(row => [...row])
+    workingTerrain[door.y][door.x] = state
+  }
+
+  while (ENEMY_WIZARD.ap >= ITEM_ACTION_AP_COST) {
+    const { x, y } = ENEMY_WIZARD
+    const itemsHere = workingItems[y][x] || []
+    const keyIndex = itemsHere.findIndex(isCarryableKey)
+
+    if (keyIndex !== -1) {
+      const remaining = [...itemsHere]
+      const [key] = remaining.splice(keyIndex, 1)
+      workingItems = workingItems.map(row => [...row])
+      workingItems[y][x] = remaining.length > 0 ? remaining : null
+      ENEMY_WIZARD.inventory = [...(ENEMY_WIZARD.inventory || []), key]
+      console.debug('[enemy wizard] picked up a key')
+    } else if (hasKey(ENEMY_WIZARD.inventory) && findAdjacentDoorInState(workingTerrain, x, y, 'doorLocked')) {
+      setDoor(findAdjacentDoorInState(workingTerrain, x, y, 'doorLocked'), 'doorUnlocked')
+      ENEMY_WIZARD.inventory = removeFirstKey(ENEMY_WIZARD.inventory)
+      console.debug('[enemy wizard] unlocked a door')
+    } else if (findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked')) {
+      setDoor(findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked'), 'doorOpen')
+      console.debug('[enemy wizard] opened a door')
+    } else {
+      break
+    }
+
+    ENEMY_WIZARD.ap -= ITEM_ACTION_AP_COST
+    acted = true
+  }
+
+  return { terrainLayer: workingTerrain, itemLayer: workingItems, acted }
+}
+
+// When the portal is out of reach, the wizard heads for a door it can get through,
+// or failing that, a key that will let it through one.
+function findKeyAndDoorPath(pathArgs, terrainLayer, itemLayer) {
+  const doorStates = hasKey(ENEMY_WIZARD.inventory) ? ['doorLocked', 'doorUnlocked'] : ['doorUnlocked']
+  const doorGoals = findTerrainTiles(terrainLayer, doorStates).flatMap(door => getAdjacentTiles(door.x, door.y))
+
+  if (doorGoals.length > 0) {
+    const path = findPathToNearestGoal({ ...pathArgs, goals: doorGoals })
+    if (path.length > 0) return path
+  }
+
+  const keyGoals = findItemTiles(itemLayer, isCarryableKey)
+  if (keyGoals.length === 0) return []
+
+  return findPathToNearestGoal({ ...pathArgs, goals: keyGoals })
+}
+
+function findNearbyKeyPath(pathArgs, itemLayer) {
+  const keyGoals = findItemTiles(itemLayer, isCarryableKey).filter(tile =>
+    wrappedManhattanDistance(ENEMY_WIZARD.x, ENEMY_WIZARD.y, tile.x, tile.y, MAP_WIDTH, MAP_HEIGHT) <= SIGHT_RANGE
+  )
+  if (keyGoals.length === 0) return []
+
+  return findPathToNearestGoal({ ...pathArgs, goals: keyGoals, forbidLava: true })
+}
+
+function chooseEnemyWizardPath({ terrainLayer, objectLayer, effectLayer, itemLayer, portalPosition, moverStats }) {
   const { target, dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
   const seekingPlayer = dist <= SIGHT_RANGE
   const adjacentToPlayerNow = seekingPlayer && chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, target.x, target.y) <= 1
   const alreadyAtPortal = portalPosition && ENEMY_WIZARD.x === portalPosition.x && ENEMY_WIZARD.y === portalPosition.y
 
+  const pathArgs = {
+    terrainLayer, objectLayer, effectLayer,
+    start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+    entity: moverStats
+  }
+
   let path = []
 
   if (portalPosition && !adjacentToPlayerNow && !alreadyAtPortal) {
     ENEMY_WIZARD.wanderTarget = null
-    path = findPathToNearestGoal({
-      terrainLayer, objectLayer, effectLayer,
-      start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
-      goals: [portalPosition],
-      entity: ENEMY_WIZARD
-    })
+    path = findPathToNearestGoal({ ...pathArgs, goals: [portalPosition] })
+
+    if (path.length === 0) {
+      path = findKeyAndDoorPath(pathArgs, terrainLayer, itemLayer)
+    }
   }
 
   if (path.length === 0 && !alreadyAtPortal && seekingPlayer) {
     ENEMY_WIZARD.wanderTarget = null
-    path = findPathToNearestGoal({
-      terrainLayer, objectLayer, effectLayer,
-      start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
-      goals: getAdjacentTiles(target.x, target.y),
-      entity: ENEMY_WIZARD
-    })
+    path = findPathToNearestGoal({ ...pathArgs, goals: getAdjacentTiles(target.x, target.y) })
+  }
+
+  if (path.length === 0 && !portalPosition && !alreadyAtPortal) {
+    path = findNearbyKeyPath(pathArgs, itemLayer)
+    if (path.length > 0) ENEMY_WIZARD.wanderTarget = null
   }
 
   if (path.length === 0 && !portalPosition && !alreadyAtPortal) {
@@ -145,63 +283,123 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer)
       ENEMY_WIZARD.y === ENEMY_WIZARD.wanderTarget.y
 
     if (!ENEMY_WIZARD.wanderTarget || reached) {
-      ENEMY_WIZARD.wanderTarget = pickWanderTarget(ENEMY_WIZARD.x, ENEMY_WIZARD.y, terrainLayer, objectLayer, ENEMY_WIZARD)
+      ENEMY_WIZARD.wanderTarget = pickWanderTarget(ENEMY_WIZARD.x, ENEMY_WIZARD.y, terrainLayer, objectLayer, moverStats)
     }
 
     if (ENEMY_WIZARD.wanderTarget) {
-      path = findPathToNearestGoal({
-        terrainLayer, objectLayer, effectLayer,
-        start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
-        goals: [ENEMY_WIZARD.wanderTarget],
-        entity: ENEMY_WIZARD,
-        forbidLava: true
-      })
+      path = findPathToNearestGoal({ ...pathArgs, goals: [ENEMY_WIZARD.wanderTarget], forbidLava: true })
 
       if (path.length === 0) ENEMY_WIZARD.wanderTarget = null
     }
   }
 
-  if (path.length > 0) {
-    console.debug(
-      '[enemy wizard] path:',
-      path.map(p => `${p.x},${p.y} (${terrainLayer[p.y][p.x]})`).join(' -> ')
-    )
+  return path
+}
+
+function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer, itemLayer) {
+  const { dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+  const seekingPlayer = dist <= SIGHT_RANGE
+
+  let currentLayer = objectLayer
+  let workingTerrain = terrainLayer
+  let workingItems = itemLayer
+  let moved = false
+  let lastPosition = null
+  let selfDefeated = false
+  const frames = []
+
+  const ridden = tryRideAdjacentMount(currentLayer, workingTerrain, ENEMY_WIZARD.x, ENEMY_WIZARD.y, 'enemy', ENEMY_WIZARD, ENEMY_WIZARD.ap)
+  if (ridden) {
+    currentLayer = ridden
+    ENEMY_WIZARD.ap -= RIDE_AP_COST
+    frames.push(currentLayer)
+    console.debug('[enemy wizard] mounted', currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x].mount.name)
   }
 
-  const walkResult = walkPath({
-    path,
-    ap: ENEMY_WIZARD.ap,
-    terrainLayer,
-    objectLayer,
-    onStep: {
-      entity: () => ENEMY_WIZARD,
-      move: (layer, step) => {
-        const newLayer = layer.map(row => [...row])
-        newLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = null
-        ENEMY_WIZARD.x = step.x
-        ENEMY_WIZARD.y = step.y
-        newLayer[step.y][step.x] = {
-          type: 'enemyWizard',
-          name: 'Enemy Wizard',
-          owner: 'enemy',
-          ref: ENEMY_WIZARD
+  const runItemActions = () => {
+    const itemResult = performEnemyWizardItemActions(workingTerrain, workingItems)
+    workingTerrain = itemResult.terrainLayer
+    workingItems = itemResult.itemLayer
+  }
+
+  for (let leg = 0; leg < MAX_WIZARD_MOVE_LEGS; leg++) {
+    runItemActions()
+
+    const wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+    const mounted = isMounted(wizardCell)
+    const moverStats = getMoverStats(wizardCell, ENEMY_WIZARD)
+
+    const path = chooseEnemyWizardPath({
+      terrainLayer: workingTerrain,
+      objectLayer: currentLayer,
+      effectLayer,
+      itemLayer: workingItems,
+      portalPosition,
+      moverStats
+    })
+
+    if (path.length === 0) break
+
+    console.debug(
+      '[enemy wizard] path:',
+      path.map(p => `${p.x},${p.y} (${workingTerrain[p.y][p.x]})`).join(' -> ')
+    )
+
+    const walkResult = walkPath({
+      path,
+      ap: getMoverAp(wizardCell, ENEMY_WIZARD.ap),
+      terrainLayer: workingTerrain,
+      objectLayer: currentLayer,
+      onStep: {
+        entity: () => moverStats,
+        move: (layer, step, remainingAp) => {
+          const newLayer = layer.map(row => [...row])
+          const moving = newLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+          newLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = null
+          ENEMY_WIZARD.x = step.x
+          ENEMY_WIZARD.y = step.y
+          const wizard = {
+            type: 'enemyWizard',
+            name: 'Enemy Wizard',
+            owner: 'enemy',
+            ref: ENEMY_WIZARD
+          }
+          newLayer[step.y][step.x] = moving?.mount ? { ...wizard, mount: { ...moving.mount, ap: remainingAp } } : wizard
+          return newLayer
         }
-        return newLayer
       }
+    })
+
+    currentLayer = walkResult.objectLayer
+    frames.push(...walkResult.frames)
+
+    // Whilst mounted, the mount's AP is spent (and stored on the mount); on foot, the wizard's own.
+    if (!mounted) ENEMY_WIZARD.ap = walkResult.ap
+
+    if (walkResult.moved) {
+      moved = true
+      lastPosition = walkResult.lastPosition
     }
-  })
 
-  ENEMY_WIZARD.ap = walkResult.ap
+    if (walkResult.selfDefeated) {
+      selfDefeated = true
+      break
+    }
 
-  let currentLayer = walkResult.objectLayer
+    if (!walkResult.moved) break
+  }
+
+  if (!selfDefeated) runItemActions()
+
   let defeatedTarget = null
-  const frames = [...walkResult.frames]
 
-  if (!walkResult.selfDefeated && seekingPlayer) {
+  if (!selfDefeated && seekingPlayer) {
     const { target: freshTarget } = findNearestPlayerTarget(currentLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
     const adjacency = chebyshevDist(ENEMY_WIZARD.x, ENEMY_WIZARD.y, freshTarget.x, freshTarget.y)
+    const wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+    const attackAp = getMoverAp(wizardCell, ENEMY_WIZARD.ap)
 
-    if (adjacency <= 1 && ENEMY_WIZARD.ap >= ATTACK_AP_COST) {
+    if (adjacency <= 1 && attackAp >= ATTACK_AP_COST) {
       const result = resolveAttack({
         objectLayer: currentLayer,
         attackerPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
@@ -210,7 +408,14 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer)
 
       if (!result.blocked) {
         currentLayer = result.objectLayer
-        ENEMY_WIZARD.ap -= ATTACK_AP_COST
+
+        if (isMounted(wizardCell)) {
+          currentLayer = currentLayer.map(row => [...row])
+          currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = withMoverAp(wizardCell, attackAp - ATTACK_AP_COST)
+        } else {
+          ENEMY_WIZARD.ap -= ATTACK_AP_COST
+        }
+
         frames.push(currentLayer)
         if (result.defeated) defeatedTarget = result.defenderType
       }
@@ -219,10 +424,12 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer)
 
   return {
     objectLayer: currentLayer,
-    moved: walkResult.moved,
-    position: walkResult.lastPosition,
+    terrainLayer: workingTerrain,
+    itemLayer: workingItems,
+    moved,
+    position: lastPosition,
     defeatedTarget,
-    selfDefeated: walkResult.selfDefeated,
+    selfDefeated,
     frames
   }
 }
@@ -291,7 +498,7 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
       name: creatureName,
       x: tile.x,
       y: tile.y,
-      ap: creatureData.action_points_ground,
+      ap: getMaxAp(creatureData),
       current_health: creatureData.constitution,
       stats: creatureData,
       wanderTarget: null,
@@ -352,13 +559,15 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   }
 }
 
-export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effectLayer) {
-  const moveResult = moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer)
+export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effectLayer, itemLayer) {
+  const moveResult = moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer, itemLayer)
 
   if (moveResult.selfDefeated) {
     return {
       objectLayer: moveResult.objectLayer,
       effectLayer,
+      terrainLayer: moveResult.terrainLayer,
+      itemLayer: moveResult.itemLayer,
       moved: moveResult.moved,
       position: moveResult.position,
       defeatedTarget: moveResult.defeatedTarget,
@@ -367,12 +576,14 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
     }
   }
 
-  const castResult = castEnemyWizardSpell(terrainLayer, moveResult.objectLayer, effectLayer)
+  const castResult = castEnemyWizardSpell(moveResult.terrainLayer, moveResult.objectLayer, effectLayer)
   const frames = castResult.cast ? [...moveResult.frames, castResult.objectLayer] : moveResult.frames
 
   return {
     objectLayer: castResult.objectLayer,
     effectLayer: castResult.effectLayer,
+    terrainLayer: moveResult.terrainLayer,
+    itemLayer: moveResult.itemLayer,
     moved: moveResult.moved,
     position: moveResult.position,
     defeatedTarget: moveResult.defeatedTarget,
@@ -382,14 +593,27 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
 }
 
 function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLayer) {
-  const creature = objectLayer[startY][startX]
+  let creature = objectLayer[startY][startX]
   
   if (!creature) return {
     objectLayer, moved: false,
     defeatedTarget: null,
     selfDefeated: false,
+    finalPosition: null,
     frames: []
   }
+
+  const initialFrames = []
+
+  const ridden = tryRideAdjacentMount(objectLayer, terrainLayer, startX, startY, creature.owner, creature.stats, creature.ap)
+  if (ridden) {
+    objectLayer = ridden.map(row => [...row])
+    creature = { ...objectLayer[startY][startX], ap: creature.ap - RIDE_AP_COST }
+    objectLayer[startY][startX] = creature
+    initialFrames.push(objectLayer)
+  }
+
+  const moverStats = getMoverStats(creature, creature.stats)
 
   const { target, dist } = findNearestPlayerTarget(objectLayer, startX, startY)
   const seekingPlayer = dist <= SIGHT_RANGE
@@ -403,7 +627,7 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
       terrainLayer, objectLayer, effectLayer,
       start: { x: startX, y: startY },
       goals: getAdjacentTiles(target.x, target.y),
-      entity: creature.stats
+      entity: moverStats
     })
   }
 
@@ -411,7 +635,7 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
     const reached = wanderTarget && startX === wanderTarget.x && startY === wanderTarget.y
 
     if (!wanderTarget || reached) {
-      wanderTarget = pickWanderTarget(startX, startY, terrainLayer, objectLayer, creature.stats)
+      wanderTarget = pickWanderTarget(startX, startY, terrainLayer, objectLayer, moverStats)
     }
 
     if (wanderTarget) {
@@ -419,7 +643,7 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
         terrainLayer, objectLayer, effectLayer,
         start: { x: startX, y: startY },
         goals: [wanderTarget],
-        entity: creature.stats,
+        entity: moverStats,
         forbidLava: true
       })
 
@@ -432,27 +656,26 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
 
   const walkResult = walkPath({
     path,
-    ap: creature.ap,
+    ap: getMoverAp(creature, creature.ap),
     terrainLayer,
     objectLayer,
     onStep: {
-      entity: () => creature.stats,
+      entity: () => moverStats,
       move: (layer, step, remainingAp) => {
         const newLayer = layer.map(row => [...row])
         const moving = newLayer[finalY][finalX]
         newLayer[finalY][finalX] = null
         finalX = step.x
         finalY = step.y
-        newLayer[finalY][finalX] = { ...moving, x: finalX, y: finalY, ap: remainingAp, wanderTarget }
+        newLayer[finalY][finalX] = { ...withMoverAp(moving, remainingAp), x: finalX, y: finalY, wanderTarget }
         return newLayer
       }
     }
   })
 
   let workingLayer = walkResult.objectLayer
-  let ap = walkResult.ap
   let defeatedTarget = null
-  const frames = [...walkResult.frames]
+  const frames = [...initialFrames, ...walkResult.frames]
 
   if (!walkResult.moved) {
     const currentCell = workingLayer[finalY][finalX]
@@ -465,6 +688,8 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
   if (!walkResult.selfDefeated && seekingPlayer) {
     const { target: freshTarget } = findNearestPlayerTarget(workingLayer, finalX, finalY)
     const adjacency = chebyshevDist(finalX, finalY, freshTarget.x, freshTarget.y)
+    const attackerBefore = workingLayer[finalY][finalX]
+    const ap = attackerBefore ? getMoverAp(attackerBefore, attackerBefore.ap) : 0
 
     if (adjacency <= 1 && ap >= ATTACK_AP_COST) {
       const result = resolveAttack({
@@ -475,12 +700,11 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
 
       if (!result.blocked) {
         workingLayer = result.objectLayer
-        ap -= ATTACK_AP_COST
 
         const attackerCell = workingLayer[finalY] ? workingLayer[finalY][finalX] : null
         if (attackerCell) {
           workingLayer = workingLayer.map(row => [...row])
-          workingLayer[finalY][finalX] = { ...attackerCell, ap, wanderTarget }
+          workingLayer[finalY][finalX] = { ...withMoverAp(attackerCell, ap - ATTACK_AP_COST), wanderTarget }
         }
 
         frames.push(workingLayer)
@@ -494,6 +718,7 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
     moved: walkResult.moved,
     defeatedTarget,
     selfDefeated: walkResult.selfDefeated,
+    finalPosition: walkResult.selfDefeated ? null : { x: finalX, y: finalY },
     frames
   }
 }
@@ -513,11 +738,18 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer, effectLayer) {
     }
   }
 
+  // A creature can end its move on a tile vacated by a mount that was ridden away,
+  // so remember where each creature finished to avoid moving it twice.
+  const finishedAt = new Set()
+
   startingPositions.forEach(({ x, y }) => {
+    if (finishedAt.has(`${x},${y}`)) return
+
     const result = moveCreatureToward(terrainLayer, workingLayer, x, y, effectLayer)
     workingLayer = result.objectLayer
     frames.push(...result.frames)
     if (result.defeatedTarget) defeatedTargets.push(result.defeatedTarget)
+    if (result.finalPosition) finishedAt.add(`${result.finalPosition.x},${result.finalPosition.y}`)
   })
 
   return {

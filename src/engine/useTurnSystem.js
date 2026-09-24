@@ -3,6 +3,7 @@ import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
 import { terrainCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
+import { getMaxAp } from './mounts.js'
 
 export const MAX_ROUNDS = 30
 export const PORTAL_TURN = Math.round(MAX_ROUNDS * 2 / 3)
@@ -64,6 +65,7 @@ export default function useTurnSystem({
   terrainLayer,
   objectLayer,
   effectLayer,
+  itemLayer,
   enemyPosition,
   round,
   portalStart,
@@ -74,6 +76,7 @@ export default function useTurnSystem({
   setRound,
   setObjectLayer,
   setEffectLayer,
+  setItemLayer,
   setEnemyPosition,
   setTerrainLayer,
   setPortalPosition,
@@ -124,10 +127,10 @@ export default function useTurnSystem({
       if (!cell) return cell
       let updated = cell
       if (cell.type === 'creature') {
-        updated = { ...updated, ap: updated.stats.action_points_ground }
+        updated = { ...updated, ap: getMaxAp(updated.stats) }
       }
       if (updated.mount) {
-        updated = { ...updated, mount: { ...updated.mount, ap: updated.mount.stats.action_points_ground } }
+        updated = { ...updated, mount: { ...updated.mount, ap: getMaxAp(updated.mount.stats) } }
       }
       return updated
     }))
@@ -137,6 +140,7 @@ export default function useTurnSystem({
     let workingLayer = withCreatureAp
     let workingTerrain = terrainLayer
     let workingEffectLayer = effectLayer
+    let workingItemLayer = itemLayer
     let activePortalPosition = portalPosition
     let frames = []
 
@@ -169,9 +173,11 @@ export default function useTurnSystem({
     }
 
     if (enemyPosition) {
-      const wizardResult = runEnemyWizardAI(workingTerrain, workingLayer, activePortalPosition, workingEffectLayer)
+      const wizardResult = runEnemyWizardAI(workingTerrain, workingLayer, activePortalPosition, workingEffectLayer, workingItemLayer)
       workingLayer = wizardResult.objectLayer
       workingEffectLayer = wizardResult.effectLayer
+      workingTerrain = wizardResult.terrainLayer
+      workingItemLayer = wizardResult.itemLayer
       frames = frames.concat(wizardResult.frames)
 
       if (wizardResult.selfDefeated) {
@@ -235,6 +241,7 @@ export default function useTurnSystem({
 
     setTerrainLayer(workingTerrain)
     setEffectLayer(workingEffectLayer)
+    setItemLayer(workingItemLayer)
     setRound(nextRound)
 
     if (newStatus) {

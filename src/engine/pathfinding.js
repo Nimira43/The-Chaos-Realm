@@ -1,5 +1,6 @@
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { wrap } from './utils.js'
+import { isFlyingMount } from './mounts.js'
 
 export const NEIGHBOUR_OFFSETS = [
   { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
@@ -12,7 +13,7 @@ const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine', 'flood']
 function isWallEffectBlocking(effectLayer, x, y, entity) {
   const type = effectLayer?.[y]?.[x]?.type
   if (!WALL_EFFECT_TYPES.includes(type)) return false
-  if (type === 'flood' && entity?.water_type) return false
+  if (type === 'flood' && (entity?.water_type || isFlyingMount(entity))) return false
   return true
 }
 
@@ -83,7 +84,7 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, effectLayer, 
       }
 
       const isLava = terrainType === 'lava'
-      const lavaIsHazardHere = isLava && !entity?.lava_type
+      const lavaIsHazardHere = isLava && !entity?.lava_type && !isFlyingMount(entity)
 
       if (lavaIsHazardHere && forbidLava) continue
 

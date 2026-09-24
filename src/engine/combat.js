@@ -1,6 +1,6 @@
 import { PLAYER } from '../data/player.js'
 import { scarWallEffectDestroyedTile } from './environmentEffects.js'
-import { isMountFlying } from './mounts.js'
+import { isFlyingMount } from './mounts.js'
 
 export const ATTACK_AP_COST = 2
 
@@ -32,6 +32,7 @@ function getCombatProfile(cell) {
       maxHealth: m.stats.constitution,
       undead: m.stats.undead,
       lavaType: m.stats.lava_type,
+      flying: isFlyingMount(m.stats),
       mounted: true
     }
   }
@@ -69,6 +70,7 @@ function getCombatProfile(cell) {
       maxHealth: cell.stats.constitution,
       undead: cell.stats.undead,
       lavaType: cell.stats.lava_type,
+      flying: isFlyingMount(cell.stats),
       apply: null
     }
   }
@@ -89,13 +91,17 @@ function applyDamageToCell(objectLayer, pos, damage) {
   if (profile.mounted) {
     const newLayer = objectLayer.map(row => [...row])
 
+    // eslint-disable-next-line no-unused-vars
+    const { mount, ...riderOnly } = cell
+
     if (fatal) {
-      if (isMountFlying(cell.mount.stats)) {
+      // A rider thrown from a flying mount falls to their death; a grounded rider survives.
+      if (profile.flying) {
+        getCombatProfile(riderOnly)?.apply?.(0)
         newLayer[pos.y][pos.x] = null
         return { objectLayer: newLayer, damage, defeated: true, targetType: cell.type }
       }
 
-      const { mount, ...riderOnly } = cell
       newLayer[pos.y][pos.x] = riderOnly
       return { objectLayer: newLayer, damage, defeated: false, targetType: cell.type }
     }
@@ -164,7 +170,7 @@ export function applyLavaDamage(objectLayer, pos) {
 
   const profile = getCombatProfile(cell)
   if (!profile) return { objectLayer, damage: 0, defeated: false }
-  if (profile.lavaType) return { objectLayer, damage: 0, defeated: false }
+  if (profile.lavaType || profile.flying) return { objectLayer, damage: 0, defeated: false }
 
   const damage = Math.max(1, Math.ceil(profile.maxHealth * LAVA_DAMAGE_PERCENT))
   const result = applyDamageToCell(objectLayer, pos, damage)

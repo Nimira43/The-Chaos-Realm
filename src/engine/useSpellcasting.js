@@ -2,6 +2,7 @@ import { CREATURES } from '../data/creatures.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE, HEALING_RANGE } from './spellCaster.js'
 import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrappedChebyshevDistance } from './utils.js'
+import { getMaxAp } from './mounts.js'
 import {
   isTileIgnitable as checkTileIgnitable,
   isTileSpreadableForBlob as checkTileSpreadableForBlob,
@@ -67,14 +68,19 @@ export default function useSpellcasting({
 
     if (occupant.type === 'player') {
       PLAYER.current_health = PLAYER.constitution
-      return
     }
 
-    if (occupant.type === 'creature') {
+    if (occupant.type === 'creature' || occupant.mount) {
       setObjectLayer(prev => {
         const copy = prev.map(row => [...row])
-        const cell = copy[tile.y][tile.x]
-        copy[tile.y][tile.x] = { ...cell, current_health: cell.stats.constitution }
+        let cell = copy[tile.y][tile.x]
+        if (cell.type === 'creature') {
+          cell = { ...cell, current_health: cell.stats.constitution }
+        }
+        if (cell.mount) {
+          cell = { ...cell, mount: { ...cell.mount, current_health: cell.mount.stats.constitution } }
+        }
+        copy[tile.y][tile.x] = cell
         return copy
       })
     }
@@ -91,7 +97,7 @@ export default function useSpellcasting({
         name: creatureName,
         x: tile.x,
         y: tile.y,
-        ap: creatureData.action_points_ground,
+        ap: getMaxAp(creatureData),
         current_health: creatureData.constitution,
         stats: creatureData,
         inventory: []

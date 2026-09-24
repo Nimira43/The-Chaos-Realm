@@ -5,6 +5,7 @@ import { PLAYER } from '../data/player.js'
 import { getMovementCost, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { resolveAttack, applyLavaDamage, resolveWallEffectAttack, ATTACK_AP_COST } from './combat.js'
 import { isEnvironmentEffectBlocking, ATTACKABLE_EFFECT_TYPES } from './environmentEffects.js'
+import { isMounted, getMoverStats, getMoverAp, withMoverAp } from './mounts.js'
 
 export default function useInput({
   cursor,
@@ -96,12 +97,31 @@ export default function useInput({
           const newX = wrap(PLAYER.x + dx, map[0].length)
           const newY = wrap(PLAYER.y + dy, map.length)
 
-          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, PLAYER)) {
+          const playerCell = objectLayer[PLAYER.y][PLAYER.x]
+          const mounted = isMounted(playerCell)
+          const moverStats = getMoverStats(playerCell, PLAYER)
+          const moverAp = getMoverAp(playerCell, PLAYER.ap)
+
+          const spendPlayerAttackAp = (layer) => {
+            if (!mounted) {
+              PLAYER.ap -= ATTACK_AP_COST
+              setAp(PLAYER.ap)
+              return layer
+            }
+
+            const cell = layer[PLAYER.y][PLAYER.x]
+            if (!cell?.mount) return layer
+            const copy = layer.map(row => [...row])
+            copy[PLAYER.y][PLAYER.x] = withMoverAp(cell, cell.mount.ap - ATTACK_AP_COST)
+            return copy
+          }
+
+          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, moverStats)) {
             const occupant = objectLayer[newY][newX]
 
             if (occupant !== null) {
               if (occupant.owner === 'enemy') {
-                if (PLAYER.ap < ATTACK_AP_COST) return
+                if (moverAp < ATTACK_AP_COST) return
 
                 const result = resolveAttack({
                   objectLayer,
@@ -114,9 +134,7 @@ export default function useInput({
                   return
                 }
 
-                PLAYER.ap -= ATTACK_AP_COST
-                setAp(PLAYER.ap)
-                setObjectLayer(result.objectLayer)
+                setObjectLayer(spendPlayerAttackAp(result.objectLayer))
 
                 if (result.defeated && result.defenderType === 'enemyWizard') {
                   setEnemyPosition(null)
@@ -130,17 +148,17 @@ export default function useInput({
             const effectType = effectLayer[newY][newX].type
 
             if (ATTACKABLE_EFFECT_TYPES.includes(effectType)) {
-              if (PLAYER.ap < ATTACK_AP_COST) return
+              if (moverAp < ATTACK_AP_COST) return
 
               const result = resolveWallEffectAttack({
                 effectLayer,
                 terrainLayer,
-                attackerCombat: PLAYER.combat,
+                attackerCombat: moverStats.combat,
                 pos: { x: newX, y: newY }
               })
 
-              PLAYER.ap -= ATTACK_AP_COST
-              setAp(PLAYER.ap)
+              const spentLayer = spendPlayerAttackAp(objectLayer)
+              if (spentLayer !== objectLayer) setObjectLayer(spentLayer)
               setEffectLayer(result.effectLayer)
 
               if (result.destroyed) {
@@ -156,7 +174,7 @@ export default function useInput({
 
           if (occupant !== null) {
             if (occupant.owner === 'enemy') {
-              if (PLAYER.ap < ATTACK_AP_COST) return
+              if (moverAp < ATTACK_AP_COST) return
 
               const result = resolveAttack({
                 objectLayer,
@@ -169,9 +187,7 @@ export default function useInput({
                 return
               }
 
-              PLAYER.ap -= ATTACK_AP_COST
-              setAp(PLAYER.ap)
-              setObjectLayer(result.objectLayer)
+              setObjectLayer(spendPlayerAttackAp(result.objectLayer))
 
               if (result.defeated && result.defenderType === 'enemyWizard') {
                 setEnemyPosition(null)
@@ -182,18 +198,35 @@ export default function useInput({
             return
           }
 
-          const moved = tryMove(PLAYER, dx, dy, map)
+          let moved = false
+          let mountApAfterMove = moverAp
+
+          if (mounted) {
+            const cost = getMovementCost(map[newY][newX], moverStats)
+            if (cost < IMPASSABLE_THRESHOLD && moverAp >= cost) {
+              PLAYER.x = newX
+              PLAYER.y = newY
+              mountApAfterMove = moverAp - cost
+              moved = true
+            }
+          } else {
+            moved = tryMove(PLAYER, dx, dy, map)
+          }
+
           if (moved) {
             const newPos = { x: PLAYER.x, y: PLAYER.y }
 
             setObjectLayer(prev => {
               let copy = prev.map(row => [...row])
+              const movingCell = copy[playerPosition.y][playerPosition.x]
               copy[playerPosition.y][playerPosition.x] = null
-              copy[newPos.y][newPos.x] = {
-                type: 'player',
-                name: 'Wizard',
-                owner: 'player'
-              }
+              copy[newPos.y][newPos.x] = mounted
+                ? withMoverAp(movingCell, mountApAfterMove)
+                : {
+                  type: 'player',
+                  name: 'Wizard',
+                  owner: 'player'
+                }
 
               if (terrainLayer[newPos.y][newPos.x] === 'lava') {
                 const lavaResult = applyLavaDamage(copy, newPos)
@@ -224,16 +257,19 @@ export default function useInput({
           return
         }
 
+        const moverStats = getMoverStats(creature, creature.stats)
+        const moverAp = getMoverAp(creature, creature.ap)
+
         if (dx || dy) {
           const newX = wrap(x + dx, map[0].length)
           const newY = wrap(y + dy, map.length)
 
-          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, creature.stats)) {
+          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, moverStats)) {
             const occupant = objectLayer[newY][newX]
 
             if (occupant !== null) {
               if (occupant.owner === 'enemy') {
-                if (creature.ap < ATTACK_AP_COST) return
+                if (moverAp < ATTACK_AP_COST) return
 
                 const result = resolveAttack({
                   objectLayer,
@@ -251,7 +287,7 @@ export default function useInput({
 
                 if (attackerCellNow) {
                   updatedLayer = updatedLayer.map(row => [...row])
-                  updatedLayer[y][x] = { ...attackerCellNow, ap: attackerCellNow.ap - ATTACK_AP_COST }
+                  updatedLayer[y][x] = withMoverAp(attackerCellNow, getMoverAp(attackerCellNow, attackerCellNow.ap) - ATTACK_AP_COST)
                 }
 
                 setObjectLayer(updatedLayer)
@@ -266,18 +302,18 @@ export default function useInput({
             const effectType = effectLayer[newY][newX].type
 
             if (ATTACKABLE_EFFECT_TYPES.includes(effectType)) {
-              if (creature.ap < ATTACK_AP_COST) return
+              if (moverAp < ATTACK_AP_COST) return
 
               const result = resolveWallEffectAttack({
                 effectLayer,
                 terrainLayer,
-                attackerCombat: creature.stats.combat,
+                attackerCombat: moverStats.combat,
                 pos: { x: newX, y: newY }
               })
 
               setObjectLayer(prev => {
                 const copy = prev.map(row => [...row])
-                copy[y][x] = { ...creature, ap: creature.ap - ATTACK_AP_COST }
+                copy[y][x] = withMoverAp(creature, moverAp - ATTACK_AP_COST)
                 return copy
               })
 
@@ -294,7 +330,7 @@ export default function useInput({
 
           if (occupant !== null) {
             if (occupant.owner === 'enemy') {
-              if (creature.ap < ATTACK_AP_COST) return
+              if (moverAp < ATTACK_AP_COST) return
 
               const result = resolveAttack({
                 objectLayer,
@@ -312,7 +348,7 @@ export default function useInput({
 
               if (attackerCellNow) {
                 updatedLayer = updatedLayer.map(row => [...row])
-                updatedLayer[y][x] = { ...attackerCellNow, ap: attackerCellNow.ap - ATTACK_AP_COST }
+                updatedLayer[y][x] = withMoverAp(attackerCellNow, getMoverAp(attackerCellNow, attackerCellNow.ap) - ATTACK_AP_COST)
               }
 
               setObjectLayer(updatedLayer)
@@ -325,18 +361,17 @@ export default function useInput({
           }
 
           const terrainType = terrainLayer[newY][newX]
-          const cost = getMovementCost(terrainType, creature.stats)
+          const cost = getMovementCost(terrainType, moverStats)
 
           if (cost >= IMPASSABLE_THRESHOLD) return
-          if (creature.ap < cost) return
+          if (moverAp < cost) return
 
           let updatedLayer = objectLayer.map(row => [...row])
           updatedLayer[y][x] = null
           updatedLayer[newY][newX] = {
-            ...creature,
+            ...withMoverAp(creature, moverAp - cost),
             x: newX,
-            y: newY,
-            ap: creature.ap - cost
+            y: newY
           }
 
           let defeated = false
