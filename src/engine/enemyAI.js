@@ -5,7 +5,7 @@ import { CREATURES } from '../data/creatures.js'
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap, wrappedManhattanDistance, wrappedChebyshevDistance } from './utils.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
-import { resolveAttack, applyLavaDamage, ATTACK_AP_COST } from './combat.js'
+import { resolveAttack, applyLavaDamage, applyMagicDamage, ATTACK_AP_COST } from './combat.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 import { canCarryItem, hasKey, removeFirstKey } from './items.js'
 import { ITEM_ACTION_AP_COST } from './useItemActions.js'
@@ -36,7 +36,6 @@ const WANDER_RADIUS = 10
 const WANDER_ATTEMPTS = 10
 const CAST_CHANCE = 0.5
 
-// How many times per turn the enemy wizard may stop (to pick up a key or work a door) and set off again.
 const MAX_WIZARD_MOVE_LEGS = 4
 
 function chebyshevDist(ax, ay, bx, by) {
@@ -115,7 +114,6 @@ function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
         selfDefeated = true
         break
       }
-      // The mount perished beneath its rider, so the walk it was making is over.
       if (wasMounted && !isMounted(currentLayer[step.y][step.x])) break
     }
   }
@@ -174,7 +172,6 @@ function isCarryableKey(item) {
   return item.type === 'key' && canCarryItem(ENEMY_WIZARD.carry_limit, ENEMY_WIZARD.inventory, item)
 }
 
-// Picks up any keys underfoot, then unlocks and opens any doors within reach.
 function performEnemyWizardItemActions(terrainLayer, itemLayer) {
   let workingTerrain = terrainLayer
   let workingItems = itemLayer
@@ -214,11 +211,13 @@ function performEnemyWizardItemActions(terrainLayer, itemLayer) {
     acted = true
   }
 
-  return { terrainLayer: workingTerrain, itemLayer: workingItems, acted }
+  return {
+    terrainLayer: workingTerrain,
+    itemLayer: workingItems,
+    acted
+  }
 }
 
-// When the portal is out of reach, the wizard heads for a door it can get through,
-// or failing that, a key that will let it through one.
 function findKeyAndDoorPath(pathArgs, terrainLayer, itemLayer) {
   const doorStates = hasKey(ENEMY_WIZARD.inventory) ? ['doorLocked', 'doorUnlocked'] : ['doorUnlocked']
   const doorGoals = findTerrainTiles(terrainLayer, doorStates).flatMap(door => getAdjacentTiles(door.x, door.y))
@@ -373,7 +372,6 @@ function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer,
     currentLayer = walkResult.objectLayer
     frames.push(...walkResult.frames)
 
-    // Whilst mounted, the mount's AP is spent (and stored on the mount); on foot, the wizard's own.
     if (!mounted) ENEMY_WIZARD.ap = walkResult.ap
 
     if (walkResult.moved) {
@@ -458,15 +456,28 @@ function pickRangedSpellTarget(objectLayer, casterX, casterY, maxRange) {
 function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   const { dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
   if (dist > SIGHT_RANGE) return { objectLayer, effectLayer, cast: false }
-  if (Math.random() > CAST_CHANCE) return { objectLayer, effectLayer, cast: false }
+
+  const adjacentPlayerCount = getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+    .filter(t => {
+      const c = objectLayer[t.y]?.[t.x]
+      return c && (c.type === 'player' || (c.type === 'creature' && c.owner === 'player'))
+    }).length
 
   const usableSpells = ENEMY_SPELLBOOK.filter(spell => {
     if (spell.currentSpellLevel <= 0) return false
     if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel) return false
 
+    if (spell.category === 'creature') {
+      return getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y).some(t => isTileFreeForCast(terrainLayer, objectLayer, t.x, t.y))
+    }
+
     if (spell.ranged) {
       const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
       return pickRangedSpellTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange) !== null
+    }
+
+    if (spell.category === 'offensive') {
+      return pickRangedSpellTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, spell.currentSpellLevel) !== null
     }
 
     return true
@@ -474,7 +485,18 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
 
   if (usableSpells.length === 0) return { objectLayer, effectLayer, cast: false }
 
-  const spell = usableSpells[Math.floor(Math.random() * usableSpells.length)]
+  const offensiveOptions = usableSpells.filter(s => s.category === 'offensive')
+  const underThreat = adjacentPlayerCount >= 2 && offensiveOptions.length > 0
+
+  let spell
+
+  if (underThreat) {
+    spell = offensiveOptions.find(s => s.name === 'Magic Lightning') || offensiveOptions[0]
+    console.debug(`[enemy wizard] under threat (${adjacentPlayerCount} adjacent) — casting ${spell.name}`)
+  } else {
+    if (Math.random() > CAST_CHANCE) return { objectLayer, effectLayer, cast: false }
+    spell = usableSpells[Math.floor(Math.random() * usableSpells.length)]
+  }
 
   let workingLayer = objectLayer
   let workingEffectLayer = effectLayer
@@ -526,10 +548,19 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
     workingEffectLayer[tile.y][tile.x] = createFloodEffect('enemy')
   }
 
+  const zapEffects = []
+  const zapTile = (tile, level) => {
+    const result = applyMagicDamage(workingLayer, tile, level)
+    workingLayer = result.objectLayer
+    zapEffects.push({ x: tile.x, y: tile.y })
+  }
+
   let aimPos = null
   if (spell.ranged) {
     const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
     aimPos = pickRangedSpellTarget(workingLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange)
+  } else if (spell.category === 'offensive') {
+    aimPos = pickRangedSpellTarget(workingLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, spell.currentSpellLevel)
   }
 
   castSpell({
@@ -545,7 +576,8 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
     isTileValidForVine,
     applyVineToTile,
     isTileValidForFlood,
-    applyFloodToTile
+    applyFloodToTile,
+    zapTile
   })
 
   const cost = spell.manaCost * spell.currentSpellLevel
@@ -555,6 +587,7 @@ function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
   return {
     objectLayer: workingLayer,
     effectLayer: workingEffectLayer,
+    zapEffects,
     cast: true
   }
 }
@@ -568,6 +601,7 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
       effectLayer,
       terrainLayer: moveResult.terrainLayer,
       itemLayer: moveResult.itemLayer,
+      zapEffects: [],
       moved: moveResult.moved,
       position: moveResult.position,
       defeatedTarget: moveResult.defeatedTarget,
@@ -584,6 +618,7 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
     effectLayer: castResult.effectLayer,
     terrainLayer: moveResult.terrainLayer,
     itemLayer: moveResult.itemLayer,
+    zapEffects: castResult.zapEffects || [],
     moved: moveResult.moved,
     position: moveResult.position,
     defeatedTarget: moveResult.defeatedTarget,
@@ -738,8 +773,6 @@ export function runEnemyCreaturesAI(terrainLayer, objectLayer, effectLayer) {
     }
   }
 
-  // A creature can end its move on a tile vacated by a mount that was ridden away,
-  // so remember where each creature finished to avoid moving it twice.
   const finishedAt = new Set()
 
   startingPositions.forEach(({ x, y }) => {

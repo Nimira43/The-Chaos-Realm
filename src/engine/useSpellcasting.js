@@ -1,8 +1,9 @@
 import { CREATURES } from '../data/creatures.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE, HEALING_RANGE } from './spellCaster.js'
 import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
-import { wrappedChebyshevDistance } from './utils.js'
+import { wrappedChebyshevDistance, getAreaTiles } from './utils.js'
 import { getMaxAp } from './mounts.js'
+import { applyMagicDamage } from './combat.js'
 import {
   isTileIgnitable as checkTileIgnitable,
   isTileSpreadableForBlob as checkTileSpreadableForBlob,
@@ -23,6 +24,7 @@ export default function useSpellcasting({
   cursor,
   setObjectLayer,
   setEffectLayer,
+  setZapEffects,
   PLAYER
 }) {
 
@@ -138,6 +140,18 @@ export default function useSpellcasting({
     })
   }
 
+  const zapTile = (tile, level) => {
+    setObjectLayer(prev => {
+      const result = applyMagicDamage(prev, tile, level)
+      return result.objectLayer
+    })
+
+    setZapEffects(prev => [
+      ...prev.filter(z => z.until > Date.now()),
+      { x: tile.x, y: tile.y, until: Date.now() + 500 }
+    ])
+  }
+
   const castSpellForPlayer = (spell) => {
     if (!spell) return
 
@@ -173,6 +187,26 @@ export default function useSpellcasting({
       }
     }
 
+    if (spell.category === 'offensive') {
+      const maxRange = level
+      const distance = wrappedChebyshevDistance(playerPosition.x, playerPosition.y, cursor.x, cursor.y, MAP_WIDTH, MAP_HEIGHT)
+
+      if (distance > maxRange) {
+        alert('Out of range')
+        return
+      }
+
+      const affectedTiles = spell.name === 'Magic Lightning'
+        ? getAreaTiles(cursor.x, cursor.y, 1, MAP_WIDTH, MAP_HEIGHT)
+        : [cursor]
+
+      const hasTarget = affectedTiles.some(t => objectLayer[t.y]?.[t.x])
+      if (!hasTarget) {
+        alert('No target in range')
+        return
+      }
+    }
+
     castSpell({
       spell,
       casterPos: playerPosition,
@@ -188,7 +222,8 @@ export default function useSpellcasting({
       isTileValidForFlood,
       applyFloodToTile,
       isTileValidForHeal,
-      healTile
+      healTile,
+      zapTile
     })
 
     PLAYER.current_mana -= cost

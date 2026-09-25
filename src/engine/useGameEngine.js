@@ -34,6 +34,8 @@ export default function useGameEngine() {
     terrainLayer.map(row => row.map(() => null))
   )
 
+  const [zapEffects, setZapEffects] = useState([])
+
   const [playerPosition, setPlayerPosition] = useState(() => ({
     x: PLAYER.x,
     y: PLAYER.y
@@ -113,6 +115,7 @@ export default function useGameEngine() {
     cursor,
     setObjectLayer,
     setEffectLayer,
+    setZapEffects,
     PLAYER
   })
 
@@ -173,6 +176,7 @@ export default function useGameEngine() {
     setObjectLayer,
     setEffectLayer,
     setItemLayer,
+    setZapEffects,
     setEnemyPosition,
     setTerrainLayer,
     setPortalPosition,
@@ -189,6 +193,7 @@ export default function useGameEngine() {
     objectLayer,
     effectLayer,
     itemLayer,
+    zapEffects,
     cursor,
     selected,
     playerPosition,

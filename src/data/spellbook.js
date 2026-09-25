@@ -36,11 +36,10 @@ export function buildSpellbook() {
     { name: 'Gooey Blob', manaCost: 12, initialSpellLevel: 4, currentSpellLevel: 4, category: 'environment', duration: 'spreading' },
     { name: 'Tangle Vine', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true },
     { name: 'Flood', manaCost: 10, initialSpellLevel: 5, currentSpellLevel: 5, category: 'environment', duration: 'static', ranged: true },
-    { name: 'Healing Potion', manaCost: 5, initialSpellLevel: 0, currentSpellLevel: 0, category: 'potion', duration: 'instant', healing: true }
+    { name: 'Healing Potion', manaCost: 5, initialSpellLevel: 0, currentSpellLevel: 0, category: 'potion', duration: 'instant', healing: true },
+    { name: 'Magic Bolt', manaCost: 6, initialSpellLevel: 5, currentSpellLevel: 5, category: 'offensive', duration: 'instant' },
+    { name: 'Magic Lightning', manaCost: 12, initialSpellLevel: 5, currentSpellLevel: 5, category: 'offensive', duration: 'instant' }
   ]
-  // --- OFFENSIVE (instant) ---,
-  // { name: 'Magic Bolt', manaCost: 6, currentSpellLevel: 5, category: 'offensive', duration: 'instant' },
-  // { name: 'Magic Lightning', manaCost: 12, currentSpellLevel: 5, category: 'offensive', duration: 'instant' },
   // --- UTILITY (instant) ---
   // { name: 'Teleport', manaCost: 16, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
   // { name: 'Magic Eye', manaCost: 8, currentSpellLevel: 5, category: 'utility', duration: 'instant' },

@@ -76,6 +76,7 @@ export default function useTurnSystem({
   setObjectLayer,
   setEffectLayer,
   setItemLayer,
+  setZapEffects,
   setEnemyPosition,
   setTerrainLayer,
   setPortalPosition,
@@ -176,6 +177,11 @@ export default function useTurnSystem({
       workingTerrain = wizardResult.terrainLayer
       workingItemLayer = wizardResult.itemLayer
       frames = frames.concat(wizardResult.frames)
+
+      if (wizardResult.zapEffects && wizardResult.zapEffects.length > 0) {
+        const stamped = wizardResult.zapEffects.map(z => ({ x: z.x, y: z.y, until: Date.now() + 500 }))
+        setZapEffects(prev => [...prev.filter(z => z.until > Date.now()), ...stamped])
+      }
 
       if (wizardResult.selfDefeated) {
         setEnemyPosition(null)

@@ -83,6 +83,7 @@ export default function GameEngine() {
     objectLayer,
     effectLayer,
     itemLayer,
+    zapEffects,
     cursor,
     selected,
     info,
@@ -115,9 +116,11 @@ export default function GameEngine() {
 
   const rangeHighlight = selectedSpell?.healing
   ? { origin: playerPosition, radius: HEALING_RANGE }
-  : selectedSpell?.ranged
-    ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
-    : null
+  : selectedSpell?.category === 'offensive'
+    ? { origin: playerPosition, radius: selectedSpell.currentSpellLevel }
+    : selectedSpell?.ranged
+      ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
+      : null
 
   const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
   const playerMount = objectLayer[PLAYER.y]?.[PLAYER.x]?.mount
@@ -126,7 +129,7 @@ export default function GameEngine() {
     restartGame()
   }, [])
 
-  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight, itemLayer)
+  useViewportRenderer(canvasRef, terrainLayer, objectLayer, cursor, selected, effectLayer, rangeHighlight, itemLayer, zapEffects)
 
   function handleCastClick(e) {
     if (!selectedSpell || actionsLocked) return

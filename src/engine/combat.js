@@ -77,7 +77,6 @@ function getCombatProfile(cell) {
   return null
 }
 
-
 function applyDamageToCell(objectLayer, pos, damage) {
   const cell = objectLayer[pos.y][pos.x]
   if (!cell) return {
@@ -268,6 +267,37 @@ export const applyGooeyBlobDamage = makeEnvironmentDamageFn(GOOEY_DAMAGE_PER_TUR
 export const applyTangleVineDamage = makeEnvironmentDamageFn(TANGLE_VINE_DAMAGE_PER_TURN)
 
 const WALL_DEFENCE = { blob: GOOEY_BLOB_DEFENCE, vine: TANGLE_VINE_DEFENCE }
+
+export const MAGIC_DAMAGE_PER_LEVEL = 10
+const MAGIC_DAMAGE_ROLL_MAX = 6
+const MAGIC_RESISTANCE_CAP = 0.9
+
+function getMagicResistance(cell) {
+  if (cell.mount) return cell.mount.stats.magic_resistance ?? 0
+  if (cell.type === 'player') return PLAYER.magic_resistance ?? 0
+  if (cell.type === 'enemyWizard') return cell.ref.magic_resistance ?? 0
+  if (cell.type === 'creature') return cell.stats.magic_resistance ?? 0
+  return 0
+}
+
+export function applyMagicDamage(objectLayer, pos, level) {
+  const cell = objectLayer[pos.y][pos.x]
+  if (!cell) return { objectLayer, damage: 0, defeated: false, targetType: null }
+
+  const resistance = getMagicResistance(cell)
+  const swing = Math.floor(Math.random() * MAGIC_DAMAGE_ROLL_MAX) + 1
+  const rawDamage = level * MAGIC_DAMAGE_PER_LEVEL + swing
+  const reduction = Math.min(MAGIC_RESISTANCE_CAP, resistance / 100)
+  const damage = Math.max(1, Math.round(rawDamage * (1 - reduction)))
+
+  const result = applyDamageToCell(objectLayer, pos, damage)
+  return {
+    objectLayer: result.objectLayer,
+    damage: result.damage,
+    defeated: result.defeated,
+    targetType: result.targetType
+  }
+}
 
 export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCombat, pos }) {
   const cell = effectLayer[pos.y][pos.x]

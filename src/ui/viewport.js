@@ -183,6 +183,19 @@ function drawAppleTile(ctx, screenX, screenY, tileSize) {
   ctx.fill()
 }
 
+function drawZapFlash(ctx, screenX, screenY, tileSize, elapsedMs) {
+  const colour = elapsedMs < 150 ? '#ffffff' : elapsedMs < 350 ? '#ff9500' : '#ffffff'
+  const centreX = screenX + tileSize / 2
+  const centreY = screenY + tileSize / 2
+
+  ctx.fillStyle = colour
+  ctx.globalAlpha = 0.85
+  ctx.beginPath()
+  ctx.arc(centreX, centreY, tileSize * 0.4, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.globalAlpha = 1
+}
+
 export function drawViewport(
   ctx,
   map,
@@ -194,7 +207,8 @@ export function drawViewport(
   objectLayer,
   effectLayer,
   rangeHighlight,
-  itemLayer
+  itemLayer,
+  zapEffects
 ) {
   const radius = Math.floor(viewTiles / 2)
   const centreX = selected?.type === 'player' ? player.x : cursor.x
@@ -334,11 +348,25 @@ export function drawViewport(
         const flying = !!obj.mount.flying
         drawMountBadge(ctx, vx * tileSize, vy * tileSize, tileSize, flying ? 'F' : 'R', flying ? '#87ceeb' : '#3cb043')
       } else if (obj?.flying) {
-        // An unridden mount, flying on its own
         drawMountBadge(ctx, vx * tileSize, vy * tileSize, tileSize, 'F', '#87ceeb')
       }
 
     }
+  }
+
+  if (zapEffects && zapEffects.length > 0) {
+    const now = Date.now()
+    zapEffects.forEach(z => {
+      const remaining = z.until - now
+      if (remaining <= 0) return
+
+      const dx = wrappedDelta(z.x - centreX, map[0].length)
+      const dy = wrappedDelta(z.y - centreY, map.length)
+      if (Math.abs(dx) > radius || Math.abs(dy) > radius) return // off-screen
+
+      const elapsed = 500 - remaining
+      drawZapFlash(ctx, (dx + radius) * tileSize, (dy + radius) * tileSize, tileSize, elapsed)
+    })
   }
 
   const dx = wrappedDelta(player.x - centreX, map[0].length)
