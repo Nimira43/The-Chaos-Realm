@@ -3,7 +3,7 @@ export const DISMOUNT_AP_COST = 2
 export const FLY_TOGGLE_AP_COST = 2 
 
 export const FLYING_MOVE_COST = 2
-export const FLYING_BLOCKED_TERRAIN = ['wall', 'doorLocked', 'doorUnlocked']
+export const FLYING_BLOCKED_TERRAIN = []
 
 export function canRide(entity) {
   return !!entity?.ride_mounts

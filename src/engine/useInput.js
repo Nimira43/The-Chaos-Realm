@@ -130,7 +130,11 @@ export default function useInput({
                 })
 
                 if (result.blocked) {
-                  console.log('Normal attacks cannot harm the undead!')
+                  console.log(
+                    result.blockedReason === 'target-airborne'
+                      ? 'Out of reach — that target is flying!'
+                      : 'Normal attacks cannot harm the undead!'
+                  )
                   return
                 }
 
@@ -183,7 +187,11 @@ export default function useInput({
               })
 
               if (result.blocked) {
-                console.log('Normal attacks cannot harm the undead!')
+                console.log(
+                  result.blockedReason === 'target-airborne'
+                    ? 'Out of reach — that target is flying!'
+                    : 'Normal attacks cannot harm the undead!'
+                )
                 return
               }
 
@@ -278,7 +286,11 @@ export default function useInput({
                 })
 
                 if (result.blocked) {
-                  console.log(`${creature.name} cannot harm the undead with a normal attack!`)
+                  console.log(
+                    result.blockedReason === 'target-airborne'
+                      ? `${creature.name} can't reach that target — it's flying!`
+                      : `${creature.name} cannot harm the undead with a normal attack!`
+                  )
                   return
                 }
 
@@ -339,7 +351,11 @@ export default function useInput({
               })
 
               if (result.blocked) {
-                console.log(`${creature.name} cannot harm the undead with a normal attack!`)
+                console.log(
+                  result.blockedReason === 'target-airborne'
+                    ? `${creature.name} can't reach that target — it's flying!`
+                    : `${creature.name} cannot harm the undead with a normal attack!`
+                )
                 return
               }
 

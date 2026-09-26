@@ -181,6 +181,17 @@ export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
     }
   }
 
+  if (defenderProfile.flying && !attackerProfile.flying) {
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: defenderCell.type,
+      blocked: true,
+      blockedReason: 'target-airborne'
+    }
+  }
+
   if (defenderProfile.undead && !attackerProfile.undead) {
     return {
       objectLayer,

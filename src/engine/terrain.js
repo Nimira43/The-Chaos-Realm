@@ -3,7 +3,7 @@ export const MAP_HEIGHT = 32
 export const IMPASSABLE_THRESHOLD = 500
 
 const FLYING_MOVE_COST = 2
-const FLYING_BLOCKED_TERRAIN = ['wall', 'doorLocked', 'doorUnlocked']
+const FLYING_BLOCKED_TERRAIN = []
 
 export const terrainColours = {
   grass: '#3cb043',

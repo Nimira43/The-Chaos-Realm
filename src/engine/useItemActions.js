@@ -29,6 +29,7 @@ function getSelectedEntity(selected, objectLayer) {
   if (!selected) return null
 
   if (selected.type === 'player') {
+    const cell = objectLayer[PLAYER.y]?.[PLAYER.x]
     return {
       kind: 'player',
       x: PLAYER.x,
@@ -36,7 +37,8 @@ function getSelectedEntity(selected, objectLayer) {
       ap: PLAYER.ap,
       useOptions: PLAYER.use_options,
       carryLimit: PLAYER.carry_limit,
-      inventory: PLAYER.inventory || []
+      inventory: PLAYER.inventory || [],
+      flying: !!cell?.mount?.flying
     }
   }
 
@@ -50,12 +52,14 @@ function getSelectedEntity(selected, objectLayer) {
       ap: cell.ap,
       useOptions: cell.stats.use_options,
       carryLimit: cell.stats.carry_limit,
-      inventory: cell.inventory || []
+      inventory: cell.inventory || [],
+      flying: !!cell.mount?.flying || !!cell.flying
     }
   }
 
   return null
 }
+
 
 function canPickThisItem(entity, item) {
   if (item.type === 'apple') return true
@@ -72,15 +76,20 @@ export function getActionAvailability(selected, terrainLayer, objectLayer, itemL
   const itemsHere = itemLayer[entity.y]?.[entity.x]
 
   const canPickUp = !!itemsHere && itemsHere.length > 0 && itemsHere.some(item => canPickThisItem(entity, item))
-
+  
   const door = findAdjacentDoor(terrainLayer, entity.x, entity.y)
+  const doorPos = door ? { x: door.x, y: door.y } : null
+
+  if (entity.flying) {
+    return { canPickUp, canUse: false, canOpen: false, canClose: false, doorPos }
+  }
 
   return {
     canPickUp,
     canUse: !!door && door.state === 'doorLocked' && hasKey(entity.inventory),
     canOpen: !!door && door.state === 'doorUnlocked',
     canClose: !!door && door.state === 'doorOpen',
-    doorPos: door ? { x: door.x, y: door.y } : null
+    doorPos
   }
 }
 
@@ -175,7 +184,8 @@ export default function useItemActions({
 
   const useKeyOnDoor = () => {
     const entity = getSelectedEntity(selected, objectLayer)
-    if (!entity || !entity.useOptions || entity.ap < ITEM_ACTION_AP_COST) return
+    
+    if (!entity || !entity.useOptions || entity.ap < ITEM_ACTION_AP_COST || entity.flying) return
 
     const door = findAdjacentDoor(terrainLayer, entity.x, entity.y)
     if (!door || door.state !== 'doorLocked') return
@@ -188,7 +198,8 @@ export default function useItemActions({
 
   const openDoor = () => {
     const entity = getSelectedEntity(selected, objectLayer)
-    if (!entity || !entity.useOptions || entity.ap < ITEM_ACTION_AP_COST) return
+    
+    if (!entity || !entity.useOptions || entity.ap < ITEM_ACTION_AP_COST || entity.flying) return
 
     const door = findAdjacentDoor(terrainLayer, entity.x, entity.y)
     if (!door || door.state !== 'doorUnlocked') return
@@ -199,7 +210,8 @@ export default function useItemActions({
 
   const closeDoor = () => {
     const entity = getSelectedEntity(selected, objectLayer)
-    if (!entity || !entity.useOptions || entity.ap < ITEM_ACTION_AP_COST) return
+    
+    if (!entity || !entity.useOptions || entity.ap < ITEM_ACTION_AP_COST || entity.flying) return
 
     const door = findAdjacentDoor(terrainLayer, entity.x, entity.y)
     if (!door || door.state !== 'doorOpen') return

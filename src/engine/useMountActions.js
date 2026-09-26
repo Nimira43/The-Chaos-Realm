@@ -97,6 +97,7 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
   if (canRide(rider.stats)) {
     if (rider.cell?.mount) {
       canDismountFlag =
+        !rider.cell.mount.flying &&
         rider.cell.mount.ap >= DISMOUNT_AP_COST &&
         !!findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
     } else {
@@ -116,8 +117,10 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
   let canFlyFlag = false
   let canLandFlag = false
 
+  const standingOnFloor = terrainLayer[rider.y][rider.x] === 'floor'
+
   if (flyer && canFly(flyer.stats)) {
-    if (flyer.flying) canLandFlag = flyer.ap >= FLY_TOGGLE_AP_COST
+    if (flyer.flying) canLandFlag = !standingOnFloor && flyer.ap >= FLY_TOGGLE_AP_COST
     else canFlyFlag = flyer.ap >= FLY_TOGGLE_AP_COST
   }
 
@@ -160,7 +163,7 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
   const dismountMount = () => {
     const rider = getSelectedRider(selected, objectLayer)
     if (!rider || !rider.cell?.mount) return
-    // FIX: check and spend the MOUNT's AP, not the rider's own.
+    if (rider.cell.mount.flying) return
     if (rider.cell.mount.ap < DISMOUNT_AP_COST) return
 
     const freeTile = findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
