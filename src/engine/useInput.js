@@ -7,6 +7,10 @@ import { resolveAttack, applyLavaDamage, resolveWallEffectAttack, ATTACK_AP_COST
 import { isEnvironmentEffectBlocking, ATTACKABLE_EFFECT_TYPES } from './environmentEffects.js'
 import { isMounted, getMoverStats, getMoverAp, withMoverAp } from './mounts.js'
 
+function creditKill(result, addScore) {
+  if (result.killedOwner === 'enemy' && result.killPoints > 0) addScore(result.killPoints)
+}
+
 export default function useInput({
   cursor,
   selected,
@@ -27,7 +31,8 @@ export default function useInput({
   gameStatus,
   setGameStatus,
   setGameOverMessage,
-  isAnimating
+  isAnimating,
+  addScore
 }) {
 
   useEffect(() => {
@@ -138,6 +143,7 @@ export default function useInput({
                   return
                 }
 
+                creditKill(result, addScore)
                 setObjectLayer(spendPlayerAttackAp(result.objectLayer))
 
                 if (result.defeated && result.defenderType === 'enemyWizard') {
@@ -195,6 +201,7 @@ export default function useInput({
                 return
               }
 
+              creditKill(result, addScore)
               setObjectLayer(spendPlayerAttackAp(result.objectLayer))
 
               if (result.defeated && result.defenderType === 'enemyWizard') {
@@ -294,6 +301,7 @@ export default function useInput({
                   return
                 }
 
+                creditKill(result, addScore)
                 let updatedLayer = result.objectLayer
                 const attackerCellNow = updatedLayer[y][x]
 
@@ -359,6 +367,7 @@ export default function useInput({
                 return
               }
 
+              creditKill(result, addScore)
               let updatedLayer = result.objectLayer
               const attackerCellNow = updatedLayer[y][x]
 
@@ -432,6 +441,7 @@ export default function useInput({
     gameStatus,
     setGameStatus,
     setGameOverMessage,
-    isAnimating
+    isAnimating,
+    addScore
   ])
 }

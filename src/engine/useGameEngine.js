@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { generateProceduralMap } from './map.js'
 import { PLAYER } from '../data/player.js'
 import useSpellcasting from './useSpellcasting.js'
@@ -55,10 +55,12 @@ export default function useGameEngine() {
   const [mapFilename, setMapFilename] = useState('')
   const [portalStart, setPortalStart] = useState(null)
   const [portalPosition, setPortalPosition] = useState(null)
-  const [gameStatus, setGameStatus] = useState('playing') // 'playing' | 'won' | 'lost'
+  const [gameStatus, setGameStatus] = useState('playing') 
   const [gameOverMessage, setGameOverMessage] = useState('')
   const [isAnimating, setIsAnimating] = useState(false)
   const turnTokenRef = useRef(0)
+  const [score, setScore] = useState(0)
+  const addScore = useCallback((points) => setScore(prev => prev + points), [])
 
   useInput({
     cursor,
@@ -80,7 +82,8 @@ export default function useGameEngine() {
     gameStatus,
     setGameStatus,
     setGameOverMessage,
-    isAnimating
+    isAnimating,
+    addScore
   })
 
   const {
@@ -101,6 +104,7 @@ export default function useGameEngine() {
     setPortalPosition,
     setGameStatus,
     setGameOverMessage,
+    setScore,
     setIsAnimating,
     turnTokenRef,
     mapFilename
@@ -116,6 +120,10 @@ export default function useGameEngine() {
     setObjectLayer,
     setEffectLayer,
     setZapEffects,
+    setEnemyPosition,
+    setGameStatus,
+    setGameOverMessage,
+    addScore,
     PLAYER
   })
 
@@ -127,7 +135,8 @@ export default function useGameEngine() {
     setObjectLayer,
     setItemLayer,
     setTerrainLayer,
-    setAp
+    setAp,
+    addScore
   })
 
   const itemActionAvailability = getActionAvailability(selected, terrainLayer, objectLayer, itemLayer)
@@ -183,7 +192,8 @@ export default function useGameEngine() {
     setGameStatus,
     setGameOverMessage,
     setIsAnimating,
-    turnTokenRef
+    turnTokenRef,
+    addScore
   })
 
   return {
@@ -194,6 +204,7 @@ export default function useGameEngine() {
     effectLayer,
     itemLayer,
     zapEffects,
+    score,
     cursor,
     selected,
     playerPosition,

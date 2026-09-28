@@ -84,6 +84,7 @@ export default function GameEngine() {
     effectLayer,
     itemLayer,
     zapEffects,
+    score,
     cursor,
     selected,
     info,
@@ -222,6 +223,9 @@ export default function GameEngine() {
         <div id='right-middle'>
           <div id='turn-counter'>
             Turn {round} / {MAX_ROUNDS}
+          </div>
+          <div id='score-display'>
+            Score: {score}
           </div>
           {isAnimating && !gameOver && (
             <div style={{ textAlign: 'center', color: 'var(--grey-3)', fontSize: '16px', marginTop: '4px' }}>
@@ -483,6 +487,10 @@ export default function GameEngine() {
 
               <p style={{ textAlign: 'center', fontSize: '20px', margin: 0 }}>
                 {gameOverMessage}
+              </p>
+
+              <p style={{ textAlign: 'center', fontSize: '20px', margin: 0 }}>
+                Final score: {score}
               </p>
 
               <button onClick={handleRestartClick}>

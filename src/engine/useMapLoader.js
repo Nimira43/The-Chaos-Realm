@@ -5,7 +5,7 @@ import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { SPELLBOOK, resetSpellbook } from '../data/spellbook.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
-import { createKeyItem, placeRandomApples } from './items.js'
+import { createKeyItem, placeRandomPickups } from './items.js'
 
 const SPAWN_TERRAIN_EXCLUDED = ['mountain', 'wall', 'lava', 'water', 'doorLocked', 'doorUnlocked']
 
@@ -55,6 +55,7 @@ export default function useMapLoader({
   setPortalPosition,
   setGameStatus,
   setGameOverMessage,
+  setScore,
   setIsAnimating,
   turnTokenRef,
   mapFilename
@@ -104,8 +105,8 @@ export default function useMapLoader({
     }
 
     setEnemyPosition({ x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y })
-
-    items = placeRandomApples(generated, objects, items)
+  
+    items = placeRandomPickups(generated, objects, items)
     setObjectLayer(objects)
     setEffectLayer(effects)
     setItemLayer(items)
@@ -121,6 +122,7 @@ export default function useMapLoader({
     setPortalPosition(null)
     setGameStatus('playing')
     setGameOverMessage('')
+    setScore(0)
 
     try {
       resetSpellbook(SPELLBOOK)
@@ -132,7 +134,6 @@ export default function useMapLoader({
     console.log('Generated map size:', generated.length, generated[0].length)
     console.log('RESTART GAME CALLED')
   }
-
 
   const loadHandcraftedMap = (jsonMap) => {
     turnTokenRef.current += 1
@@ -251,7 +252,7 @@ export default function useMapLoader({
       setEnemyPosition(null)
     }
 
-    items = placeRandomApples(terrain, objects, items)
+    items = placeRandomPickups(terrain, objects, items)
     setObjectLayer(objects)
     setEffectLayer(effects)
     setItemLayer(items)
@@ -264,6 +265,7 @@ export default function useMapLoader({
     setPortalPosition(null)
     setGameStatus('playing')
     setGameOverMessage('')
+    setScore(0)
 
     try {
       resetSpellbook(SPELLBOOK)

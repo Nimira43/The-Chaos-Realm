@@ -73,26 +73,38 @@ function getCombatProfile(cell) {
       apply: null
     }
   }
-
   return null
 }
 
+export function getCellKillValue(cell) {
+  if (!cell) return { owner: null, points: 0 }
+
+  let points = 0
+
+  if (cell.type === 'creature') points += cell.stats.victory_points ?? 0
+  else if (cell.type === 'enemyWizard') points += cell.ref.victory_points ?? 0
+  else if (cell.type === 'player') points += PLAYER.victory_points ?? 0
+
+  if (cell.mount) points += cell.mount.stats.victory_points ?? 0
+
+  return { owner: cell.owner, points }
+}
+
 function applyDamageToCell(objectLayer, pos, damage) {
-  const cell = objectLayer[pos.y][pos.x]
-  if (!cell) return {
+  const nothing = {
     objectLayer,
     damage: 0,
     defeated: false,
-    targetType: null
+    targetType: null,
+    killedOwner: null,
+    killPoints: 0
   }
 
+  const cell = objectLayer[pos.y][pos.x]
+  if (!cell) return nothing
+
   const profile = getCombatProfile(cell)
-  if (!profile) return {
-    objectLayer,
-    damage: 0,
-    defeated: false,
-    targetType: null
-  }
+  if (!profile) return nothing
 
   const newHealth = Math.max(0, profile.health - damage)
   const fatal = newHealth <= 0
@@ -107,11 +119,14 @@ function applyDamageToCell(objectLayer, pos, damage) {
       if (profile.flying) {
         getCombatProfile(riderOnly)?.apply?.(0)
         newLayer[pos.y][pos.x] = null
+        const value = getCellKillValue(cell)
         return {
           objectLayer: newLayer,
           damage,
           defeated: true,
-          targetType: cell.type
+          targetType: cell.type,
+          killedOwner: value.owner,
+          killPoints: value.points
         }
       }
 
@@ -120,17 +135,14 @@ function applyDamageToCell(objectLayer, pos, damage) {
         objectLayer: newLayer,
         damage,
         defeated: false,
-        targetType: cell.type
+        targetType: cell.type,
+        killedOwner: cell.mount.owner ?? cell.owner,
+        killPoints: cell.mount.stats.victory_points ?? 0
       }
     }
 
     newLayer[pos.y][pos.x] = { ...cell, mount: { ...cell.mount, current_health: newHealth } }
-    return {
-      objectLayer: newLayer,
-      damage,
-      defeated: false,
-      targetType: cell.type
-    }
+    return { ...nothing, objectLayer: newLayer, damage, targetType: cell.type }
   }
 
   let newLayer = objectLayer
@@ -146,11 +158,15 @@ function applyDamageToCell(objectLayer, pos, damage) {
     newLayer[pos.y][pos.x] = fatal ? null : { ...cell, current_health: newHealth }
   }
 
+  const value = fatal ? getCellKillValue(cell) : { owner: null, points: 0 }
+
   return {
     objectLayer: newLayer,
     damage,
     defeated: fatal,
-    targetType: cell.type
+    targetType: cell.type,
+    killedOwner: value.owner,
+    killPoints: value.points
   }
 }
 
@@ -211,6 +227,8 @@ export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
     damage: result.damage,
     defeated: result.defeated,
     defenderType: result.targetType,
+    killedOwner: result.killedOwner,
+    killPoints: result.killPoints,
     blocked: false
   }
 }
@@ -268,7 +286,9 @@ function makeEnvironmentDamageFn(amountPerTurn) {
       objectLayer: result.objectLayer,
       damage: result.damage,
       defeated: result.defeated,
-      targetType: result.targetType
+      targetType: result.targetType,
+      killedOwner: result.killedOwner,
+      killPoints: result.killPoints
     }
   }
 }
@@ -306,7 +326,9 @@ export function applyMagicDamage(objectLayer, pos, level) {
     objectLayer: result.objectLayer,
     damage: result.damage,
     defeated: result.defeated,
-    targetType: result.targetType
+    targetType: result.targetType,
+    killedOwner: result.killedOwner,
+    killPoints: result.killPoints
   }
 }
 

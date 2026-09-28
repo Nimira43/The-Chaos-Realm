@@ -25,6 +25,10 @@ export default function useSpellcasting({
   setObjectLayer,
   setEffectLayer,
   setZapEffects,
+  setEnemyPosition,
+  setGameStatus,
+  setGameOverMessage,
+  addScore,
   PLAYER
 }) {
 
@@ -140,18 +144,6 @@ export default function useSpellcasting({
     })
   }
 
-  const zapTile = (tile, level) => {
-    setObjectLayer(prev => {
-      const result = applyMagicDamage(prev, tile, level)
-      return result.objectLayer
-    })
-
-    setZapEffects(prev => [
-      ...prev.filter(z => z.until > Date.now()),
-      { x: tile.x, y: tile.y, until: Date.now() + 500 }
-    ])
-  }
-
   const castSpellForPlayer = (spell) => {
     if (!spell) return
 
@@ -207,6 +199,25 @@ export default function useSpellcasting({
       }
     }
 
+    let zapLayer = objectLayer
+    let zapPoints = 0
+    let zapEnemyWizardDefeated = false
+    let zapPlayerDefeated = false
+
+    const zapTile = (tile, level) => {
+      const result = applyMagicDamage(zapLayer, tile, level)
+      zapLayer = result.objectLayer
+
+      if (result.killedOwner === 'enemy') zapPoints += result.killPoints
+      if (result.defeated && result.targetType === 'enemyWizard') zapEnemyWizardDefeated = true
+      if (result.defeated && result.targetType === 'player') zapPlayerDefeated = true
+
+      setZapEffects(prev => [
+        ...prev.filter(z => z.until > Date.now()),
+        { x: tile.x, y: tile.y, until: Date.now() + 500 }
+      ])
+    }
+
     castSpell({
       spell,
       casterPos: playerPosition,
@@ -226,7 +237,19 @@ export default function useSpellcasting({
       zapTile
     })
 
-    PLAYER.current_mana -= cost
+    if (spell.category === 'offensive') {
+      setObjectLayer(zapLayer)
+
+      if (zapPoints > 0) addScore(zapPoints)
+      if (zapEnemyWizardDefeated) setEnemyPosition(null)
+
+      if (zapPlayerDefeated) {
+        setGameStatus('lost')
+        setGameOverMessage('Your own magic destroyed you!')
+      }
+    }
+
+    PLAYER.current_mana -= cost     
     spell.currentSpellLevel = Math.max(0, spell.currentSpellLevel - 1)
   }
 

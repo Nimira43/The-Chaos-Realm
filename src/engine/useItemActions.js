@@ -1,7 +1,7 @@
 import { PLAYER } from '../data/player.js'
 import { wrap } from './utils.js'
 import { SPELLBOOK } from '../data/spellbook.js'
-import { canCarryItem, hasKey, removeFirstKey } from './items.js'
+import { canCarryItem, hasKey, removeFirstKey, isConsumedOnPickup } from './items.js'
 
 export const ITEM_ACTION_AP_COST = 2
 
@@ -60,9 +60,8 @@ function getSelectedEntity(selected, objectLayer) {
   return null
 }
 
-
 function canPickThisItem(entity, item) {
-  if (item.type === 'apple') return true
+  if (isConsumedOnPickup(item)) return true
   return canCarryItem(entity.carryLimit, entity.inventory, item)
 }
 
@@ -101,7 +100,8 @@ export default function useItemActions({
   setObjectLayer,
   setItemLayer,
   setTerrainLayer,
-  setAp
+  setAp,
+  addScore
 }) {
 
   const spendActorAp = () => {
@@ -174,7 +174,10 @@ export default function useItemActions({
 
     if (item.type === 'apple') {
       const healingSpell = SPELLBOOK.find(s => s.name === 'Healing Potion')
+      
       if (healingSpell) healingSpell.currentSpellLevel += 1
+    } else if (item.type === 'coin' || item.type === 'jewel') {
+      addScore(item.points)
     } else {
       addToActorInventory(item)
     }

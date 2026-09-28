@@ -299,6 +299,14 @@ canvas {
   letter-spacing: 1.5px;
 }
 
+#score-display {
+  margin-top: 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--light);
+  letter-spacing: 1px;
+}
+
 /* Player UI (moved to right panel) */
 
 #player-ui {

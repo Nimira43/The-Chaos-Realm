@@ -14,7 +14,7 @@ export const ENEMY_WIZARD = {
   magic_resistance: 50,
   carry_limit: 30,
   potion_consumption: 4,
-  victory_points: 1,
+  victory_points: 200,
   mount: false,
   ride_mounts: true,
   undead: false,

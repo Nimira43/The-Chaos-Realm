@@ -183,6 +183,77 @@ function drawAppleTile(ctx, screenX, screenY, tileSize) {
   ctx.fill()
 }
 
+function drawCoinTile(ctx, screenX, screenY, tileSize) {
+  const centreX = screenX + tileSize / 2
+  const centreY = screenY + tileSize / 2
+  const radius = tileSize * 0.19
+
+  ctx.fillStyle = '#ffbf00'
+  ctx.beginPath()
+  ctx.arc(centreX, centreY, radius, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.strokeStyle = '#1b2b2b'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+}
+
+const JEWEL_COLOURS = {
+  emerald: '#8fe88f',
+  ruby: '#ff0000',
+  sapphire: '#1f5c99',
+  diamond: '#d3d3d3'
+}
+
+function drawSparkle(ctx, x, y, size, alpha) {
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = 1.5
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(x - size, y)
+  ctx.lineTo(x + size, y)
+  ctx.moveTo(x, y - size)
+  ctx.lineTo(x, y + size)
+  ctx.stroke()
+  ctx.restore()
+}
+
+function drawJewelTile(ctx, screenX, screenY, tileSize, gem, seed) {
+  const centreX = screenX + tileSize / 2
+  const centreY = screenY + tileSize / 2
+  const halfW = tileSize * 0.15
+  const halfH = tileSize * 0.19
+
+  ctx.fillStyle = JEWEL_COLOURS[gem] || '#ffffff'
+  ctx.beginPath()
+  ctx.moveTo(centreX, centreY - halfH)
+  ctx.lineTo(centreX + halfW, centreY)
+  ctx.lineTo(centreX, centreY + halfH)
+  ctx.lineTo(centreX - halfW, centreY)
+  ctx.closePath()
+  ctx.fill()
+
+  ctx.strokeStyle = '#12303a'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+
+  const t = (Date.now() / 900 + seed * 0.37) % 1
+  const spots = [
+    { dx: -0.17, dy: -0.14 },
+    { dx: 0.16, dy: -0.06 },
+    { dx: 0.02, dy: 0.17 }
+  ]
+
+  spots.forEach((spot, i) => {
+    const phase = (t + i / spots.length) % 1
+    const alpha = Math.sin(phase * Math.PI)
+    if (alpha < 0.05) return
+    drawSparkle(ctx, centreX + spot.dx * tileSize, centreY + spot.dy * tileSize, tileSize * 0.07 * alpha + 1, alpha)
+  })
+}
+
 function drawZapFlash(ctx, screenX, screenY, tileSize, elapsedMs) {
   const colour = elapsedMs < 150 ? '#ffffff' : elapsedMs < 350 ? '#ff9500' : '#ffffff'
   const centreX = screenX + tileSize / 2
@@ -266,6 +337,15 @@ export function drawViewport(
 
         if (items.some(item => item.type === 'apple')) {
           drawAppleTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        }
+
+        if (items.some(item => item.type === 'coin')) {
+          drawCoinTile(ctx, vx * tileSize, vy * tileSize, tileSize)
+        }
+
+        const jewel = items.find(item => item.type === 'jewel')
+        if (jewel) {
+          drawJewelTile(ctx, vx * tileSize, vy * tileSize, tileSize, jewel.gem, worldX * 7 + worldY * 13)
         }
       }
     }

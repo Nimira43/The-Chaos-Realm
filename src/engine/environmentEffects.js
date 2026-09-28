@@ -4,10 +4,10 @@ import { MAP_WIDTH, MAP_HEIGHT, getMovementCost } from './terrain.js'
 import { wrap } from './utils.js'
 import { NEIGHBOUR_OFFSETS } from './pathfinding.js'
 import { getMoverStats } from './mounts.js'
-import { applyFireDamage, applyGooeyBlobDamage, applyTangleVineDamage, GOOEY_BLOB_HEALTH, TANGLE_VINE_HEALTH } from './combat.js'
+import { applyFireDamage, applyGooeyBlobDamage, applyTangleVineDamage, getCellKillValue, GOOEY_BLOB_HEALTH, TANGLE_VINE_HEALTH } from './combat.js'
 
 export const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine', 'flood']
-export const ATTACKABLE_EFFECT_TYPES = ['blob', 'vine'] // Fire and Flood cannot be conventionally destroyed
+export const ATTACKABLE_EFFECT_TYPES = ['blob', 'vine']
 
 export function isEnvironmentEffectBlocking(effectLayer, x, y, entity) {
   const type = effectLayer?.[y]?.[x]?.type
@@ -30,11 +30,11 @@ export function createBlobEffect(owner) {
 }
 
 export function createVineEffect(owner) {
-  return { type: 'vine', health: TANGLE_VINE_HEALTH, owner } // no turnsRemaining — permanent
+  return { type: 'vine', health: TANGLE_VINE_HEALTH, owner } 
 }
 
 export function createFloodEffect(owner) {
-  return { type: 'flood', owner } // no turnsRemaining, no health — permanent, undestroyable by attack
+  return { type: 'flood', owner } 
 }
 
 const FIRE_UNIGNITABLE_TERRAIN = ['rock', 'swamp', 'water', 'mountain', 'portal', 'wasteland']
@@ -120,6 +120,13 @@ function isAdjacentToFlood(effectLayer, x, y) {
   return getNeighbourTiles(x, y).some(n => effectLayer[n.y][n.x]?.type === 'flood')
 }
 
+function isAdjacentToPlayerFlood(effectLayer, x, y) {
+  return getNeighbourTiles(x, y).some(n => {
+    const e = effectLayer[n.y][n.x]
+    return e?.type === 'flood' && e.owner === 'player'
+  })
+}
+
 function hasEscapeRoute(terrainLayer, objectLayer, effectLayer, x, y, entity) {
   return getNeighbourTiles(x, y).some(n => {
     if (objectLayer[n.y][n.x] !== null) return false
@@ -131,6 +138,7 @@ function hasEscapeRoute(terrainLayer, objectLayer, effectLayer, x, y, entity) {
 function applyFloodDrowning(terrainLayer, objectLayer, effectLayer) {
   let workingObjects = objectLayer
   const defeatedTargets = []
+  let scoreEarned = 0
 
   for (let y = 0; y < workingObjects.length; y++) {
     for (let x = 0; x < workingObjects[0].length; x++) {
@@ -167,9 +175,13 @@ function applyFloodDrowning(terrainLayer, objectLayer, effectLayer) {
 
       if (trapped) {
         if (getFlag()) {
+          const value = getCellKillValue(workingObjects[y][x])
+          if (value.owner === 'enemy' && isAdjacentToPlayerFlood(effectLayer, x, y)) scoreEarned += value.points
+
           workingObjects = workingObjects.map(row => [...row])
           workingObjects[y][x] = null
           defeatedTargets.push(targetType)
+
         } else {
           setFlag(true)
         }
@@ -181,13 +193,15 @@ function applyFloodDrowning(terrainLayer, objectLayer, effectLayer) {
 
   return {
     objectLayer: workingObjects,
-    defeatedTargets
+    defeatedTargets,
+    scoreEarned
   }
 }
 
 export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   let workingObjects = objectLayer
   const defeatedTargets = []
+  let scoreEarned = 0
 
   for (let y = 0; y < effectLayer.length; y++) {
     for (let x = 0; x < effectLayer[0].length; x++) {
@@ -205,6 +219,8 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
       const result = damageFn(workingObjects, { x, y })
       workingObjects = result.objectLayer
       if (result.defeated && result.targetType) defeatedTargets.push(result.targetType)
+
+      if (effect.owner === 'player' && result.killedOwner === 'enemy') scoreEarned += result.killPoints
     }
   }
 
@@ -262,10 +278,13 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   const drownResult = applyFloodDrowning(newTerrainLayer, workingObjects, newEffectLayer)
   workingObjects = drownResult.objectLayer
   defeatedTargets.push(...drownResult.defeatedTargets)
+  scoreEarned += drownResult.scoreEarned
 
   return {
     objectLayer: workingObjects,
     effectLayer: newEffectLayer,
-    terrainLayer: newTerrainLayer, defeatedTargets
+    terrainLayer: newTerrainLayer,
+    defeatedTargets,
+    scoreEarned
   }
 }

@@ -83,7 +83,8 @@ export default function useTurnSystem({
   setGameStatus,
   setGameOverMessage,
   setIsAnimating,
-  turnTokenRef
+  turnTokenRef,
+  addScore
 }) {
 
   const endTurn = () => {
@@ -227,7 +228,18 @@ export default function useTurnSystem({
       newMessage = 'Your wizard has been destroyed by the environment!'
     }
 
+    if (environmentResult.scoreEarned > 0) addScore(environmentResult.scoreEarned)
+
     if (environmentResult.defeatedTargets.includes('enemyWizard')) {
+      setEnemyPosition(null)
+    }
+
+    if (!newStatus && PLAYER.current_health <= 0) {
+      newStatus = 'lost'
+      newMessage = 'Your wizard has fallen!'
+    }
+
+    if (ENEMY_WIZARD.current_health <= 0) {
       setEnemyPosition(null)
     }
 

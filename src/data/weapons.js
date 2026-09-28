@@ -1,6 +1,7 @@
 export const WEAPONS = [
   {
     name: 'sword',
+    weapon_code: 'SWO-C',
     weight: 10,
     combat: 10,
     defence: 4,
@@ -10,6 +11,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic sword',
+    weapon_code: 'SWO-M',
     weight: 10,
     combat: 20,
     defence: 8,
@@ -19,6 +21,7 @@ export const WEAPONS = [
   },
   {
     name: 'knife',
+    weapon_code: 'KNI-C',
     weight: 3,
     combat: 4,
     defence: 1,
@@ -28,6 +31,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic knife',
+    weapon_code: 'KNI-M',
     weight: 3,
     combat: 8,
     defence: 2,
@@ -37,6 +41,7 @@ export const WEAPONS = [
   },
   {
     name: 'shield',
+    weapon_code: 'SHI-C',
     weight: 8,
     combat: 0,
     defence: 13,
@@ -46,6 +51,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic shield',
+    weapon_code: 'SHI-M',
     weight: 8,
     combat: 0,
     defence: 26,
@@ -55,6 +61,7 @@ export const WEAPONS = [
   },
   {
     name: 'bow',
+    weapon_code: 'BOW-C',
     weight: 4,
     combat: 0,
     defence: 0,
@@ -64,6 +71,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic bow',
+    weapon_code: 'BOW-M',
     weight: 4,
     combat: 0,
     defence: 0,
@@ -73,6 +81,7 @@ export const WEAPONS = [
   },
   {
     name: 'spear',
+    weapon_code: 'SPE-C',
     weight: 5,
     combat: 8,
     defence: 4,
@@ -82,6 +91,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic spear',
+    weapon_code: 'SPE-M',
     weight: 5,
     combat: 16,
     defence: 8,
@@ -91,6 +101,7 @@ export const WEAPONS = [
   },
   {
     name: 'club',
+    weapon_code: 'CLU-C',
     weight: 9,
     combat: 5,
     defence: 1,
@@ -100,6 +111,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic club',
+    weapon_code: 'CLU-M',
     weight: 9,
     combat: 10,
     defence: 2,
@@ -109,6 +121,7 @@ export const WEAPONS = [
   },
   {
     name: 'axe',
+    weapon_code: 'AXE-C',
     weight: 7,
     combat: 9,
     defence: 0,
@@ -118,6 +131,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic axe',
+    weapon_code: 'AXE-M',
     weight: 7,
     combat: 18,
     defence: 0,
@@ -127,6 +141,7 @@ export const WEAPONS = [
   },
   {
     name: 'ninja star',
+    weapon_code: 'NIN-C',
     weight: 4,
     combat: 0,
     defence: 0,
@@ -136,6 +151,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic ninja star',
+    weapon_code: 'NIN-M',
     weight: 4,
     combat: 0,
     defence: 0,
@@ -145,6 +161,7 @@ export const WEAPONS = [
   },
   {
     name: 'slayer',
+    weapon_code: 'SLA-C',
     weight: 9,
     combat: 12,
     defence: 4,
@@ -154,6 +171,7 @@ export const WEAPONS = [
   },
   {
     name: 'magic slayer',
+    weapon_code: 'SLA-M',
     weight: 9,
     combat: 30,
     defence: 12,
