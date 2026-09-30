@@ -254,6 +254,27 @@ function drawJewelTile(ctx, screenX, screenY, tileSize, gem, seed) {
   })
 }
 
+function drawWeaponTile(ctx, screenX, screenY, tileSize, code, magic) {
+  const size = tileSize * 0.75
+  const inset = (tileSize - size) / 2
+
+  if (magic) {
+    const pulse = (Date.now() % 900 < 450)
+    ctx.shadowColor = '#c96bff'
+    ctx.shadowBlur = pulse ? 10 : 4
+  }
+
+  ctx.fillStyle = magic ? '#9109d0' : '#57067d'
+  ctx.fillRect(screenX + inset, screenY + inset, size, size)
+  ctx.shadowBlur = 0
+
+  ctx.fillStyle = 'white'
+  ctx.font = `bold ${Math.max(9, size * 0.28)}px monospace`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(code, screenX + tileSize / 2, screenY + tileSize / 2)
+}
+
 function drawZapFlash(ctx, screenX, screenY, tileSize, elapsedMs) {
   const colour = elapsedMs < 150 ? '#ffffff' : elapsedMs < 350 ? '#ff9500' : '#ffffff'
   const centreX = screenX + tileSize / 2
@@ -346,6 +367,11 @@ export function drawViewport(
         const jewel = items.find(item => item.type === 'jewel')
         if (jewel) {
           drawJewelTile(ctx, vx * tileSize, vy * tileSize, tileSize, jewel.gem, worldX * 7 + worldY * 13)
+        }
+
+        const weapon = items.find(item => item.type === 'weapon')
+        if (weapon) {
+          drawWeaponTile(ctx, vx * tileSize, vy * tileSize, tileSize, weapon.weaponCode, weapon.magic)
         }
       }
     }

@@ -7,6 +7,7 @@ import { getMovementCost } from '../engine/terrain.js'
 import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
 import { RANGED_SPELL_BASE_RANGE, HEALING_RANGE} from '../engine/spellCaster.js'
 import { getMaxAp, getMoverStats, getMoverAp, getMoverMaxAp, getMountDescription } from '../engine/mounts.js'
+import { getBowInfo } from '../engine/useItemActions.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -99,6 +100,8 @@ export default function GameEngine() {
     useKeyOnDoor,
     openDoor,
     closeDoor,
+    dropWeapon,
+    shootBow,
     itemActionAvailability,
     rideMount,
     dismountMount,
@@ -115,13 +118,17 @@ export default function GameEngine() {
   const gameOver = gameStatus !== 'playing'
   const actionsLocked = gameOver || isAnimating
 
+  const bowInfo = getBowInfo()
+
   const rangeHighlight = selectedSpell?.healing
-  ? { origin: playerPosition, radius: HEALING_RANGE }
-  : selectedSpell?.category === 'offensive'
-    ? { origin: playerPosition, radius: selectedSpell.currentSpellLevel }
-    : selectedSpell?.ranged
-      ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
-      : null
+    ? { origin: playerPosition, radius: HEALING_RANGE }
+    : selectedSpell?.category === 'offensive'
+      ? { origin: playerPosition, radius: selectedSpell.currentSpellLevel }
+      : selectedSpell?.ranged
+        ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
+        : bowInfo.hasBow
+          ? { origin: bowInfo.origin, radius: bowInfo.range }
+          : null
 
   const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
   const playerMount = objectLayer[PLAYER.y]?.[PLAYER.x]?.mount
@@ -153,6 +160,11 @@ export default function GameEngine() {
   function handleLoadClick(e) {
     loadMapFromFile()
     e.currentTarget.blur()
+  }
+
+  function handleShootClick() {
+    if (actionsLocked) return
+    shootBow(cursor)
   }
 
   function makeItemActionHandler(fn) {
@@ -265,7 +277,20 @@ export default function GameEngine() {
 
           {PLAYER.inventory && PLAYER.inventory.length > 0 && (
             <div style={{ textAlign: 'center', fontSize: '14px', color: 'var(--grey-3)', marginBottom: '10px' }}>
-              Carrying: {PLAYER.inventory.map(item => item.name).join(', ')}
+              Carrying: {PLAYER.inventory.map((item, i) => (
+                <span key={item.id}>
+                  {i > 0 && ', '}
+                  {item.name}
+                  {item.type === 'weapon' && !actionsLocked && (
+                    <button
+                      className='drop-weapon-btn'
+                      onClick={() => dropWeapon(item.id)}
+                    >
+                      drop
+                    </button>
+                  )}
+                </span>
+              ))}
             </div>
           )}
 
@@ -347,7 +372,20 @@ export default function GameEngine() {
                   Carrying:
                 </span>
                 <span className='creature-value'>
-                  {hoverInfo.inventory.map(item => item.name).join(', ')}
+                  {hoverInfo.inventory.map((item, i) => (
+                    <span key={item.id}>
+                      {i > 0 && ', '}
+                      {item.name}
+                      {item.type === 'weapon' && !actionsLocked && selected && hoverInfo.owner === 'player' && (
+                        <button
+                          className='drop-weapon-btn'
+                          onClick={() => dropWeapon(item.id)}
+                        >
+                          drop
+                        </button>
+                      )}
+                    </span>
+                  ))}
                 </span>
               </div>
             )}
@@ -409,6 +447,13 @@ export default function GameEngine() {
                 Close
               </button>
             )}
+          </div>
+        )}
+        {bowInfo.hasBow && !actionsLocked && (
+          <div className='item-actions'>
+            <button onClick={handleShootClick}>
+              Shoot
+            </button>
           </div>
         )}
 

@@ -19,60 +19,84 @@ function rollDamage(attackerCombat, defenderDefence) {
   return Math.max(1, (attackerCombat + swing) - defenderDefence)
 }
 
+function getWeaponBonus(inventory) {
+  let combat = 0
+  let defence = 0
+  let attackUndead = false
+
+  for (const item of inventory || []) {
+    if (item.type !== 'weapon') continue
+    combat += item.combat || 0
+    defence += item.defence || 0
+    if (item.attackUndead) attackUndead = true
+  }
+
+  return { combat, defence, attackUndead }
+}
+
 function getCombatProfile(cell) {
   if (!cell) return null
 
   if (cell.mount) {
     const m = cell.mount
+    const bonus = getWeaponBonus(m.inventory)
     return {
-      combat: m.stats.combat,
-      defence: m.stats.defence,
+      combat: m.stats.combat + bonus.combat,
+      defence: m.stats.defence + bonus.defence,
       health: m.current_health,
       maxHealth: m.stats.constitution,
       undead: m.stats.undead,
       lavaType: m.stats.lava_type,
       flying: !!m.flying,
+      attackUndead: bonus.attackUndead,
       mounted: true
     }
   }
 
   if (cell.type === 'player') {
+    const bonus = getWeaponBonus(PLAYER.inventory)
     return {
-      combat: PLAYER.combat,
-      defence: PLAYER.defence,
+      combat: PLAYER.combat + bonus.combat,
+      defence: PLAYER.defence + bonus.defence,
       health: PLAYER.current_health,
       maxHealth: PLAYER.constitution,
       undead: PLAYER.undead,
       lavaType: PLAYER.lava_type,
+      attackUndead: bonus.attackUndead,
       apply: (newHealth) => { PLAYER.current_health = newHealth }
     }
   }
 
   if (cell.type === 'enemyWizard') {
     const ref = cell.ref
+    const bonus = getWeaponBonus(ref.inventory)
     return {
-      combat: ref.combat,
-      defence: ref.defence,
+      combat: ref.combat + bonus.combat,
+      defence: ref.defence + bonus.defence,
       health: ref.current_health,
       maxHealth: ref.constitution,
       undead: ref.undead,
       lavaType: ref.lava_type,
+      attackUndead: bonus.attackUndead,
       apply: (newHealth) => { ref.current_health = newHealth }
     }
   }
 
   if (cell.type === 'creature') {
+    const bonus = getWeaponBonus(cell.inventory)
     return {
-      combat: cell.stats.combat,
-      defence: cell.stats.defence,
+      combat: cell.stats.combat + bonus.combat,
+      defence: cell.stats.defence + bonus.defence,
       health: cell.current_health,
       maxHealth: cell.stats.constitution,
       undead: cell.stats.undead,
       lavaType: cell.stats.lava_type,
       flying: !!cell.flying,
+      attackUndead: bonus.attackUndead,
       apply: null
     }
   }
+
   return null
 }
 
@@ -208,7 +232,7 @@ export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
     }
   }
 
-  if (defenderProfile.undead && !attackerProfile.undead) {
+  if (defenderProfile.undead && !attackerProfile.undead && !attackerProfile.attackUndead) {
     return {
       objectLayer,
       damage: 0,

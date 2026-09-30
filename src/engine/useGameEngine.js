@@ -127,7 +127,7 @@ export default function useGameEngine() {
     PLAYER
   })
 
-  const { pickUpItem, useKeyOnDoor, openDoor, closeDoor } = useItemActions({
+  const { pickUpItem, useKeyOnDoor, openDoor, closeDoor, dropWeapon, shootBow } = useItemActions({
     terrainLayer,
     objectLayer,
     itemLayer,
@@ -136,7 +136,8 @@ export default function useGameEngine() {
     setItemLayer,
     setTerrainLayer,
     setAp,
-    addScore
+    addScore,
+    setEnemyPosition
   })
 
   const itemActionAvailability = getActionAvailability(selected, terrainLayer, objectLayer, itemLayer)
@@ -221,6 +222,8 @@ export default function useGameEngine() {
     useKeyOnDoor,
     openDoor,
     closeDoor,
+    dropWeapon,
+    shootBow,
     itemActionAvailability,
     rideMount,
     dismountMount,

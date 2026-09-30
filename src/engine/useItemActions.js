@@ -2,6 +2,9 @@ import { PLAYER } from '../data/player.js'
 import { wrap } from './utils.js'
 import { SPELLBOOK } from '../data/spellbook.js'
 import { canCarryItem, hasKey, removeFirstKey, isConsumedOnPickup } from './items.js'
+import { resolveAttack } from './combat.js'
+import { wrappedChebyshevDistance } from './utils.js'
+import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 
 export const ITEM_ACTION_AP_COST = 2
 
@@ -65,6 +68,31 @@ function canPickThisItem(entity, item) {
   return canCarryItem(entity.carryLimit, entity.inventory, item)
 }
 
+function getSelectedEntityInfo(selected, objectLayer) {
+  if (!selected) return null
+
+  if (selected.type === 'player') {
+    return { x: PLAYER.x, y: PLAYER.y, ap: PLAYER.ap, useOptions: PLAYER.use_options, inventory: PLAYER.inventory || [], isPlayer: true }
+  }
+
+  if (selected.type === 'creature') {
+    const cell = objectLayer[selected.y]?.[selected.x]
+    if (!cell || cell.type !== 'creature') return null
+    return { x: selected.x, y: selected.y, ap: cell.ap, useOptions: cell.stats.use_options, inventory: cell.inventory || [], isPlayer: false }
+  }
+
+  return null
+}
+
+function getEquippedBow(inventory) {
+  return (inventory || []).find(item => item.type === 'weapon' && item.ranged > 0) || null
+}
+
+export function getBowInfo() {
+  const bow = getEquippedBow(PLAYER.inventory)
+  return bow ? { hasBow: true, range: bow.ranged, origin: { x: PLAYER.x, y: PLAYER.y } } : { hasBow: false, range: 0, origin: null }
+}
+
 export function getActionAvailability(selected, terrainLayer, objectLayer, itemLayer) {
   const none = { canPickUp: false, canUse: false, canOpen: false, canClose: false, doorPos: null }
 
@@ -101,7 +129,8 @@ export default function useItemActions({
   setItemLayer,
   setTerrainLayer,
   setAp,
-  addScore
+  addScore,
+  setEnemyPosition,
 }) {
 
   const spendActorAp = () => {
@@ -223,10 +252,61 @@ export default function useItemActions({
     spendActorAp()
   }
 
+  const dropWeapon = (itemId) => {
+    const entity = getSelectedEntityInfo(selected, objectLayer)
+    if (!entity || !entity.useOptions) return
+    const item = entity.inventory.find(i => i.id === itemId)
+    if (!item) return
+
+    if (selected.type === 'player') {
+      PLAYER.inventory = PLAYER.inventory.filter(i => i.id !== itemId)
+    } else {
+      setObjectLayer(prev => {
+        const copy = prev.map(row => [...row])
+        const cell = copy[selected.y][selected.x]
+        copy[selected.y][selected.x] = { ...cell, inventory: cell.inventory.filter(i => i.id !== itemId) }
+        return copy
+      })
+    }
+
+    setItemLayer(prev => {
+      const copy = prev.map(row => [...row])
+      const existing = copy[entity.y][entity.x] || []
+      copy[entity.y][entity.x] = [...existing, item]
+      return copy
+    })
+
+    spendActorAp()
+  }
+
+  const shootBow = (aimPos) => {
+    const bow = getEquippedBow(PLAYER.inventory)
+    if (!bow) return
+    if (PLAYER.ap < ITEM_ACTION_AP_COST) return
+
+    const distance = wrappedChebyshevDistance(PLAYER.x, PLAYER.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
+    if (distance > bow.ranged) return
+
+    const target = objectLayer[aimPos.y]?.[aimPos.x]
+    if (!target || target.owner !== 'enemy') return
+
+    const result = resolveAttack({ objectLayer, attackerPos: { x: PLAYER.x, y: PLAYER.y }, defenderPos: aimPos })
+    if (result.blocked) return
+
+    setObjectLayer(result.objectLayer)
+    PLAYER.ap -= ITEM_ACTION_AP_COST
+    setAp(PLAYER.ap)
+
+    if (result.killedOwner === 'enemy' && result.killPoints > 0) addScore(result.killPoints)
+    if (result.defeated && result.defenderType === 'enemyWizard') setEnemyPosition(null)
+  }
+
   return {
     pickUpItem,
     useKeyOnDoor,
     openDoor,
-    closeDoor
+    closeDoor,
+    dropWeapon,
+    shootBow
   }
 }

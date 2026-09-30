@@ -1,6 +1,11 @@
+import { WEAPONS } from '../data/weapons.js'
+
 export const KEY_WEIGHT = 1
 export const APPLE_WEIGHT = 1
 export const TREASURE_WEIGHT = 1
+const MIN_WEAPONS = 5
+const MAX_WEAPONS = 15
+const MAGIC_WEAPON_CHANCE = 0.15
 export const COIN_POINTS = 10
 
 export const GEMS = {
@@ -27,8 +32,30 @@ const JEWEL_TABLE = {
 const PICKUP_UNPLACEABLE_TERRAIN = ['mountain', 'wall', 'lava', 'water', 'doorLocked', 'doorUnlocked']
 const PLACEMENT_ATTEMPTS = 200
 const CONSUMED_ON_PICKUP = ['apple', 'coin', 'jewel']
+const WEAPON_BASE_NAMES = WEAPONS.filter(w => !w.name.startsWith('magic ')).map(w => w.name)
 
 let nextItemId = 1
+
+export function createWeaponItem(name) {
+  const data = WEAPONS.find(w => w.name === name)
+  return {
+    id: nextItemId++,
+    type: 'weapon',
+    name: data.name,
+    weaponCode: data.weapon_code,
+    weight: data.weight,
+    combat: data.combat,
+    defence: data.defence,
+    ranged: data.ranged_combat || 0,
+    attackUndead: data.attack_undead,
+    magic: data.name.startsWith('magic ')
+  }
+}
+
+function pickRandomWeaponName() {
+  const base = WEAPON_BASE_NAMES[Math.floor(Math.random() * WEAPON_BASE_NAMES.length)]
+  return Math.random() < MAGIC_WEAPON_CHANCE ? `magic ${base}` : base
+}
 
 export function createKeyItem() {
   return { id: nextItemId++, type: 'key', name: 'Key', weight: KEY_WEIGHT }
@@ -118,6 +145,12 @@ export function placeRandomPickups(terrainLayer, objectLayer, itemLayer) {
   }
 
   layer = scatterItems(terrainLayer, objectLayer, layer, randomBetween(MIN_COINS, MAX_COINS), createCoinItem)
+
+  layer = scatterItems(
+    terrainLayer, objectLayer, layer,
+    randomBetween(MIN_WEAPONS, MAX_WEAPONS),
+    () => createWeaponItem(pickRandomWeaponName())
+  )
 
   return layer
 }
