@@ -47,6 +47,7 @@ export function createWeaponItem(name) {
     combat: data.combat,
     defence: data.defence,
     ranged: data.ranged_combat || 0,
+    thrown: data.thrown_combat || 0,
     attackUndead: data.attack_undead,
     magic: data.name.startsWith('magic ')
   }

@@ -7,7 +7,7 @@ import { getMovementCost } from '../engine/terrain.js'
 import { MAX_ROUNDS, PORTAL_TURN } from '../engine/useTurnSystem.js'
 import { RANGED_SPELL_BASE_RANGE, HEALING_RANGE} from '../engine/spellCaster.js'
 import { getMaxAp, getMoverStats, getMoverAp, getMoverMaxAp, getMountDescription } from '../engine/mounts.js'
-import { getBowInfo } from '../engine/useItemActions.js'
+import { getBowInfo, getThrowInfo } from '../engine/useItemActions.js'
 import '../index.css'
 import { useEffect } from 'react'
 
@@ -102,6 +102,7 @@ export default function GameEngine() {
     closeDoor,
     dropWeapon,
     shootBow,
+    throwWeapon,
     itemActionAvailability,
     rideMount,
     dismountMount,
@@ -118,7 +119,8 @@ export default function GameEngine() {
   const gameOver = gameStatus !== 'playing'
   const actionsLocked = gameOver || isAnimating
 
-  const bowInfo = getBowInfo()
+  const bowInfo = getBowInfo(objectLayer)
+  const throwInfo = getThrowInfo(objectLayer)
 
   const rangeHighlight = selectedSpell?.healing
     ? { origin: playerPosition, radius: HEALING_RANGE }
@@ -128,8 +130,10 @@ export default function GameEngine() {
         ? { origin: playerPosition, radius: RANGED_SPELL_BASE_RANGE + selectedSpell.currentSpellLevel }
         : bowInfo.hasBow
           ? { origin: bowInfo.origin, radius: bowInfo.range }
-          : null
-
+          : throwInfo.hasThrowable
+            ? { origin: throwInfo.origin, radius: throwInfo.range }
+            : null
+  
   const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
   const playerMount = objectLayer[PLAYER.y]?.[PLAYER.x]?.mount
 
@@ -281,6 +285,14 @@ export default function GameEngine() {
                 <span key={item.id}>
                   {i > 0 && ', '}
                   {item.name}
+                  {item.type === 'weapon' && item.thrown > 0 && !actionsLocked && (
+                    <button
+                      className='throw-weapon-btn'
+                      onClick={() => throwWeapon(item.id, cursor)}
+                    >
+                      throw
+                    </button>
+                  )}
                   {item.type === 'weapon' && !actionsLocked && (
                     <button
                       className='drop-weapon-btn'

@@ -2,9 +2,11 @@ import { PLAYER } from '../data/player.js'
 import { wrap } from './utils.js'
 import { SPELLBOOK } from '../data/spellbook.js'
 import { canCarryItem, hasKey, removeFirstKey, isConsumedOnPickup } from './items.js'
-import { resolveAttack } from './combat.js'
+import { resolveAttack, resolveThrownWeaponAttack } from './combat.js'
 import { wrappedChebyshevDistance } from './utils.js'
 import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
+
+const THROW_RANGE = 2
 
 export const ITEM_ACTION_AP_COST = 2
 
@@ -88,9 +90,18 @@ function getEquippedBow(inventory) {
   return (inventory || []).find(item => item.type === 'weapon' && item.ranged > 0) || null
 }
 
-export function getBowInfo() {
+export function getBowInfo(objectLayer) {
+  if (objectLayer[PLAYER.y][PLAYER.x]?.mount?.flying) return { hasBow: false, range: 0, origin: null }
   const bow = getEquippedBow(PLAYER.inventory)
   return bow ? { hasBow: true, range: bow.ranged, origin: { x: PLAYER.x, y: PLAYER.y } } : { hasBow: false, range: 0, origin: null }
+}
+
+export function getThrowInfo(objectLayer) {
+  if (objectLayer[PLAYER.y][PLAYER.x]?.mount?.flying) return { hasThrowable: false, range: 0, origin: null }
+  const hasThrowable = (PLAYER.inventory || []).some(item => item.type === 'weapon' && item.thrown > 0)
+  return hasThrowable
+    ? { hasThrowable: true, range: THROW_RANGE, origin: { x: PLAYER.x, y: PLAYER.y } }
+    : { hasThrowable: false, range: 0, origin: null }
 }
 
 export function getActionAvailability(selected, terrainLayer, objectLayer, itemLayer) {
@@ -280,9 +291,11 @@ export default function useItemActions({
   }
 
   const shootBow = (aimPos) => {
+    if (objectLayer[PLAYER.y][PLAYER.x]?.mount?.flying) return
+    if (PLAYER.ap < ITEM_ACTION_AP_COST) return
+
     const bow = getEquippedBow(PLAYER.inventory)
     if (!bow) return
-    if (PLAYER.ap < ITEM_ACTION_AP_COST) return
 
     const distance = wrappedChebyshevDistance(PLAYER.x, PLAYER.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
     if (distance > bow.ranged) return
@@ -300,6 +313,45 @@ export default function useItemActions({
     if (result.killedOwner === 'enemy' && result.killPoints > 0) addScore(result.killPoints)
     if (result.defeated && result.defenderType === 'enemyWizard') setEnemyPosition(null)
   }
+  
+  const throwWeapon = (itemId, aimPos) => {
+    if (objectLayer[PLAYER.y][PLAYER.x]?.mount?.flying) return
+    if (PLAYER.ap < ITEM_ACTION_AP_COST) return
+
+    const item = (PLAYER.inventory || []).find(i => i.id === itemId)
+    if (!item || item.type !== 'weapon' || !(item.thrown > 0)) return
+
+    const distance = wrappedChebyshevDistance(PLAYER.x, PLAYER.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
+    if (distance > THROW_RANGE) return
+
+    const target = objectLayer[aimPos.y]?.[aimPos.x]
+    if (!target || target.owner !== 'enemy') return
+
+    const result = resolveThrownWeaponAttack({
+      objectLayer,
+      defenderPos: aimPos,
+      throwerCombat: PLAYER.combat,
+      thrownCombat: item.thrown,
+      bypassUndead: item.attackUndead
+    })
+    if (result.blocked) return
+
+    PLAYER.inventory = PLAYER.inventory.filter(i => i.id !== itemId)
+
+    setItemLayer(prev => {
+      const copy = prev.map(row => [...row])
+      const existing = copy[aimPos.y][aimPos.x] || []
+      copy[aimPos.y][aimPos.x] = [...existing, item]
+      return copy
+    })
+
+    setObjectLayer(result.objectLayer)
+    PLAYER.ap -= ITEM_ACTION_AP_COST
+    setAp(PLAYER.ap)
+
+    if (result.killedOwner === 'enemy' && result.killPoints > 0) addScore(result.killPoints)
+    if (result.defeated && result.defenderType === 'enemyWizard') setEnemyPosition(null)
+  }
 
   return {
     pickUpItem,
@@ -307,6 +359,7 @@ export default function useItemActions({
     openDoor,
     closeDoor,
     dropWeapon,
-    shootBow
+    shootBow,
+    throwWeapon
   }
 }

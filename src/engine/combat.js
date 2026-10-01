@@ -194,6 +194,54 @@ function applyDamageToCell(objectLayer, pos, damage) {
   }
 }
 
+export function resolveThrownWeaponAttack({ objectLayer, defenderPos, throwerCombat, thrownCombat, bypassUndead }) {
+  const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
+
+  if (!defenderCell) {
+    return { objectLayer, damage: 0, defeated: false, defenderType: null, blocked: false }
+  }
+
+  const defenderProfile = getCombatProfile(defenderCell)
+  if (!defenderProfile) {
+    return { objectLayer, damage: 0, defeated: false, defenderType: null, blocked: false }
+  }
+
+  if (defenderProfile.flying) {
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: defenderCell.type,
+      blocked: true,
+      blockedReason: 'target-airborne'
+    }
+  }
+
+  if (defenderProfile.undead && !bypassUndead) {
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: defenderCell.type,
+      blocked: true,
+      blockedReason: 'undead-immune'
+    }
+  }
+
+  const damage = rollDamage(throwerCombat + thrownCombat, defenderProfile.defence)
+  const result = applyDamageToCell(objectLayer, defenderPos, damage)
+
+  return {
+    objectLayer: result.objectLayer,
+    damage: result.damage,
+    defeated: result.defeated,
+    defenderType: result.targetType,
+    killedOwner: result.killedOwner,
+    killPoints: result.killPoints,
+    blocked: false
+  }
+}
+
 export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
   const attackerCell = objectLayer[attackerPos.y][attackerPos.x]
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
