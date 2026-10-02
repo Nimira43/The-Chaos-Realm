@@ -110,7 +110,7 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
 
   if (rider.cell?.mount) {
     flyer = { stats: rider.cell.mount.stats, ap: rider.cell.mount.ap, flying: !!rider.cell.mount.flying }
-  } else if (rider.cell?.type === 'creature' && isMountCreature(rider.cell.stats)) {
+    } else if (rider.cell?.type === 'creature' && canFly(rider.cell.stats)) {
     flyer = { stats: rider.cell.stats, ap: rider.cell.ap, flying: !!rider.cell.flying }
   }
 

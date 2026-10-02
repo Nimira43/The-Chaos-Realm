@@ -6,13 +6,13 @@ export const TREASURE_WEIGHT = 1
 const MIN_WEAPONS = 5
 const MAX_WEAPONS = 15
 const MAGIC_WEAPON_CHANCE = 0.15
-export const COIN_POINTS = 10
+export const COIN_POINTS = 2
 
 export const GEMS = {
-  emerald: { name: 'Emerald', points: 60 },
-  ruby: { name: 'Ruby', points: 100 },
-  sapphire: { name: 'Sapphire', points: 40 },
-  diamond: { name: 'Diamond', points: 80 }
+  emerald: { name: 'Emerald', points: 3 },
+  ruby: { name: 'Ruby', points: 5 },
+  sapphire: { name: 'Sapphire', points: 2 },
+  diamond: { name: 'Diamond', points: 4 }
 }
 
 const MIN_APPLES = 4

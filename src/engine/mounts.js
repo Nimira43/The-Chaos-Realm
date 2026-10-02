@@ -13,9 +13,7 @@ export function isMountCreature(stats) {
   return !!stats?.mount
 }
 
-export function canFly(stats) {
-  return isMountCreature(stats) && (stats?.action_points_flying ?? 0) > 0
-}
+export function canFly(stats) { return (stats?.action_points_flying ?? 0) > 0 }
 
 export function isMounted(cell) {
   return !!cell?.mount
