@@ -12,7 +12,8 @@ const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine', 'flood']
 function isWallEffectBlocking(effectLayer, x, y, entity) {
   const type = effectLayer?.[y]?.[x]?.type
   if (!WALL_EFFECT_TYPES.includes(type)) return false
-  if (type === 'flood' && (entity?.water_type || entity?.isFlyingNow)) return false
+  if (entity?.isFlyingNow) return false
+  if (type === 'flood' && entity?.water_type) return false
   return true
 }
 

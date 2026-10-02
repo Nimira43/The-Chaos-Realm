@@ -12,7 +12,8 @@ export const ATTACKABLE_EFFECT_TYPES = ['blob', 'vine']
 export function isEnvironmentEffectBlocking(effectLayer, x, y, entity) {
   const type = effectLayer?.[y]?.[x]?.type
   if (!WALL_EFFECT_TYPES.includes(type)) return false
-  if (type === 'flood' && (entity?.water_type || entity?.isFlyingNow)) return false
+  if (entity?.isFlyingNow) return false
+  if (type === 'flood' && entity?.water_type) return false
   return true
 }
 
@@ -41,10 +42,10 @@ const FIRE_UNIGNITABLE_TERRAIN = ['rock', 'swamp', 'water', 'mountain', 'portal'
 const FIRE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'doorLocked', 'doorUnlocked', 'doorOpen']
 
 const GOOEY_UNSPREADABLE_TERRAIN = ['mountain', 'portal', 'wasteland']
-const GOOEY_DESTROYS_TERRAIN = ['swamp', 'water', 'forest', 'rough', 'grass', 'floor', 'road', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock']
+const GOOEY_DESTROYS_TERRAIN = ['swamp', 'water', 'forest', 'rough', 'grass', 'floor', 'road', 'wall', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock']
 
 const TANGLE_UNCASTABLE_TERRAIN = ['mountain', 'portal']
-const TANGLE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock', 'swamp']
+const TANGLE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock', 'swamp', 'water']
 
 const FLOOD_UNCASTABLE_TERRAIN = ['mountain', 'portal', 'lava']
 
