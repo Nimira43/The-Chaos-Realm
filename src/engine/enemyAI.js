@@ -1,40 +1,54 @@
+import { ENEMY_WIZARD } from '../data/enemyWizard.js'
+import { RIDE_AP_COST } from './mounts.js'
 import { moveEnemyWizard } from './enemyWizardMovement.js'
-import { castEnemyWizardSpell } from './enemyWizardSpells.js'
+import { castEnemyWizardSpells } from './enemyWizardSpells.js'
 import { runEnemyCreaturesAI } from './enemyCreatures.js'
 
 export { runEnemyCreaturesAI }
 
 export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effectLayer, itemLayer) {
-  const moveResult = moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer, itemLayer)
+  const heldBack = Math.min(RIDE_AP_COST, ENEMY_WIZARD.ap)
+  ENEMY_WIZARD.ap -= heldBack
 
-  if (moveResult.selfDefeated) {
+  const first = moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer, itemLayer)
+
+  ENEMY_WIZARD.ap += heldBack
+
+  if (first.selfDefeated) {
     return {
-      objectLayer: moveResult.objectLayer,
+      objectLayer: first.objectLayer,
       effectLayer,
-      terrainLayer: moveResult.terrainLayer,
-      itemLayer: moveResult.itemLayer,
+      terrainLayer: first.terrainLayer,
+      itemLayer: first.itemLayer,
       zapEffects: [],
-      moved: moveResult.moved,
-      position: moveResult.position,
-      defeatedTarget: moveResult.defeatedTarget,
+      moved: first.moved,
+      position: first.position,
+      defeatedTarget: first.defeatedTarget,
       selfDefeated: true,
-      frames: moveResult.frames
+      frames: first.frames
     }
   }
 
-  const castResult = castEnemyWizardSpell(moveResult.terrainLayer, moveResult.objectLayer, effectLayer)
-  const frames = castResult.cast ? [...moveResult.frames, castResult.objectLayer] : moveResult.frames
+  const cast = castEnemyWizardSpells(first.terrainLayer, first.objectLayer, effectLayer)
+
+  const second = moveEnemyWizard(
+    first.terrainLayer,
+    cast.objectLayer,
+    portalPosition,
+    cast.effectLayer,
+    first.itemLayer
+  )
 
   return {
-    objectLayer: castResult.objectLayer,
-    effectLayer: castResult.effectLayer,
-    terrainLayer: moveResult.terrainLayer,
-    itemLayer: moveResult.itemLayer,
-    zapEffects: castResult.zapEffects || [],
-    moved: moveResult.moved,
-    position: moveResult.position,
-    defeatedTarget: moveResult.defeatedTarget,
-    selfDefeated: false,
-    frames
+    objectLayer: second.objectLayer,
+    effectLayer: cast.effectLayer,
+    terrainLayer: second.terrainLayer,
+    itemLayer: second.itemLayer,
+    zapEffects: cast.zapEffects,
+    moved: first.moved || second.moved,
+    position: second.position ?? first.position,
+    defeatedTarget: second.defeatedTarget ?? first.defeatedTarget,
+    selfDefeated: second.selfDefeated,
+    frames: [...first.frames, ...cast.frames, ...second.frames]
   }
 }

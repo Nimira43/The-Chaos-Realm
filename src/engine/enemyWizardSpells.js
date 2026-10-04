@@ -1,13 +1,11 @@
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { CREATURES } from '../data/creatures.js'
-import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
-import { wrappedChebyshevDistance } from './utils.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
 import { applyMagicDamage } from './combat.js'
-import { getAdjacentTiles } from './pathfinding.js'
 import { getMaxAp } from './mounts.js'
-import { SIGHT_RANGE, findNearestPlayerTarget } from './enemyAIShared.js'
+import { pickArmySpell } from './enemyArmy.js'
+import { scanThreat, countTerrainAround, listPlayerUnitsInRange, findBestBlast } from './enemyScans.js'
 import {
   createFireEffect,
   createBlobEffect,
@@ -19,9 +17,28 @@ import {
   isTileValidForFloodCast as checkTileValidForFloodCast
 } from './environmentEffects.js'
 
-const CAST_CHANCE = 0.5
+export const ZAP_THRESHOLD = 60
+export const HIGH_THREAT_THRESHOLD = 120
 
-function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
+const MAX_CASTS_PER_TURN = 6
+const MAX_ZAPS_PER_TURN = 2
+
+export const MAX_ARMY_SIZE = 40
+const HEAL_SELF_BELOW = 0.5
+const HEAL_ALLY_BELOW = 0.4
+
+const ADJACENT_OFFSETS = [
+  { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
+  { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: -1, y: -1 }
+]
+
+export function getThreatTier(total) {
+  if (total > HIGH_THREAT_THRESHOLD) return 'high'
+  if (total >= ZAP_THRESHOLD) return 'zap'
+  return 'calm'
+}
+
+function isTileFreeForCast(terrainLayer, objectLayer, effectLayer, x, y) {
   if (y < 0 || y >= terrainLayer.length) return false
   if (x < 0 || x >= terrainLayer[0].length) return false
 
@@ -30,76 +47,176 @@ function isTileFreeForCast(terrainLayer, objectLayer, x, y) {
   if (blockedTerrain.includes(terrain)) return false
 
   if (objectLayer[y][x] !== null) return false
+  if (effectLayer[y][x] !== null) return false
 
   return true
 }
 
-function pickRangedSpellTarget(objectLayer, casterX, casterY, maxRange) {
-  const { target } = findNearestPlayerTarget(objectLayer, casterX, casterY)
-  const distance = wrappedChebyshevDistance(casterX, casterY, target.x, target.y, MAP_WIDTH, MAP_HEIGHT)
+function countFreeSummonTiles(S) {
+  return ADJACENT_OFFSETS.filter(o =>
+    isTileFreeForCast(S.terrain, S.objects, S.effects, ENEMY_WIZARD.x + o.x, ENEMY_WIZARD.y + o.y)
+  ).length
+}
 
-  if (distance <= maxRange) return { x: target.x, y: target.y }
+function countOwnMatching(objectLayer, pred) {
+  let count = 0
+  for (const row of objectLayer) {
+    for (const cell of row) {
+      if (!cell) continue
+      if (cell.type === 'creature' && cell.owner === 'enemy' && pred(cell.stats)) count++
+      if (cell.type === 'enemyWizard' && cell.mount && pred(cell.mount.stats)) count++
+    }
+  }
+  return count
+}
+
+function usableSpell(name) {
+  const spell = ENEMY_SPELLBOOK.find(s => s.name === name)
+  if (!spell || spell.currentSpellLevel <= 0) return null
+  if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel) return null
+  return spell
+}
+
+function chooseHeal(S) {
+  const heal = usableSpell('Healing Potion')
+  if (!heal) return null
+
+  const wiz = ENEMY_WIZARD
+  const here = S.objects[wiz.y][wiz.x]
+
+  const wizardHurt = wiz.current_health <= wiz.constitution * HEAL_SELF_BELOW
+  const mountHurt = !!here?.mount && here.mount.current_health <= here.mount.stats.constitution * HEAL_SELF_BELOW
+
+  if (wizardHurt || mountHurt) {
+    return { kind: 'heal', spell: heal, aimPos: { x: wiz.x, y: wiz.y } }
+  }
+
+  for (const o of ADJACENT_OFFSETS) {
+    const x = wiz.x + o.x
+    const y = wiz.y + o.y
+    const cell = S.objects[y]?.[x]
+    if (cell?.type !== 'creature' || cell.owner !== 'enemy') continue
+
+    const ratio = cell.current_health / cell.stats.constitution
+    const mountRatio = cell.mount ? cell.mount.current_health / cell.mount.stats.constitution : 1
+    if (Math.min(ratio, mountRatio) <= HEAL_ALLY_BELOW) {
+      return { kind: 'heal', spell: heal, aimPos: { x, y } }
+    }
+  }
+
   return null
 }
 
-export function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
-  const { dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
-  if (dist > SIGHT_RANGE) return { objectLayer, effectLayer, cast: false }
+function hasValidAdjacentTile(isValid) {
+  return ADJACENT_OFFSETS.some(o => isValid({ x: ENEMY_WIZARD.x + o.x, y: ENEMY_WIZARD.y + o.y }))
+}
 
-  const adjacentPlayerCount = getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y)
-    .filter(t => {
-      const c = objectLayer[t.y]?.[t.x]
-      return c && (c.type === 'player' || (c.type === 'creature' && c.owner === 'player'))
-    }).length
+function chooseZap(S, tier) {
+  const wiz = ENEMY_WIZARD
+  const caster = { x: wiz.x, y: wiz.y }
 
-  const usableSpells = ENEMY_SPELLBOOK.filter(spell => {
-    if (spell.currentSpellLevel <= 0) return false
-    if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel) return false
+  const lightning = usableSpell('Magic Lightning')
+  const bolt = usableSpell('Magic Bolt')
+  const flood = usableSpell('Flood')
+  const vine = usableSpell('Tangle Vine')
 
-    if (spell.category === 'creature') {
-      return getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y).some(t => isTileFreeForCast(terrainLayer, objectLayer, t.x, t.y))
+  const zap = (spell, pos) => ({ kind: 'zap', spell, aimPos: { x: pos.x, y: pos.y } })
+
+  let lightningBest = null
+  if (lightning) {
+    lightningBest = findBestBlast(S.objects, caster, lightning.currentSpellLevel, 1)
+    if (lightningBest && lightningBest.net > 0 && lightningBest.hitPlayerUnits >= 2) {
+      return zap(lightning, lightningBest)
     }
-
-    if (spell.ranged) {
-      const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
-      return pickRangedSpellTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange) !== null
-    }
-
-    if (spell.category === 'offensive') {
-      return pickRangedSpellTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, spell.currentSpellLevel) !== null
-    }
-
-    return true
-  })
-
-  if (usableSpells.length === 0) return { objectLayer, effectLayer, cast: false }
-
-  const offensiveOptions = usableSpells.filter(s => s.category === 'offensive')
-  const underThreat = adjacentPlayerCount >= 2 && offensiveOptions.length > 0
-
-  let spell
-
-  if (underThreat) {
-    spell = offensiveOptions.find(s => s.name === 'Magic Lightning') || offensiveOptions[0]
-    console.debug(`[enemy wizard] under threat (${adjacentPlayerCount} adjacent) — casting ${spell.name}`)
-  } else {
-    if (Math.random() > CAST_CHANCE) return { objectLayer, effectLayer, cast: false }
-    spell = usableSpells[Math.floor(Math.random() * usableSpells.length)]
   }
 
-  let workingLayer = objectLayer
-  let workingEffectLayer = effectLayer
+  if (flood) {
+    const level = flood.currentSpellLevel
+    const best = findBestBlast(S.objects, caster, RANGED_SPELL_BASE_RANGE + level, level, { mode: 'units', minClearance: 2 })
+    if (best && best.net > 0 && best.hitPlayerUnits >= 3) return zap(flood, best)
+  }
 
-  const isTileFree = (tile) => isTileFreeForCast(terrainLayer, workingLayer, tile.x, tile.y)
-  const isTileIgnitable = (tile) => checkTileIgnitable(terrainLayer, workingEffectLayer, tile.x, tile.y)
-  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(terrainLayer, workingEffectLayer, tile.x, tile.y)
-  const isTileValidForVine = (tile) => checkTileValidForVineCast(terrainLayer, workingEffectLayer, tile.x, tile.y)
-  const isTileValidForFlood = (tile) => checkTileValidForFloodCast(terrainLayer, workingEffectLayer, tile.x, tile.y)
+  if (bolt) {
+    const targets = listPlayerUnitsInRange(S.objects, wiz.x, wiz.y, bolt.currentSpellLevel)
+    if (targets.length > 0) return zap(bolt, targets[0])
+  }
+
+  if (lightningBest && lightningBest.net > 0) return zap(lightning, lightningBest)
+
+  if (vine) {
+    const level = vine.currentSpellLevel
+    const best = findBestBlast(S.objects, caster, RANGED_SPELL_BASE_RANGE + level, level, { mode: 'units', minClearance: 2 })
+    if (best && best.net > 0 && best.hitPlayerUnits >= 2) return zap(vine, best)
+  }
+
+  if (tier === 'high') {
+    const fire = usableSpell('Magic Fire')
+    if (fire && hasValidAdjacentTile(t => checkTileIgnitable(S.terrain, S.effects, t.x, t.y))) {
+      return { kind: 'zap', spell: fire, aimPos: null }
+    }
+
+    const blob = usableSpell('Gooey Blob')
+    if (blob && hasValidAdjacentTile(t => checkTileSpreadableForBlob(S.terrain, S.effects, t.x, t.y))) {
+      return { kind: 'zap', spell: blob, aimPos: null }
+    }
+  }
+
+  return null
+}
+
+function chooseSummon(S) {
+  const wiz = ENEMY_WIZARD
+
+  if (countOwnMatching(S.objects, () => true) >= MAX_ARMY_SIZE) return null
+
+  const pick = pickArmySpell({
+    spellbook: ENEMY_SPELLBOOK,
+    mana: wiz.current_mana,
+    freeTileCount: countFreeSummonTiles(S),
+    terrainCounts: S.terrainCounts,
+    wizardMounted: !!S.objects[wiz.y][wiz.x]?.mount,
+    countOwn: (pred) => countOwnMatching(S.objects, pred)
+  })
+
+  return pick ? { kind: 'summon', spell: pick.spell, aimPos: null } : null
+}
+
+function executeCast(S, { spell, aimPos }) {
+  const wiz = ENEMY_WIZARD
+  const cost = spell.manaCost * spell.currentSpellLevel
+
+  const isTileFree = (tile) => isTileFreeForCast(S.terrain, S.objects, S.effects, tile.x, tile.y)
+  const isTileIgnitable = (tile) => checkTileIgnitable(S.terrain, S.effects, tile.x, tile.y)
+  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(S.terrain, S.effects, tile.x, tile.y)
+  const isTileValidForVine = (tile) => checkTileValidForVineCast(S.terrain, S.effects, tile.x, tile.y)
+  const isTileValidForFlood = (tile) => checkTileValidForFloodCast(S.terrain, S.effects, tile.x, tile.y)
+
+  const isTileValidForHeal = (tile) => {
+    const cell = S.objects[tile.y]?.[tile.x]
+    return !!cell && (cell.type === 'enemyWizard' || (cell.type === 'creature' && cell.owner === 'enemy'))
+  }
+
+  const healTile = (tile) => {
+    const cell = S.objects[tile.y][tile.x]
+    if (!cell) return
+
+    if (cell.type === 'enemyWizard') wiz.current_health = wiz.constitution
+
+    if (cell.type === 'creature' || cell.mount) {
+      let updated = cell
+      if (cell.type === 'creature') updated = { ...updated, current_health: cell.stats.constitution }
+      if (cell.mount) updated = { ...updated, mount: { ...cell.mount, current_health: cell.mount.stats.constitution } }
+
+      const copy = S.objects.map(row => [...row])
+      copy[tile.y][tile.x] = updated
+      S.objects = copy
+    }
+  }
 
   const spawnCreature = (creatureName, tile) => {
     const creatureData = CREATURES.find(c => c.name === creatureName)
-    workingLayer = workingLayer.map(row => [...row])
-    workingLayer[tile.y][tile.x] = {
+    const copy = S.objects.map(row => [...row])
+    copy[tile.y][tile.x] = {
       type: 'creature',
       owner: 'enemy',
       name: creatureName,
@@ -111,68 +228,82 @@ export function castEnemyWizardSpell(terrainLayer, objectLayer, effectLayer) {
       wanderTarget: null,
       inventory: []
     }
+    S.objects = copy
   }
 
-  const igniteTile = (tile) => {
-    workingEffectLayer = workingEffectLayer.map(row => [...row])
-    workingEffectLayer[tile.y][tile.x] = createFireEffect('enemy')
+  const placeEffect = (tile, create) => {
+    const copy = S.effects.map(row => [...row])
+    copy[tile.y][tile.x] = create('enemy')
+    S.effects = copy
   }
 
-  const spreadBlobTile = (tile) => {
-    workingEffectLayer = workingEffectLayer.map(row => [...row])
-    workingEffectLayer[tile.y][tile.x] = createBlobEffect('enemy')
-  }
-
-  const applyVineToTile = (tile) => {
-    workingEffectLayer = workingEffectLayer.map(row => [...row])
-    workingEffectLayer[tile.y][tile.x] = createVineEffect('enemy')
-  }
-
-  const applyFloodToTile = (tile) => {
-    workingEffectLayer = workingEffectLayer.map(row => [...row])
-    workingEffectLayer[tile.y][tile.x] = createFloodEffect('enemy')
-  }
-
-  const zapEffects = []
   const zapTile = (tile, level) => {
-    const result = applyMagicDamage(workingLayer, tile, level)
-    workingLayer = result.objectLayer
-    zapEffects.push({ x: tile.x, y: tile.y })
-  }
-
-  let aimPos = null
-  if (spell.ranged) {
-    const maxRange = RANGED_SPELL_BASE_RANGE + spell.currentSpellLevel
-    aimPos = pickRangedSpellTarget(workingLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, maxRange)
-  } else if (spell.category === 'offensive') {
-    aimPos = pickRangedSpellTarget(workingLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y, spell.currentSpellLevel)
+    const result = applyMagicDamage(S.objects, tile, level)
+    S.objects = result.objectLayer
+    S.zapEffects.push({ x: tile.x, y: tile.y })
   }
 
   castSpell({
     spell,
-    casterPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+    casterPos: { x: wiz.x, y: wiz.y },
     aimPos,
     isTileFree,
     spawnCreature,
     isTileIgnitable,
-    igniteTile,
+    igniteTile: (tile) => placeEffect(tile, createFireEffect),
     isTileSpreadableForBlob,
-    spreadBlobTile,
+    spreadBlobTile: (tile) => placeEffect(tile, createBlobEffect),
     isTileValidForVine,
-    applyVineToTile,
+    applyVineToTile: (tile) => placeEffect(tile, createVineEffect),
     isTileValidForFlood,
-    applyFloodToTile,
+    applyFloodToTile: (tile) => placeEffect(tile, createFloodEffect),
+    isTileValidForHeal,
+    healTile,
     zapTile
   })
 
-  const cost = spell.manaCost * spell.currentSpellLevel
-  ENEMY_WIZARD.current_mana -= cost
+  wiz.current_mana -= cost
   spell.currentSpellLevel = Math.max(0, spell.currentSpellLevel - 1)
 
+  S.casts++
+  S.frames.push(S.objects)
+}
+
+export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer) {
+  const S = {
+    terrain: terrainLayer,
+    objects: objectLayer,
+    effects: effectLayer,
+    zapEffects: [],
+    frames: [],
+    casts: 0,
+    terrainCounts: countTerrainAround(terrainLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+  }
+
+  const startThreat = scanThreat(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+  let zaps = 0
+
+  for (let i = 0; i < MAX_CASTS_PER_TURN; i++) {
+    const threat = scanThreat(S.objects, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+    const tier = getThreatTier(threat.total)
+
+    let action = chooseHeal(S)
+    if (!action && tier !== 'calm' && zaps < MAX_ZAPS_PER_TURN) action = chooseZap(S, tier)
+    if (!action) action = chooseSummon(S)
+    if (!action) break
+
+    console.debug(`[enemy wizard] ${action.kind}: ${action.spell.name} (threat ${threat.total}, ${tier})`)
+
+    executeCast(S, action)
+    if (action.kind === 'zap') zaps++
+  }
+
   return {
-    objectLayer: workingLayer,
-    effectLayer: workingEffectLayer,
-    zapEffects,
-    cast: true
+    objectLayer: S.objects,
+    effectLayer: S.effects,
+    zapEffects: S.zapEffects,
+    frames: S.frames,
+    castCount: S.casts,
+    startThreat
   }
 }

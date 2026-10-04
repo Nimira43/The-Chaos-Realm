@@ -96,8 +96,11 @@ function getCombatProfile(cell) {
       apply: null
     }
   }
-
   return null
+}
+
+export function getCellCombatValue(cell) {
+  return getCombatProfile(cell)?.combat ?? 0
 }
 
 export function getCellKillValue(cell) {
