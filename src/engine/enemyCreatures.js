@@ -69,6 +69,12 @@ function moveCreatureToward(terrainLayer, objectLayer, startX, startY, effectLay
     }
   }
 
+  const portalStep = path.findIndex(step => terrainLayer[step.y][step.x] === 'portal')
+  if (portalStep !== -1) {
+    path = path.slice(0, portalStep)
+    if (wanderTarget && terrainLayer[wanderTarget.y][wanderTarget.x] === 'portal') wanderTarget = null
+  }
+
   let finalX = startX
   let finalY = startY
 

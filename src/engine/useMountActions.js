@@ -86,6 +86,13 @@ export function findDismountTile(terrainLayer, objectLayer, effectLayer, x, y, r
   return findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, x, y, cell.mount.stats)
 }
 
+export const NO_LANDING_TERRAIN = ['floor', 'doorLocked', 'doorUnlocked', 'doorOpen']
+
+export function canLandOn(terrainType, stats) {
+  if (NO_LANDING_TERRAIN.includes(terrainType)) return false
+  return getMovementCost(terrainType, { ...stats, isFlyingNow: false }) < IMPASSABLE_THRESHOLD
+}
+
 export function getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer) {
   const none = { canRide: false, canDismount: false, canFly: false, canLand: false }
   const rider = getSelectedRider(selected, objectLayer)
@@ -117,10 +124,9 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
   let canFlyFlag = false
   let canLandFlag = false
 
-  const standingOnFloor = terrainLayer[rider.y][rider.x] === 'floor'
 
   if (flyer && canFly(flyer.stats)) {
-    if (flyer.flying) canLandFlag = !standingOnFloor && flyer.ap >= FLY_TOGGLE_AP_COST
+    if (flyer.flying) canLandFlag = canLandOn(terrainLayer[rider.y][rider.x], flyer.stats) && flyer.ap >= FLY_TOGGLE_AP_COST
     else canFlyFlag = flyer.ap >= FLY_TOGGLE_AP_COST
   }
 

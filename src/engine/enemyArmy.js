@@ -5,10 +5,11 @@ export const USE_OPTIONS_BONUS = 15
 export const ARMY_MANA_RESERVE = 120
 export const TERRAIN_TRIGGER_TILES = 25
 export const SPECIALIST_CAP = 3
+export const isFlyingMount = (stats) => isMountCreature(stats) && canFly(stats)
 
 export const TERRAIN_SPECIALISTS = {
   mountain: [
-    (stats) => isMountCreature(stats) && canFly(stats),
+    isFlyingMount,
     (stats) => canFly(stats)
   ],
   water: [
@@ -50,7 +51,8 @@ export function pickArmySpell({
   freeTileCount,
   terrainCounts = {},
   wizardMounted = false,
-  countOwn = () => 0
+  countOwn = () => 0,
+  needsFlyingRide = false
 }) {
   const candidates = []
 
@@ -63,6 +65,7 @@ export function pickArmySpell({
     const cost = spell.manaCost * level
     if (mana - cost < reserve) continue
 
+    
     if (Math.min(level, freeTileCount) < Math.ceil(level / 2)) continue
 
     const stats = CREATURES.find(c => c.name === spell.name)
@@ -72,6 +75,11 @@ export function pickArmySpell({
   }
 
   if (candidates.length === 0) return null
+
+  if (!wizardMounted && needsFlyingRide) {
+    const rides = candidates.filter(c => isFlyingMount(c.stats))
+    if (rides.length > 0) return bestOf(rides)
+  }
 
   if (!wizardMounted) {
     for (const { pred } of getActiveTerrainPreferences(terrainCounts)) {

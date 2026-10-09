@@ -4,7 +4,7 @@ import { CREATURES } from '../data/creatures.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
 import { applyMagicDamage } from './combat.js'
 import { getMaxAp } from './mounts.js'
-import { pickArmySpell } from './enemyArmy.js'
+import { pickArmySpell, isFlyingMount } from './enemyArmy.js'
 import { scanThreat, countTerrainAround, listPlayerUnitsInRange, findBestBlast } from './enemyScans.js'
 import {
   createFireEffect,
@@ -76,6 +76,7 @@ function usableSpell(name) {
   if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel) return null
   return spell
 }
+
 
 function chooseHeal(S) {
   const heal = usableSpell('Healing Potion')
@@ -164,18 +165,28 @@ function chooseZap(S, tier) {
   return null
 }
 
+function hasAdjacentFlyingMount(S) {
+  return ADJACENT_OFFSETS.some(o => {
+    const cell = S.objects[ENEMY_WIZARD.y + o.y]?.[ENEMY_WIZARD.x + o.x]
+    return cell?.type === 'creature' && cell.owner === 'enemy' && !cell.mount && isFlyingMount(cell.stats)
+  })
+}
+
 function chooseSummon(S) {
   const wiz = ENEMY_WIZARD
 
   if (countOwnMatching(S.objects, () => true) >= MAX_ARMY_SIZE) return null
+
+  const mounted = !!S.objects[wiz.y][wiz.x]?.mount
 
   const pick = pickArmySpell({
     spellbook: ENEMY_SPELLBOOK,
     mana: wiz.current_mana,
     freeTileCount: countFreeSummonTiles(S),
     terrainCounts: S.terrainCounts,
-    wizardMounted: !!S.objects[wiz.y][wiz.x]?.mount,
-    countOwn: (pred) => countOwnMatching(S.objects, pred)
+    wizardMounted: mounted,
+    countOwn: (pred) => countOwnMatching(S.objects, pred),
+    needsFlyingRide: !mounted && !hasAdjacentFlyingMount(S)
   })
 
   return pick ? { kind: 'summon', spell: pick.spell, aimPos: null } : null
