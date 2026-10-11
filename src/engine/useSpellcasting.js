@@ -2,7 +2,7 @@ import { CREATURES } from '../data/creatures.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE, HEALING_RANGE } from './spellCaster.js'
 import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrappedChebyshevDistance, getAreaTiles } from './utils.js'
-import { getMaxAp } from './mounts.js'
+import { getMaxAp, isCurrentlyFlying } from './mounts.js'
 import { applyMagicDamage } from './combat.js'
 import {
   isTileIgnitable as checkTileIgnitable,
@@ -146,6 +146,11 @@ export default function useSpellcasting({
 
   const castSpellForPlayer = (spell) => {
     if (!spell) return
+
+    if (isCurrentlyFlying(objectLayer[playerPosition.y]?.[playerPosition.x])) {
+      alert('You cannot cast spells while flying — land first')
+      return
+    }
 
     if (spell.currentSpellLevel <= 0) {
       alert('This spell is exhausted')

@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
 import { wrap } from './utils.js'
-import { tryMove } from './movement.js'
+import { tryMove, findFlyOverPath } from './movement.js'
 import { PLAYER } from '../data/player.js'
 import { getMovementCost, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { resolveAttack, applyLavaDamage, resolveWallEffectAttack, ATTACK_AP_COST } from './combat.js'
 import { isEnvironmentEffectBlocking, ATTACKABLE_EFFECT_TYPES } from './environmentEffects.js'
-import { isMounted, getMoverStats, getMoverAp, withMoverAp } from './mounts.js'
+import { isMounted, isCurrentlyFlying, getMoverStats, getMoverAp, withMoverAp } from './mounts.js'
 
 function creditKill(result, addScore) {
   if (result.killedOwner === 'enemy' && result.killPoints > 0) addScore(result.killPoints)
@@ -182,7 +182,21 @@ export default function useInput({
 
           const occupant = objectLayer[newY][newX]
 
-          if (occupant !== null) {
+          let hop = null
+
+          if (occupant !== null && moverStats.isFlyingNow && !isCurrentlyFlying(occupant) && (occupant.owner !== 'enemy' || e.shiftKey)) {
+            const crossed = findFlyOverPath(objectLayer, PLAYER.x, PLAYER.y, dx, dy)
+            const hopCost = crossed ? crossed.reduce((sum, t) => sum + getMovementCost(map[t.y][t.x], moverStats), 0) : Infinity
+
+            if (!crossed || moverAp < hopCost) {
+              console.log("Can't fly over that — no free tile beyond, or not enough AP")
+              return
+            }
+
+            hop = { to: crossed[crossed.length - 1], cost: hopCost }
+          }
+
+          if (occupant !== null && !hop) {
             if (occupant.owner === 'enemy') {
               if (moverAp < ATTACK_AP_COST) return
 
@@ -216,7 +230,12 @@ export default function useInput({
           let moved = false
           let mountApAfterMove = moverAp
 
-          if (mounted) {
+          if (hop) {
+            PLAYER.x = hop.to.x
+            PLAYER.y = hop.to.y
+            mountApAfterMove = moverAp - hop.cost
+            moved = true
+          } else if (mounted) {
             const cost = getMovementCost(map[newY][newX], moverStats)
             if (cost < IMPASSABLE_THRESHOLD && moverAp >= cost) {
               PLAYER.x = newX
@@ -348,7 +367,20 @@ export default function useInput({
 
           const occupant = objectLayer[newY][newX]
 
-          if (occupant !== null) {
+          let dest = { x: newX, y: newY }
+          let hopCost = null
+
+          if (occupant !== null && moverStats.isFlyingNow && !isCurrentlyFlying(occupant) && (occupant.owner !== 'enemy' || e.shiftKey)) {
+            const crossed = findFlyOverPath(objectLayer, x, y, dx, dy)
+            const cost = crossed ? crossed.reduce((sum, t) => sum + getMovementCost(map[t.y][t.x], moverStats), 0) : Infinity
+
+            if (!crossed || moverAp < cost) return
+
+            dest = crossed[crossed.length - 1]
+            hopCost = cost
+          }
+
+          if (occupant !== null && hopCost === null) {
             if (occupant.owner === 'enemy') {
               if (moverAp < ATTACK_AP_COST) return
 
@@ -385,24 +417,24 @@ export default function useInput({
             return
           }
 
-          const terrainType = terrainLayer[newY][newX]
-          const cost = getMovementCost(terrainType, moverStats)
+          const terrainType = terrainLayer[dest.y][dest.x]
+          const cost = hopCost ?? getMovementCost(terrainType, moverStats)
 
           if (cost >= IMPASSABLE_THRESHOLD) return
           if (moverAp < cost) return
 
           let updatedLayer = objectLayer.map(row => [...row])
           updatedLayer[y][x] = null
-          updatedLayer[newY][newX] = {
+          updatedLayer[dest.y][dest.x] = {
             ...withMoverAp(creature, moverAp - cost),
-            x: newX,
-            y: newY
+            x: dest.x,
+            y: dest.y
           }
 
           let defeated = false
 
           if (terrainType === 'lava') {
-            const lavaResult = applyLavaDamage(updatedLayer, { x: newX, y: newY })
+            const lavaResult = applyLavaDamage(updatedLayer, { x: dest.x, y: dest.y })
             updatedLayer = lavaResult.objectLayer
             defeated = lavaResult.defeated
           }
@@ -412,8 +444,8 @@ export default function useInput({
           if (defeated) {
             setSelected(null)
           } else {
-            setCursor({ x: newX, y: newY })
-            setSelected({ type: 'creature', x: newX, y: newY })
+            setCursor({ x: dest.x, y: dest.y })
+            setSelected({ type: 'creature', x: dest.x, y: dest.y })
           }
         }
       }

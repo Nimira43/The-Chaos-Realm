@@ -6,6 +6,7 @@ import { resolveAttack, ATTACK_AP_COST } from './combat.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 import { canCarryItem, hasKey, removeFirstKey, isConsumedOnPickup } from './items.js'
 import { ITEM_ACTION_AP_COST } from './useItemActions.js'
+import { canTakeOffFrom } from './useMountActions.js'
 import {
   canRide,
   canFly,
@@ -24,7 +25,6 @@ import { SIGHT_RANGE, chebyshevDist, findNearestPlayerTarget, walkPath } from '.
 import { scanThreat } from './enemyScans.js'
 import { getThreatTier } from './enemyWizardSpells.js'
 
-// How far afield he'll go for keys, loot and weapons.
 export const LOOT_SEARCH_RANGE = 15
 
 const MAX_WIZARD_MOVE_LEGS = 4
@@ -182,7 +182,7 @@ function chooseTravel({ terrainLayer, objectLayer, effectLayer, itemLayer, porta
     return { path: [] }
   }
 
-    if (portalPosition && !alreadyAtPortal) {
+  if (portalPosition && !alreadyAtPortal) {
     const toPortal = attempt([portalPosition])
     if (toPortal.path.length > 0 || toPortal.rideMount) return toPortal
 
@@ -233,7 +233,6 @@ function holdingThreat(objectLayer) {
 export function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effectLayer, itemLayer) {
   const { dist } = findNearestPlayerTarget(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
   const seekingPlayer = dist <= SIGHT_RANGE
-  const holding = getThreatTier(holdingThreat(objectLayer)) !== 'calm'
 
   let currentLayer = objectLayer
   let workingTerrain = terrainLayer
@@ -265,7 +264,8 @@ export function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effec
     }
 
     let wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
-    if (isMounted(wizardCell) && canFly(wizardCell.mount.stats) && !wizardCell.mount.flying && wizardCell.mount.ap >= FLY_TOGGLE_AP_COST) {
+    if (isMounted(wizardCell) && canFly(wizardCell.mount.stats) && !wizardCell.mount.flying && wizardCell.mount.ap >= FLY_TOGGLE_AP_COST &&
+      canTakeOffFrom(workingTerrain[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
       currentLayer = currentLayer.map(row => [...row])
       currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = withMoverAp(withFlying(wizardCell, true), wizardCell.mount.ap - FLY_TOGGLE_AP_COST)
       frames.push(currentLayer)
@@ -281,7 +281,7 @@ export function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effec
       effectLayer,
       itemLayer: workingItems,
       portalPosition,
-      holding
+      holding: getThreatTier(holdingThreat(currentLayer)) !== 'calm'
     })
 
     if (plan.rideMount) {

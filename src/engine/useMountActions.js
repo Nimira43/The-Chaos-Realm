@@ -86,14 +86,23 @@ export function findDismountTile(terrainLayer, objectLayer, effectLayer, x, y, r
   return findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, x, y, cell.mount.stats)
 }
 
-export const NO_LANDING_TERRAIN = ['floor', 'doorLocked', 'doorUnlocked', 'doorOpen']
+export const NO_LANDING_TERRAIN = [
+  'floor', 'wall', 'mountain', 'lava', 'portal',
+  'doorLocked', 'doorUnlocked', 'doorOpen'
+]
+export const NO_TAKEOFF_TERRAIN = ['doorUnlocked', 'lava', 'floor']
 
-export function canLandOn(terrainType, stats) {
+export function canLandOn(terrainType, stats, items) {
   if (NO_LANDING_TERRAIN.includes(terrainType)) return false
+  if (Array.isArray(items) && items.some(i => i?.type === 'key')) return false
   return getMovementCost(terrainType, { ...stats, isFlyingNow: false }) < IMPASSABLE_THRESHOLD
 }
 
-export function getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer) {
+export function canTakeOffFrom(terrainType) {
+  return !NO_TAKEOFF_TERRAIN.includes(terrainType)
+}
+
+export function getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer) {
   const none = { canRide: false, canDismount: false, canFly: false, canLand: false }
   const rider = getSelectedRider(selected, objectLayer)
   if (!rider) return none
@@ -126,8 +135,8 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
 
 
   if (flyer && canFly(flyer.stats)) {
-    if (flyer.flying) canLandFlag = canLandOn(terrainLayer[rider.y][rider.x], flyer.stats) && flyer.ap >= FLY_TOGGLE_AP_COST
-    else canFlyFlag = flyer.ap >= FLY_TOGGLE_AP_COST
+    if (flyer.flying) canLandFlag = canLandOn(terrainLayer[rider.y][rider.x], flyer.stats, itemLayer?.[rider.y]?.[rider.x]) && flyer.ap >= FLY_TOGGLE_AP_COST
+    else canFlyFlag = canTakeOffFrom(terrainLayer[rider.y][rider.x]) && flyer.ap >= FLY_TOGGLE_AP_COST
   }
 
   return {
@@ -138,7 +147,7 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
   }
 }
 
-export default function useMountActions({ terrainLayer, objectLayer, effectLayer, selected, setObjectLayer, setAp }) {
+export default function useMountActions({ terrainLayer, objectLayer, effectLayer, itemLayer, selected, setObjectLayer, setAp }) {
 
   const spendRiderAp = (cost) => {
     if (selected.type === 'player') {
@@ -183,7 +192,7 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
   }
 
   const takeFlight = () => {
-    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer)
+    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer)
     if (!avail.canFly) return
 
     setObjectLayer(prev => {
@@ -199,7 +208,7 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
   }
 
   const land = () => {
-    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer)
+    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer)
     if (!avail.canLand) return
 
     setObjectLayer(prev => {

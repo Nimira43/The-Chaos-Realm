@@ -1,5 +1,6 @@
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { wrap } from './utils.js'
+import { isCurrentlyFlying } from './mounts.js'
 
 export const NEIGHBOUR_OFFSETS = [
   { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
@@ -47,7 +48,7 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, effectLayer, 
     if (visited.has(currentKey)) continue
     visited.add(currentKey)
 
-    if (goalSet.has(currentKey)) {
+    if (goalSet.has(currentKey) && objectLayer[current.y][current.x] === null) {
       const path = []
       let key = currentKey
       while (key !== startKey) {
@@ -66,7 +67,8 @@ export function findPathToNearestGoal({ terrainLayer, objectLayer, effectLayer, 
       const nKey = `${nx},${ny}`
 
       if (visited.has(nKey)) continue
-      if (objectLayer[ny][nx] !== null) continue
+      const occupant = objectLayer[ny][nx]
+      if (occupant !== null && !(entity?.isFlyingNow && !isCurrentlyFlying(occupant))) continue
 
       if (isWallEffectBlocking(effectLayer, nx, ny, entity)) continue
 

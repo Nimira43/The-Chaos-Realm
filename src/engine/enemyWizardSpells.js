@@ -3,7 +3,7 @@ import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { CREATURES } from '../data/creatures.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
 import { applyMagicDamage } from './combat.js'
-import { getMaxAp } from './mounts.js'
+import { getMaxAp, isCurrentlyFlying } from './mounts.js'
 import { pickArmySpell, isFlyingMount } from './enemyArmy.js'
 import { scanThreat, countTerrainAround, listPlayerUnitsInRange, findBestBlast } from './enemyScans.js'
 import {
@@ -76,7 +76,6 @@ function usableSpell(name) {
   if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel) return null
   return spell
 }
-
 
 function chooseHeal(S) {
   const heal = usableSpell('Healing Potion')
@@ -281,6 +280,18 @@ function executeCast(S, { spell, aimPos }) {
 }
 
 export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer) {
+  // Spells are cast from the ground only. (enemyAI.js lands him first when it can.)
+  if (isCurrentlyFlying(objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
+    return {
+      objectLayer,
+      effectLayer,
+      zapEffects: [],
+      frames: [],
+      castCount: 0,
+      startThreat: { total: 0, units: [] }
+    }
+  }
+
   const S = {
     terrain: terrainLayer,
     objects: objectLayer,

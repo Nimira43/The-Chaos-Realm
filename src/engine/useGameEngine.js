@@ -146,12 +146,13 @@ export default function useGameEngine() {
     terrainLayer,
     objectLayer,
     effectLayer,
+    itemLayer,
     selected,
     setObjectLayer,
     setAp
   })
 
-  const mountActionAvailability = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer)
+  const mountActionAvailability = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer)
 
   const info = {
     terrain:

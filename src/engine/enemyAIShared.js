@@ -3,7 +3,7 @@ import { PLAYER } from '../data/player.js'
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap, wrappedManhattanDistance } from './utils.js'
 import { applyLavaDamage } from './combat.js'
-import { canRide, isMounted, mountRider, RIDE_AP_COST } from './mounts.js'
+import { canRide, isMounted, isCurrentlyFlying, mountRider, RIDE_AP_COST } from './mounts.js'
 import { findAdjacentMount } from './useMountActions.js'
 
 export const SIGHT_RANGE = 10
@@ -62,14 +62,36 @@ export function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
   let selfDefeated = false
   const frames = []
 
-  for (const step of path) {
+  for (let i = 0; i < path.length; i++) {
+    let step = path[i]
     if (remainingAp <= 0) break
 
-    const terrainType = terrainLayer[step.y][step.x]
-    const cost = getMovementCost(terrainType, onStep.entity())
+    const entity = onStep.entity()
+    let cost = getMovementCost(terrainLayer[step.y][step.x], entity)
 
-    if (cost > remainingAp) break
-    if (currentLayer[step.y][step.x] !== null) break
+    if (currentLayer[step.y][step.x] !== null) {
+      if (!entity.isFlyingNow) break
+
+      let j = i
+      let total = 0
+      while (j < path.length && currentLayer[path[j].y][path[j].x] !== null) {
+        if (isCurrentlyFlying(currentLayer[path[j].y][path[j].x])) { total = Infinity; break }
+        total += getMovementCost(terrainLayer[path[j].y][path[j].x], entity)
+        j++
+      }
+
+      if (total === Infinity || j >= path.length) break
+      total += getMovementCost(terrainLayer[path[j].y][path[j].x], entity)
+      if (total > remainingAp) break
+
+      step = path[j]
+      cost = total
+      i = j
+    } else if (cost > remainingAp) {
+      break
+    }
+
+    const terrainType = terrainLayer[step.y][step.x]
 
     remainingAp -= cost
     currentLayer = onStep.move(currentLayer, step, remainingAp)
