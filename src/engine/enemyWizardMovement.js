@@ -6,7 +6,7 @@ import { resolveAttack, ATTACK_AP_COST } from './combat.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 import { canCarryItem, hasKey, removeFirstKey, isConsumedOnPickup } from './items.js'
 import { ITEM_ACTION_AP_COST } from './useItemActions.js'
-import { canTakeOffFrom } from './useMountActions.js'
+import { canTakeOffFrom, canLandOn } from './useMountActions.js'
 import {
   canRide,
   canFly,
@@ -56,7 +56,7 @@ function isWantedItem(item) {
   return canCarryItem(ENEMY_WIZARD.carry_limit, ENEMY_WIZARD.inventory, item)
 }
 
-function findLootGoals(itemLayer) {
+function findLootGoals(itemLayer, landable = null) {
   const goals = []
 
   for (let y = 0; y < itemLayer.length; y++) {
@@ -65,6 +65,7 @@ function findLootGoals(itemLayer) {
       if (!items || !items.some(isWantedItem)) continue
       if (x === ENEMY_WIZARD.x && y === ENEMY_WIZARD.y) continue
       if (wrappedChebyshevDistance(ENEMY_WIZARD.x, ENEMY_WIZARD.y, x, y, MAP_WIDTH, MAP_HEIGHT) > LOOT_SEARCH_RANGE) continue
+      if (landable && !canLandOn(landable.terrainLayer[y][x], landable.stats, items)) continue
       goals.push({ x, y })
     }
   }
@@ -200,7 +201,7 @@ function chooseTravel({ terrainLayer, objectLayer, effectLayer, itemLayer, porta
     if (toPlayer.path.length > 0 || toPlayer.rideMount) return toPlayer
   }
 
-  const lootGoals = findLootGoals(itemLayer)
+  const lootGoals = findLootGoals(itemLayer, flying ? { terrainLayer, stats } : null)
   if (lootGoals.length > 0) {
     const toLoot = attempt(lootGoals, { forbidLava: true })
     if (toLoot.path.length > 0 || toLoot.rideMount) return toLoot
@@ -243,7 +244,25 @@ export function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effec
   const frames = []
 
   const runItemActions = () => {
-    const flying = isCurrentlyFlying(currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])
+    let wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+
+    if (isCurrentlyFlying(wizardCell)) {
+      const here = workingItems[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+      const worthLanding =
+        !!wizardCell.mount &&
+        wizardCell.mount.ap >= FLY_TOGGLE_AP_COST &&
+        ENEMY_WIZARD.ap >= ITEM_ACTION_AP_COST &&
+        !!here?.some(isWantedItem) &&
+        canLandOn(workingTerrain[ENEMY_WIZARD.y][ENEMY_WIZARD.x], wizardCell.mount.stats, here)
+
+      if (!worthLanding) return
+
+      currentLayer = currentLayer.map(row => [...row])
+      currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = withMoverAp(withFlying(wizardCell, false), wizardCell.mount.ap - FLY_TOGGLE_AP_COST)
+      frames.push(currentLayer)
+    }
+
+    const flying = false
     const result = performItemActions(workingTerrain, workingItems, flying)
     workingTerrain = result.terrainLayer
     workingItems = result.itemLayer
@@ -348,6 +367,7 @@ export function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effec
     if (adjacency <= 1 && attackAp >= ATTACK_AP_COST) {
       const result = resolveAttack({
         objectLayer: currentLayer,
+        terrainLayer: workingTerrain,
         attackerPos: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
         defenderPos: { x: freshTarget.x, y: freshTarget.y }
       })

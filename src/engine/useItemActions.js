@@ -112,9 +112,7 @@ export function getActionAvailability(selected, terrainLayer, objectLayer, itemL
   if (entity.ap < ITEM_ACTION_AP_COST) return none
 
   const itemsHere = itemLayer[entity.y]?.[entity.x]
-
-  const canPickUp = !!itemsHere && itemsHere.length > 0 && itemsHere.some(item => canPickThisItem(entity, item))
-  
+  const canPickUp = !entity.flying && !!itemsHere && itemsHere.length > 0 && itemsHere.some(item => canPickThisItem(entity, item))
   const door = findAdjacentDoor(terrainLayer, entity.x, entity.y)
   const doorPos = door ? { x: door.x, y: door.y } : null
 
@@ -195,6 +193,7 @@ export default function useItemActions({
   const pickUpItem = () => {
     const entity = getSelectedEntity(selected, objectLayer)
     if (!entity || !entity.useOptions || entity.ap < ITEM_ACTION_AP_COST) return
+    if (entity.flying) return
 
     const itemsHere = itemLayer[entity.y]?.[entity.x]
     if (!itemsHere || itemsHere.length === 0) return
@@ -303,7 +302,7 @@ export default function useItemActions({
     const target = objectLayer[aimPos.y]?.[aimPos.x]
     if (!target || target.owner !== 'enemy') return
 
-    const result = resolveAttack({ objectLayer, attackerPos: { x: PLAYER.x, y: PLAYER.y }, defenderPos: aimPos })
+    const result = resolveAttack({ objectLayer, terrainLayer, attackerPos: { x: PLAYER.x, y: PLAYER.y }, defenderPos: aimPos })
     if (result.blocked) return
 
     setObjectLayer(result.objectLayer)
@@ -329,6 +328,7 @@ export default function useItemActions({
 
     const result = resolveThrownWeaponAttack({
       objectLayer,
+      terrainLayer,
       defenderPos: aimPos,
       throwerCombat: PLAYER.combat,
       thrownCombat: item.thrown,

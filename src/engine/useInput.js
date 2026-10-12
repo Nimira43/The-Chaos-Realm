@@ -7,6 +7,12 @@ import { resolveAttack, applyLavaDamage, resolveWallEffectAttack, ATTACK_AP_COST
 import { isEnvironmentEffectBlocking, ATTACKABLE_EFFECT_TYPES } from './environmentEffects.js'
 import { isMounted, isCurrentlyFlying, getMoverStats, getMoverAp, withMoverAp } from './mounts.js'
 
+function blockedMessage(reason, who) {
+  if (reason === 'target-airborne') return who ? `${who} can't reach that target — it's flying!` : 'Out of reach — that target is flying!'
+  if (reason === 'target-on-floor') return 'Nothing can attack a unit standing on a floor tile!'
+  return who ? `${who} cannot harm the undead with a normal attack!` : 'Normal attacks cannot harm the undead!'
+}
+
 function creditKill(result, addScore) {
   if (result.killedOwner === 'enemy' && result.killPoints > 0) addScore(result.killPoints)
 }
@@ -130,15 +136,14 @@ export default function useInput({
 
                 const result = resolveAttack({
                   objectLayer,
+                  terrainLayer,
                   attackerPos: { x: PLAYER.x, y: PLAYER.y },
                   defenderPos: { x: newX, y: newY }
                 })
 
                 if (result.blocked) {
                   console.log(
-                    result.blockedReason === 'target-airborne'
-                      ? 'Out of reach — that target is flying!'
-                      : 'Normal attacks cannot harm the undead!'
+                    blockedMessage(result.blockedReason, null)
                   )
                   return
                 }
@@ -202,15 +207,14 @@ export default function useInput({
 
               const result = resolveAttack({
                 objectLayer,
+                terrainLayer,
                 attackerPos: { x: PLAYER.x, y: PLAYER.y },
                 defenderPos: { x: newX, y: newY }
               })
 
               if (result.blocked) {
                 console.log(
-                  result.blockedReason === 'target-airborne'
-                    ? 'Out of reach — that target is flying!'
-                    : 'Normal attacks cannot harm the undead!'
+                  blockedMessage(result.blockedReason, null)
                 )
                 return
               }
@@ -307,15 +311,14 @@ export default function useInput({
 
                 const result = resolveAttack({
                   objectLayer,
+                  terrainLayer,
                   attackerPos: { x, y },
                   defenderPos: { x: newX, y: newY }
                 })
 
                 if (result.blocked) {
                   console.log(
-                    result.blockedReason === 'target-airborne'
-                      ? `${creature.name} can't reach that target — it's flying!`
-                      : `${creature.name} cannot harm the undead with a normal attack!`
+                    blockedMessage(result.blockedReason, creature.name)
                   )
                   return
                 }
@@ -386,15 +389,14 @@ export default function useInput({
 
               const result = resolveAttack({
                 objectLayer,
+                terrainLayer,
                 attackerPos: { x, y },
                 defenderPos: { x: newX, y: newY }
               })
 
               if (result.blocked) {
                 console.log(
-                  result.blockedReason === 'target-airborne'
-                    ? `${creature.name} can't reach that target — it's flying!`
-                    : `${creature.name} cannot harm the undead with a normal attack!`
+                  blockedMessage(result.blockedReason, creature.name)
                 )
                 return
               }

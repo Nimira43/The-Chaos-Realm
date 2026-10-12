@@ -2,6 +2,13 @@ import { PLAYER } from '../data/player.js'
 import { scarWallEffectDestroyedTile } from './environmentEffects.js'
 
 export const ATTACK_AP_COST = 2
+export const FLOOR_SHIELD_FROM = 'fliers'
+
+function isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, attackerProfile) {
+  if (!terrainLayer || defenderProfile.flying) return false
+  if (terrainLayer[defenderPos.y]?.[defenderPos.x] !== 'floor') return false
+  return FLOOR_SHIELD_FROM === 'all' || !!attackerProfile?.flying
+}
 
 const DAMAGE_ROLL_MAX = 6
 const LAVA_DAMAGE_PERCENT = 0.10
@@ -197,7 +204,7 @@ function applyDamageToCell(objectLayer, pos, damage) {
   }
 }
 
-export function resolveThrownWeaponAttack({ objectLayer, defenderPos, throwerCombat, thrownCombat, bypassUndead }) {
+export function resolveThrownWeaponAttack({ objectLayer, terrainLayer, defenderPos, throwerCombat, thrownCombat, bypassUndead }) {
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
 
   if (!defenderCell) {
@@ -217,6 +224,17 @@ export function resolveThrownWeaponAttack({ objectLayer, defenderPos, throwerCom
       defenderType: defenderCell.type,
       blocked: true,
       blockedReason: 'target-airborne'
+    }
+  }
+
+  if (isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, null)) {
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: defenderCell.type,
+      blocked: true,
+      blockedReason: 'target-on-floor'
     }
   }
 
@@ -245,7 +263,7 @@ export function resolveThrownWeaponAttack({ objectLayer, defenderPos, throwerCom
   }
 }
 
-export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
+export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defenderPos }) {
   const attackerCell = objectLayer[attackerPos.y][attackerPos.x]
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
 
@@ -280,6 +298,17 @@ export function resolveAttack({ objectLayer, attackerPos, defenderPos }) {
       defenderType: defenderCell.type,
       blocked: true,
       blockedReason: 'target-airborne'
+    }
+  }
+
+  if (isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, attackerProfile)) {
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: defenderCell.type,
+      blocked: true,
+      blockedReason: 'target-on-floor'
     }
   }
 

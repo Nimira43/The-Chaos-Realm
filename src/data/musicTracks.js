@@ -4,4 +4,11 @@ export const MUSIC_TRACKS = [
   '/music/Track-03.mp3',
   '/music/Track-04.mp3',
   '/music/Track-05.mp3',
+  '/music/Track-06.mp3',
+  '/music/Track-07.mp3',
+  '/music/Track-08.mp3',
+  '/music/Track-09.mp3',
+  '/music/Track-10.mp3',
+  '/music/Track-11.mp3',
+  '/music/Track-12.mp3',
 ]

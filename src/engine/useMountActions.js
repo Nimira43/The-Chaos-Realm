@@ -90,7 +90,7 @@ export const NO_LANDING_TERRAIN = [
   'floor', 'wall', 'mountain', 'lava', 'portal',
   'doorLocked', 'doorUnlocked', 'doorOpen'
 ]
-export const NO_TAKEOFF_TERRAIN = ['doorUnlocked', 'lava', 'floor']
+export const NO_TAKEOFF_TERRAIN = ['doorLocked', 'doorUnlocked', 'doorOpen', 'lava', 'floor']
 
 export function canLandOn(terrainType, stats, items) {
   if (NO_LANDING_TERRAIN.includes(terrainType)) return false
