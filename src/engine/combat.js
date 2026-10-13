@@ -469,3 +469,4 @@ export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCom
     destroyed
   }
 }
+

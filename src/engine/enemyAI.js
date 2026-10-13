@@ -3,6 +3,7 @@ import { RIDE_AP_COST, FLY_TOGGLE_AP_COST, isCurrentlyFlying, withFlying, withMo
 import { canLandOn } from './useMountActions.js'
 import { moveEnemyWizard } from './enemyWizardMovement.js'
 import { castEnemyWizardSpells } from './enemyWizardSpells.js'
+import { runEnemyWizardRanged } from './enemyWizardRanged.js'
 import { runEnemyCreaturesAI } from './enemyCreatures.js'
 
 export { runEnemyCreaturesAI }
@@ -72,12 +73,14 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
     ? castEnemyWizardSpells(first.terrainLayer, landing.objectLayer, effectLayer)
     : { objectLayer: landing.objectLayer, effectLayer, zapEffects: [], frames: [] }
 
+  const ranged = runEnemyWizardRanged(first.terrainLayer, cast.objectLayer, first.itemLayer)
+
   const second = moveEnemyWizard(
     first.terrainLayer,
-    cast.objectLayer,
+    ranged.objectLayer,
     portalPosition,
     cast.effectLayer,
-    first.itemLayer
+    ranged.itemLayer
   )
 
   return {
@@ -88,8 +91,8 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
     zapEffects: cast.zapEffects,
     moved: first.moved || second.moved,
     position: second.position ?? first.position,
-    defeatedTarget: second.defeatedTarget ?? first.defeatedTarget,
+    defeatedTarget: second.defeatedTarget ?? ranged.defeatedTarget ?? first.defeatedTarget,
     selfDefeated: second.selfDefeated,
-    frames: [...first.frames, ...landing.frames, ...cast.frames, ...second.frames]
+    frames: [...first.frames, ...landing.frames, ...cast.frames, ...ranged.frames, ...second.frames]
   }
 }
