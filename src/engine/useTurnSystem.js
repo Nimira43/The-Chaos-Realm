@@ -208,8 +208,10 @@ export default function useTurnSystem({
       }
     }
 
-    const creatureResult = runEnemyCreaturesAI(workingTerrain, workingLayer, workingEffectLayer)
+    const creatureResult = runEnemyCreaturesAI(workingTerrain, workingLayer, workingEffectLayer, workingItemLayer, activePortalPosition)
     workingLayer = creatureResult.objectLayer
+    workingTerrain = creatureResult.terrainLayer
+    workingItemLayer = creatureResult.itemLayer
     frames = frames.concat(creatureResult.frames)
 
     if (!newStatus && creatureResult.defeatedTargets.includes('player')) {

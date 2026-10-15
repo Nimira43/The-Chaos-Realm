@@ -37,6 +37,27 @@ export function findNearestPlayerTarget(objectLayer, originX, originY) {
   }
 }
 
+export function listPlayerTargets(objectLayer, originX, originY) {
+  const targets = []
+
+  for (let y = 0; y < objectLayer.length; y++) {
+    for (let x = 0; x < objectLayer[y].length; x++) {
+      const cell = objectLayer[y][x]
+      if (!cell) continue
+      const isTarget = cell.type === 'player' || (cell.type === 'creature' && cell.owner === 'player')
+      if (!isTarget) continue
+
+      targets.push({
+        x, y,
+        type: cell.type,
+        dist: wrappedManhattanDistance(originX, originY, x, y, MAP_WIDTH, MAP_HEIGHT)
+      })
+    }
+  }
+
+  return targets.sort((a, b) => a.dist - b.dist)
+}
+
 export function pickWanderTarget(originX, originY, terrainLayer, objectLayer, entity) {
   for (let i = 0; i < WANDER_ATTEMPTS; i++) {
     const dx = Math.floor(Math.random() * (WANDER_RADIUS * 2 + 1)) - WANDER_RADIUS

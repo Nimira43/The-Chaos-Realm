@@ -263,6 +263,20 @@ export function resolveThrownWeaponAttack({ objectLayer, terrainLayer, defenderP
   }
 }
 
+function getBlockReason(attackerProfile, defenderProfile, terrainLayer, defenderPos) {
+  if (defenderProfile.flying && !attackerProfile.flying) return 'target-airborne'
+  if (isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, attackerProfile)) return 'target-on-floor'
+  if (defenderProfile.undead && !attackerProfile.undead && !attackerProfile.attackUndead) return 'undead-immune'
+  return null
+}
+
+export function getAttackBlockReason({ objectLayer, terrainLayer, attackerPos, defenderPos }) {
+  const attackerProfile = getCombatProfile(objectLayer[attackerPos.y][attackerPos.x])
+  const defenderProfile = getCombatProfile(objectLayer[defenderPos.y][defenderPos.x])
+  if (!attackerProfile || !defenderProfile) return null
+  return getBlockReason(attackerProfile, defenderProfile, terrainLayer, defenderPos)
+}
+
 export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defenderPos }) {
   const attackerCell = objectLayer[attackerPos.y][attackerPos.x]
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
@@ -290,36 +304,15 @@ export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defender
     }
   }
 
-  if (defenderProfile.flying && !attackerProfile.flying) {
+  const blockedReason = getBlockReason(attackerProfile, defenderProfile, terrainLayer, defenderPos)
+  if (blockedReason) {
     return {
       objectLayer,
       damage: 0,
       defeated: false,
       defenderType: defenderCell.type,
       blocked: true,
-      blockedReason: 'target-airborne'
-    }
-  }
-
-  if (isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, attackerProfile)) {
-    return {
-      objectLayer,
-      damage: 0,
-      defeated: false,
-      defenderType: defenderCell.type,
-      blocked: true,
-      blockedReason: 'target-on-floor'
-    }
-  }
-
-  if (defenderProfile.undead && !attackerProfile.undead && !attackerProfile.attackUndead) {
-    return {
-      objectLayer,
-      damage: 0,
-      defeated: false,
-      defenderType: defenderCell.type,
-      blocked: true,
-      blockedReason: 'undead-immune'
+      blockedReason
     }
   }
 
@@ -469,4 +462,3 @@ export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCom
     destroyed
   }
 }
-
