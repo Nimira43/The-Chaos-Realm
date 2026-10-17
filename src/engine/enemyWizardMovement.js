@@ -1,6 +1,7 @@
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
-import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
+import { MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD, getMovementCost } from './terrain.js'
+import { isSealedIn } from './enemyEscape.js'
 import { wrap, wrappedChebyshevDistance } from './utils.js'
 import { resolveAttack, ATTACK_AP_COST } from './combat.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
@@ -84,6 +85,28 @@ function findAdjacentOwnMounts(objectLayer) {
   }
 
   return found
+}
+
+function findLiftOffStep(terrainLayer, objectLayer, effectLayer, itemLayer, wizardCell) {
+  if (!isMounted(wizardCell) || !canFly(wizardCell.mount.stats) || wizardCell.mount.flying) return null
+  if (canTakeOffFrom(terrainLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) return null
+  if (!isSealedIn(terrainLayer, objectLayer, itemLayer)) return null
+
+  const groundStats = { ...wizardCell.mount.stats, isFlyingNow: false }
+
+  for (const tile of getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y)) {
+    const terrain = terrainLayer[tile.y][tile.x]
+    if (terrain === 'portal' || !canTakeOffFrom(terrain)) continue
+    if (objectLayer[tile.y][tile.x] || effectLayer[tile.y][tile.x]) continue
+
+    const cost = getMovementCost(terrain, groundStats)
+    if (cost >= IMPASSABLE_THRESHOLD) continue
+    if (wizardCell.mount.ap < cost + FLY_TOGGLE_AP_COST) continue
+
+    return tile
+  }
+
+  return null
 }
 
 function pickBestFlyingMount(objectLayer) {
@@ -294,7 +317,9 @@ export function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effec
     const mounted = isMounted(wizardCell)
     const moverStats = getMoverStats(wizardCell, ENEMY_WIZARD)
 
-    const plan = chooseTravel({
+    const liftOffStep = findLiftOffStep(workingTerrain, currentLayer, effectLayer, workingItems, wizardCell)
+
+    const plan = liftOffStep ? { path: [liftOffStep] } : chooseTravel({
       terrainLayer: workingTerrain,
       objectLayer: currentLayer,
       effectLayer,

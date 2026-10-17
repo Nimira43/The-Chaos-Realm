@@ -3,7 +3,9 @@ import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { CREATURES } from '../data/creatures.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
 import { applyMagicDamage } from './combat.js'
-import { getMaxAp, isCurrentlyFlying } from './mounts.js'
+import { getMaxAp, canFly, isCurrentlyFlying } from './mounts.js'
+import { canTakeOffFrom } from './useMountActions.js'
+import { isSealedIn } from './enemyEscape.js'
 import { pickArmySpell, isFlyingMount } from './enemyArmy.js'
 import { scanThreat, countTerrainAround, listPlayerUnitsInRange, findBestBlast } from './enemyScans.js'
 import {
@@ -164,6 +166,47 @@ function chooseZap(S, tier) {
   return null
 }
 
+const ESCAPE_WATCH_RADIUS = 3
+
+function hasPendingEscapeEffect(S) {
+  for (let dy = -ESCAPE_WATCH_RADIUS; dy <= ESCAPE_WATCH_RADIUS; dy++) {
+    for (let dx = -ESCAPE_WATCH_RADIUS; dx <= ESCAPE_WATCH_RADIUS; dx++) {
+      const y = (ENEMY_WIZARD.y + dy + S.effects.length) % S.effects.length
+      const x = (ENEMY_WIZARD.x + dx + S.effects[0].length) % S.effects[0].length
+      const e = S.effects[y][x]
+      if (e && (e.type === 'fire' || e.type === 'blob') && e.owner === 'enemy') return true
+    }
+  }
+  return false
+}
+
+function chooseEscape(S) {
+  const wiz = ENEMY_WIZARD
+  const cell = S.objects[wiz.y][wiz.x]
+
+  if (isCurrentlyFlying(cell)) return null
+
+  const flierToHand = (!!cell?.mount && canFly(cell.mount.stats)) || hasAdjacentFlyingMount(S)
+  if (flierToHand && canTakeOffFrom(S.terrain[wiz.y][wiz.x])) return null
+
+  if (!isSealedIn(S.terrain, S.objects, S.items)) return null
+  if (hasPendingEscapeEffect(S)) return null
+
+  const fire = usableSpell('Magic Fire')
+  const blob = usableSpell('Gooey Blob')
+  const canFire = fire && hasValidAdjacentTile(t => checkTileIgnitable(S.terrain, S.effects, t.x, t.y))
+  const canBlob = blob && hasValidAdjacentTile(t => checkTileSpreadableForBlob(S.terrain, S.effects, t.x, t.y))
+
+  const penned = ADJACENT_OFFSETS.some(o =>
+    ['water', 'swamp', 'rock'].includes(S.terrain[ENEMY_WIZARD.y + o.y]?.[ENEMY_WIZARD.x + o.x]))
+
+  if (canBlob && (penned || !canFire)) return { kind: 'escape', spell: blob, aimPos: null }
+  if (canFire) return { kind: 'escape', spell: fire, aimPos: null }
+  if (canBlob) return { kind: 'escape', spell: blob, aimPos: null }
+
+  return null
+}
+
 function hasAdjacentFlyingMount(S) {
   return ADJACENT_OFFSETS.some(o => {
     const cell = S.objects[ENEMY_WIZARD.y + o.y]?.[ENEMY_WIZARD.x + o.x]
@@ -279,7 +322,7 @@ function executeCast(S, { spell, aimPos }) {
   S.frames.push(S.objects)
 }
 
-export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer) {
+export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer, itemLayer = null) {
   // Spells are cast from the ground only. (enemyAI.js lands him first when it can.)
   if (isCurrentlyFlying(objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
     return {
@@ -296,6 +339,7 @@ export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer) {
     terrain: terrainLayer,
     objects: objectLayer,
     effects: effectLayer,
+    items: itemLayer,
     zapEffects: [],
     frames: [],
     casts: 0,
@@ -311,6 +355,7 @@ export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer) {
 
     let action = chooseHeal(S)
     if (!action && tier !== 'calm' && zaps < MAX_ZAPS_PER_TURN) action = chooseZap(S, tier)
+    if (!action) action = chooseEscape(S)
     if (!action) action = chooseSummon(S)
     if (!action) break
 

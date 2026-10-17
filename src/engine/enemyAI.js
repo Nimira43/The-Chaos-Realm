@@ -70,7 +70,7 @@ export function runEnemyWizardAI(terrainLayer, objectLayer, portalPosition, effe
   const landing = landToCast(first.terrainLayer, first.objectLayer, first.itemLayer)
 
   const cast = landing.grounded
-    ? castEnemyWizardSpells(first.terrainLayer, landing.objectLayer, effectLayer)
+    ? castEnemyWizardSpells(first.terrainLayer, landing.objectLayer, effectLayer, first.itemLayer)
     : { objectLayer: landing.objectLayer, effectLayer, zapEffects: [], frames: [] }
 
   const ranged = runEnemyWizardRanged(first.terrainLayer, cast.objectLayer, first.itemLayer)

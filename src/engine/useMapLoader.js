@@ -6,6 +6,7 @@ import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { SPELLBOOK, resetSpellbook } from '../data/spellbook.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { createKeyItem, placeRandomPickups } from './items.js'
+import { pickWizardStarts } from './wizardStarts.js'
 
 const SPAWN_TERRAIN_EXCLUDED = ['mountain', 'wall', 'lava', 'water', 'doorLocked', 'doorUnlocked']
 
@@ -74,8 +75,10 @@ export default function useMapLoader({
     resetSpellbook(SPELLBOOK)
     resetSpellbook(ENEMY_SPELLBOOK)
 
-    PLAYER.x = 16
-    PLAYER.y = 16
+    const starts = pickWizardStarts(generated)
+
+    PLAYER.x = starts.player.x
+    PLAYER.y = starts.player.y
     PLAYER.ap = PLAYER.max_ap
     PLAYER.current_mana = PLAYER.max_mana
     PLAYER.current_health = PLAYER.constitution
@@ -88,8 +91,8 @@ export default function useMapLoader({
       owner: 'player'
     }
 
-    ENEMY_WIZARD.x = 20
-    ENEMY_WIZARD.y = 20
+    ENEMY_WIZARD.x = starts.enemy.x
+    ENEMY_WIZARD.y = starts.enemy.y
     ENEMY_WIZARD.ap = ENEMY_WIZARD.max_ap
     ENEMY_WIZARD.current_mana = ENEMY_WIZARD.max_mana
     ENEMY_WIZARD.current_health = ENEMY_WIZARD.constitution
