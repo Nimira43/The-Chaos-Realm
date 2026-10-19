@@ -153,7 +153,7 @@
     "water",
     "water",
     "water",
-    "mountain",
+    "doorLocked",
     "floor",
     "floor",
     "mountain",
@@ -306,7 +306,7 @@
     "rough"
   ],
   [
-    "key",
+    "rough",
     "lava",
     "lava",
     "lava",
@@ -471,7 +471,7 @@
     "mountain",
     "mountain",
     "mountain",
-    "wall",
+    "mountain",
     "mountain",
     "rough"
   ],
@@ -910,10 +910,10 @@
     "grass",
     "grass",
     "grass",
-    "grass",
+    "doorUnlocked",
     "floor",
     "floor",
-    "floor",
+    "key",
     "mountain",
     "grass"
   ],

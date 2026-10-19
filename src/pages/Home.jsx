@@ -1,9 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-// Link to HomePage.mp4 to go here...
-
 const VIDEO_DOWNLOAD_URL = null
+
+const MENU = [
+  { to: '/game', title: 'Game Engine', sub: 'Race the enemy wizard to the portal' },
+  { to: '/map-editor', title: 'Map Editor', sub: 'Paint your own battlegrounds' },
+  { to: '/wizard-editor', title: 'Wizard Editor', sub: 'Shape spellbooks and stats' }
+]
 
 export default function Home() {
   const [videoFailed, setVideoFailed] = useState(false)
@@ -25,30 +29,26 @@ export default function Home() {
       <div className='home-overlay' />
 
       <div className='home-content'>
-        <h1 className='home-logo'>
-          The Chaos Realm
-        </h1>
+        <h1 className='home-logo'>The Chaos Realm</h1>
+        <p className='home-tagline'>Summon. Conquer. Vanquish.</p>
 
-        <div className='home-wrapper'>
-          <Link to='/game'>
-            <button className='home-btn'>
-              Game Engine
-            </button>
-          </Link>
-          <Link to='/map-editor'>
-            <button className='home-btn'>
-              Map Editor
-            </button>
-          </Link>
-          <Link to='/wizard-editor'>
-            <button className='home-btn'>
-              Wizard Editor
-            </button>
-          </Link>
-        </div>
+        <nav className='home-wrapper'>
+          {MENU.map(item => (
+            <Link key={item.to} to={item.to}>
+              <button className='home-btn'>
+                {item.title}
+                <span className='home-btn-sub'>{item.sub}</span>
+              </button>
+            </Link>
+          ))}
+        </nav>
 
         {videoFailed && VIDEO_DOWNLOAD_URL && (
-          <a className='home-video-download' href={VIDEO_DOWNLOAD_URL} target='_blank' rel='noreferrer'>
+          <a
+            className='home-video-download'
+            href={VIDEO_DOWNLOAD_URL}
+            target='_blank' rel='noreferrer'
+          >
             Get the background video
           </a>
         )}
@@ -56,33 +56,3 @@ export default function Home() {
     </div>
   )
 }
-
-
-// import { Link } from 'react-router-dom'
-
-// export default function Home() {
-//   return (
-//     <div className='home-container'>
-//       <h1 className='home-logo'>
-//         The Chaos Realm
-//       </h1>
-//       <div className='home-wrapper'>
-//         <Link to='/game'>
-//           <button className='home-btn'>
-//             Game Engine
-//           </button>
-//         </Link>
-//         <Link to='/map-editor'>
-//           <button className='home-btn'>
-//             Map Editor
-//           </button>
-//         </Link>
-//         <Link to='/wizard-editor'>
-//           <button className='home-btn'>
-//             Wizard Editor
-//           </button>
-//         </Link>
-//       </div>
-//     </div>
-//   )
-// }
