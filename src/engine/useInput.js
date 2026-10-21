@@ -9,7 +9,7 @@ import { isMounted, isCurrentlyFlying, getMoverStats, getMoverAp, withMoverAp } 
 
 function blockedMessage(reason, who) {
   if (reason === 'target-airborne') return who ? `${who} can't reach that target — it's flying!` : 'Out of reach — that target is flying!'
-  if (reason === 'target-on-floor') return 'Nothing can attack a unit standing on a floor tile!'
+  if (reason === 'target-on-floor') return "Fliers can't reach a unit standing on a floor or a door!"
   return who ? `${who} cannot harm the undead with a normal attack!` : 'Normal attacks cannot harm the undead!'
 }
 
@@ -278,7 +278,7 @@ export default function useInput({
             setCursor(newPos)
             setPlayerPosition(newPos)
 
-            if (terrainLayer[newPos.y][newPos.x] === 'portal') {
+            if (terrainLayer[newPos.y][newPos.x] === 'portal' && !moverStats.isFlyingNow) {
               setGameStatus('won')
               setGameOverMessage('You reached the portal! Victory!')
             }
@@ -479,3 +479,4 @@ export default function useInput({
     addScore
   ])
 }
+

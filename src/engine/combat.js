@@ -4,9 +4,11 @@ import { scarWallEffectDestroyedTile } from './environmentEffects.js'
 export const ATTACK_AP_COST = 2
 export const FLOOR_SHIELD_FROM = 'fliers'
 
+const SHIELDING_TERRAIN = ['floor', 'doorLocked', 'doorUnlocked', 'doorOpen']
+
 function isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, attackerProfile) {
   if (!terrainLayer || defenderProfile.flying) return false
-  if (terrainLayer[defenderPos.y]?.[defenderPos.x] !== 'floor') return false
+  if (!SHIELDING_TERRAIN.includes(terrainLayer[defenderPos.y]?.[defenderPos.x])) return false
   return FLOOR_SHIELD_FROM === 'all' || !!attackerProfile?.flying
 }
 
@@ -462,3 +464,4 @@ export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCom
     destroyed
   }
 }
+

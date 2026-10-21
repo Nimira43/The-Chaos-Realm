@@ -24,11 +24,13 @@ import {
 } from './mounts.js'
 import { SIGHT_RANGE, chebyshevDist, findNearestPlayerTarget, walkPath } from './enemyAIShared.js'
 import { scanThreat } from './enemyScans.js'
+import { findWalkInLandings, isOnWalkInGround } from './enemyPortalRoute.js'
 import { getThreatTier } from './enemyWizardSpells.js'
 
 export const LOOT_SEARCH_RANGE = 15
 
 const MAX_WIZARD_MOVE_LEGS = 4
+
 const SEARCH_LIMIT = 3500
 
 function findTerrainTiles(terrainLayer, states) {
@@ -161,6 +163,10 @@ function performItemActions(terrainLayer, itemLayer, flying) {
   return { terrainLayer: workingTerrain, itemLayer: workingItems }
 }
 
+function countKeys(inventory) {
+  return (inventory || []).filter(i => i.type === 'key').length
+}
+
 function findKeyAndDoorPath(pathArgs, terrainLayer, itemLayer, within = Infinity) {
   const doorStates = hasKey(ENEMY_WIZARD.inventory) ? ['doorLocked', 'doorUnlocked'] : ['doorUnlocked']
   const doorGoals = findTerrainTiles(terrainLayer, doorStates)
@@ -182,7 +188,8 @@ function chooseTravel({ terrainLayer, objectLayer, effectLayer, itemLayer, porta
   const cell = objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
   const stats = getMoverStats(cell, ENEMY_WIZARD)
   const flying = stats.isFlyingNow
-  const alreadyAtPortal = portalPosition && ENEMY_WIZARD.x === portalPosition.x && ENEMY_WIZARD.y === portalPosition.y
+  // Nobody can land on the portal, so hovering over it doesn't count as being there.
+  const alreadyAtPortal = !flying && portalPosition && ENEMY_WIZARD.x === portalPosition.x && ENEMY_WIZARD.y === portalPosition.y
 
   const pathArgs = {
     terrainLayer, objectLayer, effectLayer,
@@ -206,7 +213,21 @@ function chooseTravel({ terrainLayer, objectLayer, effectLayer, itemLayer, porta
     return { path: [] }
   }
 
-  if (portalPosition && !alreadyAtPortal) {
+  if (portalPosition && !alreadyAtPortal && flying) {
+    const landings = getAdjacentTiles(portalPosition.x, portalPosition.y).filter(t =>
+      !objectLayer[t.y][t.x] && canLandOn(terrainLayer[t.y][t.x], stats, itemLayer?.[t.y]?.[t.x]))
+
+    if (landings.length > 0) {
+      const toLanding = attempt(landings)
+      if (toLanding.path.length > 0) return toLanding
+    }
+
+    const walkIns = findWalkInLandings(terrainLayer, objectLayer, itemLayer, { ...stats, isFlyingNow: false }, portalPosition, countKeys(ENEMY_WIZARD.inventory))
+    if (walkIns.length > 0) {
+      const toWalkIn = attempt(walkIns)
+      if (toWalkIn.path.length > 0) return toWalkIn
+    }
+  } else if (portalPosition && !alreadyAtPortal) {
     const toPortal = attempt([portalPosition])
     if (toPortal.path.length > 0 || toPortal.rideMount) return toPortal
 
@@ -306,7 +327,34 @@ export function moveEnemyWizard(terrainLayer, objectLayer, portalPosition, effec
     }
 
     let wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
-    if (isMounted(wizardCell) && canFly(wizardCell.mount.stats) && !wizardCell.mount.flying && wizardCell.mount.ap >= FLY_TOGGLE_AP_COST &&
+    const besidePortal = portalPosition &&
+      wrappedChebyshevDistance(ENEMY_WIZARD.x, ENEMY_WIZARD.y, portalPosition.x, portalPosition.y, MAP_WIDTH, MAP_HEIGHT) === 1
+
+    if (besidePortal && isCurrentlyFlying(wizardCell) && wizardCell.mount &&
+      wizardCell.mount.ap >= FLY_TOGGLE_AP_COST + 1 &&
+      canLandOn(workingTerrain[ENEMY_WIZARD.y][ENEMY_WIZARD.x], wizardCell.mount.stats, workingItems[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
+      currentLayer = currentLayer.map(row => [...row])
+      currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = withMoverAp(withFlying(wizardCell, false), wizardCell.mount.ap - FLY_TOGGLE_AP_COST)
+      frames.push(currentLayer)
+      wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+    }
+
+    const groundStats = wizardCell.mount ? { ...wizardCell.mount.stats, isFlyingNow: false } : null
+    let inWalkRegion = false
+    const portalHasLanding = portalPosition && groundStats && getAdjacentTiles(portalPosition.x, portalPosition.y).some(t =>
+      canLandOn(workingTerrain[t.y][t.x], wizardCell.mount.stats, null))
+    if (portalPosition && groundStats && !besidePortal && !portalHasLanding) {
+      inWalkRegion = isOnWalkInGround(workingTerrain, workingItems, groundStats, { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y }, portalPosition, countKeys(ENEMY_WIZARD.inventory))
+    }
+    if (inWalkRegion && isCurrentlyFlying(wizardCell) && wizardCell.mount.ap >= FLY_TOGGLE_AP_COST + 1 &&
+      canLandOn(workingTerrain[ENEMY_WIZARD.y][ENEMY_WIZARD.x], wizardCell.mount.stats, workingItems[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
+      currentLayer = currentLayer.map(row => [...row])
+      currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = withMoverAp(withFlying(wizardCell, false), wizardCell.mount.ap - FLY_TOGGLE_AP_COST)
+      frames.push(currentLayer)
+      wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+    }
+
+    if (!besidePortal && !inWalkRegion && isMounted(wizardCell) && canFly(wizardCell.mount.stats) && !wizardCell.mount.flying && wizardCell.mount.ap >= FLY_TOGGLE_AP_COST &&
       canTakeOffFrom(workingTerrain[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
       currentLayer = currentLayer.map(row => [...row])
       currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = withMoverAp(withFlying(wizardCell, true), wizardCell.mount.ap - FLY_TOGGLE_AP_COST)

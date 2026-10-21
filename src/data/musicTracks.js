@@ -11,4 +11,7 @@ export const MUSIC_TRACKS = [
   '/music/Track-10.mp3',
   '/music/Track-11.mp3',
   '/music/Track-12.mp3',
+  '/music/Track-13.mp3',
+  '/music/Track-14.mp3',
+  '/music/Track-15.mp3',
 ]

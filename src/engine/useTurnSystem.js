@@ -3,6 +3,7 @@ import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
 import { terrainCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
+import { isCurrentlyFlying } from './mounts.js'
 
 export const MAX_ROUNDS = 30
 export const PORTAL_TURN = Math.round(MAX_ROUNDS * 2 / 3)
@@ -159,10 +160,11 @@ export default function useTurnSystem({
         activePortalPosition = spawnTile
         setPortalPosition(spawnTile)
 
-        if (PLAYER.x === spawnTile.x && PLAYER.y === spawnTile.y) {
+        if (PLAYER.x === spawnTile.x && PLAYER.y === spawnTile.y && !isCurrentlyFlying(workingLayer[PLAYER.y][PLAYER.x])) {
           newStatus = 'won'
           newMessage = 'The portal opened beneath your feet — victory!'
-        } else if (enemyPosition && ENEMY_WIZARD.x === spawnTile.x && ENEMY_WIZARD.y === spawnTile.y) {
+        } else if (enemyPosition && ENEMY_WIZARD.x === spawnTile.x && ENEMY_WIZARD.y === spawnTile.y &&
+          !isCurrentlyFlying(workingLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
           newStatus = 'lost'
           newMessage = 'The portal opened beneath the enemy wizard — you lose.'
         }
@@ -201,7 +203,8 @@ export default function useTurnSystem({
         !wizardResult.selfDefeated &&
         activePortalPosition &&
         ENEMY_WIZARD.x === activePortalPosition.x &&
-        ENEMY_WIZARD.y === activePortalPosition.y
+        ENEMY_WIZARD.y === activePortalPosition.y &&
+        !isCurrentlyFlying(workingLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])
       ) {
         newStatus = 'lost'
         newMessage = 'The enemy wizard reached the portal first — you lose.'
@@ -269,3 +272,4 @@ export default function useTurnSystem({
 
   return endTurn
 }
+
