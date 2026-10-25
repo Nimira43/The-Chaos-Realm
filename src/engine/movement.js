@@ -17,7 +17,14 @@ export function tryMove(player, dx, dy, map) {
   return true
 }
 
-export function findFlyOverPath(objectLayer, startX, startY, dx, dy, maxTiles = 4) {
+export function findFlyOverPath(
+  objectLayer,
+  startX,
+  startY,
+  dx,
+  dy,
+  maxTiles = 4,
+) {
   const height = objectLayer.length
   const width = objectLayer[0].length
   const tiles = []

@@ -19,6 +19,8 @@ import {
 import { getBowInfo, getThrowInfo } from '../engine/useItemActions.js'
 import '../index.css'
 import { useEffect } from 'react'
+import WizardPicker from '../ui/WizardPicker.jsx'
+import { applyWizardToGame } from '../data/applyWizard.js'
 
 function getHoverInfo(objectLayer, terrainLayer, cursor) {
   if (!terrainLayer.length || !objectLayer.length) return null
@@ -167,9 +169,19 @@ export default function GameEngine() {
   const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
   const playerMount = objectLayer[PLAYER.y]?.[PLAYER.x]?.mount
 
+  const [pickerOpen, setPickerOpen] = useState(true)
+  const [wizardName, setWizardName] = useState(null)
+
   useEffect(() => {
     restartGame()
   }, [])
+
+  function handleWizardChosen(clone) {
+    applyWizardToGame(clone)
+    setWizardName(clone.name)
+    setPickerOpen(false)
+    restartGame()
+  }
 
   useViewportRenderer(
     canvasRef,
@@ -513,8 +525,26 @@ export default function GameEngine() {
             <button className='generate-map-btn' onClick={handleRestartClick}>
               Generate Map
             </button>
+
+            <button
+              className='load-map-btn'
+              onClick={(e) => {
+                setPickerOpen(true)
+                e.currentTarget.blur()
+              }}
+            >
+              Wizard{wizardName ? `: ${wizardName}` : ''}
+            </button>
           </div>
         </div>
+
+        {pickerOpen && (
+          <WizardPicker
+            canClose={wizardName !== null}
+            onClose={() => setPickerOpen(false)}
+            onConfirm={handleWizardChosen}
+          />
+        )}
 
         {showLoadModal && (
           <div className='modal'>

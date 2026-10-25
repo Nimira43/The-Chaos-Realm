@@ -8,21 +8,16 @@ export const SPECIALIST_CAP = 3
 export const isFlyingMount = (stats) => isMountCreature(stats) && canFly(stats)
 
 export const TERRAIN_SPECIALISTS = {
-  mountain: [
-    isFlyingMount,
-    (stats) => canFly(stats)
-  ],
+  mountain: [isFlyingMount, (stats) => canFly(stats)],
   water: [
     (stats) => isMountCreature(stats) && !!stats.water_type,
-    (stats) => !!stats.water_type
+    (stats) => !!stats.water_type,
   ],
-  forest: [
-    (stats) => isMountCreature(stats) && !!stats.wood_type
-  ],
+  forest: [(stats) => isMountCreature(stats) && !!stats.wood_type],
   lava: [
     (stats) => isMountCreature(stats) && !!stats.lava_type,
-    (stats) => !!stats.lava_type
-  ]
+    (stats) => !!stats.lava_type,
+  ],
 }
 
 export function scoreCreature(stats) {
@@ -31,16 +26,17 @@ export function scoreCreature(stats) {
 
 export function getActiveTerrainPreferences(terrainCounts) {
   return Object.keys(TERRAIN_SPECIALISTS)
-    .filter(terrain => (terrainCounts[terrain] || 0) >= TERRAIN_TRIGGER_TILES)
+    .filter((terrain) => (terrainCounts[terrain] || 0) >= TERRAIN_TRIGGER_TILES)
     .sort((a, b) => terrainCounts[b] - terrainCounts[a])
-    .flatMap(terrain => TERRAIN_SPECIALISTS[terrain].map(pred => ({ terrain, pred })))
+    .flatMap((terrain) =>
+      TERRAIN_SPECIALISTS[terrain].map((pred) => ({ terrain, pred })),
+    )
 }
 
 function bestOf(candidates) {
-  return [...candidates].sort((a, b) =>
-    b.score - a.score ||
-    b.stats.combat - a.stats.combat ||
-    a.cost - b.cost
+  return [...candidates].sort(
+    (a, b) =>
+      b.score - a.score || b.stats.combat - a.stats.combat || a.cost - b.cost,
   )[0]
 }
 
@@ -52,7 +48,7 @@ export function pickArmySpell({
   terrainCounts = {},
   wizardMounted = false,
   countOwn = () => 0,
-  needsFlyingRide = false
+  needsFlyingRide = false,
 }) {
   const candidates = []
 
@@ -65,10 +61,9 @@ export function pickArmySpell({
     const cost = spell.manaCost * level
     if (mana - cost < reserve) continue
 
-    
     if (Math.min(level, freeTileCount) < Math.ceil(level / 2)) continue
 
-    const stats = CREATURES.find(c => c.name === spell.name)
+    const stats = CREATURES.find((c) => c.name === spell.name)
     if (!stats) continue
 
     candidates.push({ spell, stats, cost, score: scoreCreature(stats) })
@@ -77,14 +72,14 @@ export function pickArmySpell({
   if (candidates.length === 0) return null
 
   if (!wizardMounted && needsFlyingRide) {
-    const rides = candidates.filter(c => isFlyingMount(c.stats))
+    const rides = candidates.filter((c) => isFlyingMount(c.stats))
     if (rides.length > 0) return bestOf(rides)
   }
 
   if (!wizardMounted) {
     for (const { pred } of getActiveTerrainPreferences(terrainCounts)) {
       if (countOwn(pred) >= SPECIALIST_CAP) continue
-      const matching = candidates.filter(c => pred(c.stats))
+      const matching = candidates.filter((c) => pred(c.stats))
       if (matching.length > 0) return bestOf(matching)
     }
   }

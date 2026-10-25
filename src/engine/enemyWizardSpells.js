@@ -7,7 +7,12 @@ import { getMaxAp, canFly, isCurrentlyFlying } from './mounts.js'
 import { canTakeOffFrom } from './useMountActions.js'
 import { isSealedIn } from './enemyEscape.js'
 import { pickArmySpell, isFlyingMount } from './enemyArmy.js'
-import { scanThreat, countTerrainAround, listPlayerUnitsInRange, findBestBlast } from './enemyScans.js'
+import {
+  scanThreat,
+  countTerrainAround,
+  listPlayerUnitsInRange,
+  findBestBlast,
+} from './enemyScans.js'
 import {
   createFireEffect,
   createBlobEffect,
@@ -16,7 +21,7 @@ import {
   isTileIgnitable as checkTileIgnitable,
   isTileSpreadableForBlob as checkTileSpreadableForBlob,
   isTileValidForVineCast as checkTileValidForVineCast,
-  isTileValidForFloodCast as checkTileValidForFloodCast
+  isTileValidForFloodCast as checkTileValidForFloodCast,
 } from './environmentEffects.js'
 
 export const ZAP_THRESHOLD = 60
@@ -30,8 +35,14 @@ const HEAL_SELF_BELOW = 0.5
 const HEAL_ALLY_BELOW = 0.4
 
 const ADJACENT_OFFSETS = [
-  { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
-  { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: -1, y: -1 }
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 },
+  { x: 1, y: 1 },
+  { x: 1, y: -1 },
+  { x: -1, y: 1 },
+  { x: -1, y: -1 },
 ]
 
 export function getThreatTier(total) {
@@ -45,7 +56,14 @@ function isTileFreeForCast(terrainLayer, objectLayer, effectLayer, x, y) {
   if (x < 0 || x >= terrainLayer[0].length) return false
 
   const terrain = terrainLayer[y][x]
-  const blockedTerrain = ['wall', 'water', 'mountain', 'lava', 'doorLocked', 'doorUnlocked']
+  const blockedTerrain = [
+    'wall',
+    'water',
+    'mountain',
+    'lava',
+    'doorLocked',
+    'doorUnlocked',
+  ]
   if (blockedTerrain.includes(terrain)) return false
 
   if (objectLayer[y][x] !== null) return false
@@ -55,8 +73,14 @@ function isTileFreeForCast(terrainLayer, objectLayer, effectLayer, x, y) {
 }
 
 function countFreeSummonTiles(S) {
-  return ADJACENT_OFFSETS.filter(o =>
-    isTileFreeForCast(S.terrain, S.objects, S.effects, ENEMY_WIZARD.x + o.x, ENEMY_WIZARD.y + o.y)
+  return ADJACENT_OFFSETS.filter((o) =>
+    isTileFreeForCast(
+      S.terrain,
+      S.objects,
+      S.effects,
+      ENEMY_WIZARD.x + o.x,
+      ENEMY_WIZARD.y + o.y,
+    ),
   ).length
 }
 
@@ -65,17 +89,24 @@ function countOwnMatching(objectLayer, pred) {
   for (const row of objectLayer) {
     for (const cell of row) {
       if (!cell) continue
-      if (cell.type === 'creature' && cell.owner === 'enemy' && pred(cell.stats)) count++
-      if (cell.type === 'enemyWizard' && cell.mount && pred(cell.mount.stats)) count++
+      if (
+        cell.type === 'creature' &&
+        cell.owner === 'enemy' &&
+        pred(cell.stats)
+      )
+        count++
+      if (cell.type === 'enemyWizard' && cell.mount && pred(cell.mount.stats))
+        count++
     }
   }
   return count
 }
 
 function usableSpell(name) {
-  const spell = ENEMY_SPELLBOOK.find(s => s.name === name)
+  const spell = ENEMY_SPELLBOOK.find((s) => s.name === name)
   if (!spell || spell.currentSpellLevel <= 0) return null
-  if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel) return null
+  if (ENEMY_WIZARD.current_mana < spell.manaCost * spell.currentSpellLevel)
+    return null
   return spell
 }
 
@@ -87,7 +118,10 @@ function chooseHeal(S) {
   const here = S.objects[wiz.y][wiz.x]
 
   const wizardHurt = wiz.current_health <= wiz.constitution * HEAL_SELF_BELOW
-  const mountHurt = !!here?.mount && here.mount.current_health <= here.mount.stats.constitution * HEAL_SELF_BELOW
+  const mountHurt =
+    !!here?.mount &&
+    here.mount.current_health <=
+      here.mount.stats.constitution * HEAL_SELF_BELOW
 
   if (wizardHurt || mountHurt) {
     return { kind: 'heal', spell: heal, aimPos: { x: wiz.x, y: wiz.y } }
@@ -100,7 +134,9 @@ function chooseHeal(S) {
     if (cell?.type !== 'creature' || cell.owner !== 'enemy') continue
 
     const ratio = cell.current_health / cell.stats.constitution
-    const mountRatio = cell.mount ? cell.mount.current_health / cell.mount.stats.constitution : 1
+    const mountRatio = cell.mount
+      ? cell.mount.current_health / cell.mount.stats.constitution
+      : 1
     if (Math.min(ratio, mountRatio) <= HEAL_ALLY_BELOW) {
       return { kind: 'heal', spell: heal, aimPos: { x, y } }
     }
@@ -110,7 +146,9 @@ function chooseHeal(S) {
 }
 
 function hasValidAdjacentTile(isValid) {
-  return ADJACENT_OFFSETS.some(o => isValid({ x: ENEMY_WIZARD.x + o.x, y: ENEMY_WIZARD.y + o.y }))
+  return ADJACENT_OFFSETS.some((o) =>
+    isValid({ x: ENEMY_WIZARD.x + o.x, y: ENEMY_WIZARD.y + o.y }),
+  )
 }
 
 function chooseZap(S, tier) {
@@ -122,43 +160,86 @@ function chooseZap(S, tier) {
   const flood = usableSpell('Flood')
   const vine = usableSpell('Tangle Vine')
 
-  const zap = (spell, pos) => ({ kind: 'zap', spell, aimPos: { x: pos.x, y: pos.y } })
+  const zap = (spell, pos) => ({
+    kind: 'zap',
+    spell,
+    aimPos: { x: pos.x, y: pos.y },
+  })
 
   let lightningBest = null
   if (lightning) {
-    lightningBest = findBestBlast(S.objects, caster, lightning.currentSpellLevel, 1)
-    if (lightningBest && lightningBest.net > 0 && lightningBest.hitPlayerUnits >= 2) {
+    lightningBest = findBestBlast(
+      S.objects,
+      caster,
+      lightning.currentSpellLevel,
+      1,
+    )
+    if (
+      lightningBest &&
+      lightningBest.net > 0 &&
+      lightningBest.hitPlayerUnits >= 2
+    ) {
       return zap(lightning, lightningBest)
     }
   }
 
   if (flood) {
     const level = flood.currentSpellLevel
-    const best = findBestBlast(S.objects, caster, RANGED_SPELL_BASE_RANGE + level, level, { mode: 'units', minClearance: 2 })
-    if (best && best.net > 0 && best.hitPlayerUnits >= 3) return zap(flood, best)
+    const best = findBestBlast(
+      S.objects,
+      caster,
+      RANGED_SPELL_BASE_RANGE + level,
+      level,
+      { mode: 'units', minClearance: 2 },
+    )
+    if (best && best.net > 0 && best.hitPlayerUnits >= 3)
+      return zap(flood, best)
   }
 
   if (bolt) {
-    const targets = listPlayerUnitsInRange(S.objects, wiz.x, wiz.y, bolt.currentSpellLevel)
+    const targets = listPlayerUnitsInRange(
+      S.objects,
+      wiz.x,
+      wiz.y,
+      bolt.currentSpellLevel,
+    )
     if (targets.length > 0) return zap(bolt, targets[0])
   }
 
-  if (lightningBest && lightningBest.net > 0) return zap(lightning, lightningBest)
+  if (lightningBest && lightningBest.net > 0)
+    return zap(lightning, lightningBest)
 
   if (vine) {
     const level = vine.currentSpellLevel
-    const best = findBestBlast(S.objects, caster, RANGED_SPELL_BASE_RANGE + level, level, { mode: 'units', minClearance: 2 })
-    if (best && best.net > 0 && best.hitPlayerUnits >= 2) return zap(vine, best)
+    const best = findBestBlast(
+      S.objects,
+      caster,
+      RANGED_SPELL_BASE_RANGE + level,
+      level,
+      { mode: 'units', minClearance: 2 },
+    )
+    if (best && best.net > 0 && best.hitPlayerUnits >= 2)
+      return zap(vine, best)
   }
 
   if (tier === 'high') {
     const fire = usableSpell('Magic Fire')
-    if (fire && hasValidAdjacentTile(t => checkTileIgnitable(S.terrain, S.effects, t.x, t.y))) {
+    if (
+      fire &&
+      hasValidAdjacentTile((t) =>
+        checkTileIgnitable(S.terrain, S.effects, t.x, t.y),
+      )
+    ) {
       return { kind: 'zap', spell: fire, aimPos: null }
     }
 
     const blob = usableSpell('Gooey Blob')
-    if (blob && hasValidAdjacentTile(t => checkTileSpreadableForBlob(S.terrain, S.effects, t.x, t.y))) {
+    if (
+      blob &&
+      hasValidAdjacentTile((t) =>
+        checkTileSpreadableForBlob(S.terrain, S.effects, t.x, t.y),
+      )
+    ) {
       return { kind: 'zap', spell: blob, aimPos: null }
     }
   }
@@ -172,9 +253,11 @@ function hasPendingEscapeEffect(S) {
   for (let dy = -ESCAPE_WATCH_RADIUS; dy <= ESCAPE_WATCH_RADIUS; dy++) {
     for (let dx = -ESCAPE_WATCH_RADIUS; dx <= ESCAPE_WATCH_RADIUS; dx++) {
       const y = (ENEMY_WIZARD.y + dy + S.effects.length) % S.effects.length
-      const x = (ENEMY_WIZARD.x + dx + S.effects[0].length) % S.effects[0].length
+      const x =
+        (ENEMY_WIZARD.x + dx + S.effects[0].length) % S.effects[0].length
       const e = S.effects[y][x]
-      if (e && (e.type === 'fire' || e.type === 'blob') && e.owner === 'enemy') return true
+      if (e && (e.type === 'fire' || e.type === 'blob') && e.owner === 'enemy')
+        return true
     }
   }
   return false
@@ -186,7 +269,8 @@ function chooseEscape(S) {
 
   if (isCurrentlyFlying(cell)) return null
 
-  const flierToHand = (!!cell?.mount && canFly(cell.mount.stats)) || hasAdjacentFlyingMount(S)
+  const flierToHand =
+    (!!cell?.mount && canFly(cell.mount.stats)) || hasAdjacentFlyingMount(S)
   if (flierToHand && canTakeOffFrom(S.terrain[wiz.y][wiz.x])) return null
 
   if (!isSealedIn(S.terrain, S.objects, S.items)) return null
@@ -194,13 +278,25 @@ function chooseEscape(S) {
 
   const fire = usableSpell('Magic Fire')
   const blob = usableSpell('Gooey Blob')
-  const canFire = fire && hasValidAdjacentTile(t => checkTileIgnitable(S.terrain, S.effects, t.x, t.y))
-  const canBlob = blob && hasValidAdjacentTile(t => checkTileSpreadableForBlob(S.terrain, S.effects, t.x, t.y))
+  const canFire =
+    fire &&
+    hasValidAdjacentTile((t) =>
+      checkTileIgnitable(S.terrain, S.effects, t.x, t.y),
+    )
+  const canBlob =
+    blob &&
+    hasValidAdjacentTile((t) =>
+      checkTileSpreadableForBlob(S.terrain, S.effects, t.x, t.y),
+    )
 
-  const penned = ADJACENT_OFFSETS.some(o =>
-    ['water', 'swamp', 'rock'].includes(S.terrain[ENEMY_WIZARD.y + o.y]?.[ENEMY_WIZARD.x + o.x]))
+  const penned = ADJACENT_OFFSETS.some((o) =>
+    ['water', 'swamp', 'rock'].includes(
+      S.terrain[ENEMY_WIZARD.y + o.y]?.[ENEMY_WIZARD.x + o.x],
+    ),
+  )
 
-  if (canBlob && (penned || !canFire)) return { kind: 'escape', spell: blob, aimPos: null }
+  if (canBlob && (penned || !canFire))
+    return { kind: 'escape', spell: blob, aimPos: null }
   if (canFire) return { kind: 'escape', spell: fire, aimPos: null }
   if (canBlob) return { kind: 'escape', spell: blob, aimPos: null }
 
@@ -208,9 +304,14 @@ function chooseEscape(S) {
 }
 
 function hasAdjacentFlyingMount(S) {
-  return ADJACENT_OFFSETS.some(o => {
+  return ADJACENT_OFFSETS.some((o) => {
     const cell = S.objects[ENEMY_WIZARD.y + o.y]?.[ENEMY_WIZARD.x + o.x]
-    return cell?.type === 'creature' && cell.owner === 'enemy' && !cell.mount && isFlyingMount(cell.stats)
+    return (
+      cell?.type === 'creature' &&
+      cell.owner === 'enemy' &&
+      !cell.mount &&
+      isFlyingMount(cell.stats)
+    )
   })
 }
 
@@ -228,7 +329,7 @@ function chooseSummon(S) {
     terrainCounts: S.terrainCounts,
     wizardMounted: mounted,
     countOwn: (pred) => countOwnMatching(S.objects, pred),
-    needsFlyingRide: !mounted && !hasAdjacentFlyingMount(S)
+    needsFlyingRide: !mounted && !hasAdjacentFlyingMount(S),
   })
 
   return pick ? { kind: 'summon', spell: pick.spell, aimPos: null } : null
@@ -238,15 +339,24 @@ function executeCast(S, { spell, aimPos }) {
   const wiz = ENEMY_WIZARD
   const cost = spell.manaCost * spell.currentSpellLevel
 
-  const isTileFree = (tile) => isTileFreeForCast(S.terrain, S.objects, S.effects, tile.x, tile.y)
-  const isTileIgnitable = (tile) => checkTileIgnitable(S.terrain, S.effects, tile.x, tile.y)
-  const isTileSpreadableForBlob = (tile) => checkTileSpreadableForBlob(S.terrain, S.effects, tile.x, tile.y)
-  const isTileValidForVine = (tile) => checkTileValidForVineCast(S.terrain, S.effects, tile.x, tile.y)
-  const isTileValidForFlood = (tile) => checkTileValidForFloodCast(S.terrain, S.effects, tile.x, tile.y)
+  const isTileFree = (tile) =>
+    isTileFreeForCast(S.terrain, S.objects, S.effects, tile.x, tile.y)
+  const isTileIgnitable = (tile) =>
+    checkTileIgnitable(S.terrain, S.effects, tile.x, tile.y)
+  const isTileSpreadableForBlob = (tile) =>
+    checkTileSpreadableForBlob(S.terrain, S.effects, tile.x, tile.y)
+  const isTileValidForVine = (tile) =>
+    checkTileValidForVineCast(S.terrain, S.effects, tile.x, tile.y)
+  const isTileValidForFlood = (tile) =>
+    checkTileValidForFloodCast(S.terrain, S.effects, tile.x, tile.y)
 
   const isTileValidForHeal = (tile) => {
     const cell = S.objects[tile.y]?.[tile.x]
-    return !!cell && (cell.type === 'enemyWizard' || (cell.type === 'creature' && cell.owner === 'enemy'))
+    return (
+      !!cell &&
+      (cell.type === 'enemyWizard' ||
+        (cell.type === 'creature' && cell.owner === 'enemy'))
+    )
   }
 
   const healTile = (tile) => {
@@ -257,18 +367,26 @@ function executeCast(S, { spell, aimPos }) {
 
     if (cell.type === 'creature' || cell.mount) {
       let updated = cell
-      if (cell.type === 'creature') updated = { ...updated, current_health: cell.stats.constitution }
-      if (cell.mount) updated = { ...updated, mount: { ...cell.mount, current_health: cell.mount.stats.constitution } }
+      if (cell.type === 'creature')
+        updated = { ...updated, current_health: cell.stats.constitution }
+      if (cell.mount)
+        updated = {
+          ...updated,
+          mount: {
+            ...cell.mount,
+            current_health: cell.mount.stats.constitution,
+          },
+        }
 
-      const copy = S.objects.map(row => [...row])
+      const copy = S.objects.map((row) => [...row])
       copy[tile.y][tile.x] = updated
       S.objects = copy
     }
   }
 
   const spawnCreature = (creatureName, tile) => {
-    const creatureData = CREATURES.find(c => c.name === creatureName)
-    const copy = S.objects.map(row => [...row])
+    const creatureData = CREATURES.find((c) => c.name === creatureName)
+    const copy = S.objects.map((row) => [...row])
     copy[tile.y][tile.x] = {
       type: 'creature',
       owner: 'enemy',
@@ -279,13 +397,13 @@ function executeCast(S, { spell, aimPos }) {
       current_health: creatureData.constitution,
       stats: creatureData,
       wanderTarget: null,
-      inventory: []
+      inventory: [],
     }
     S.objects = copy
   }
 
   const placeEffect = (tile, create) => {
-    const copy = S.effects.map(row => [...row])
+    const copy = S.effects.map((row) => [...row])
     copy[tile.y][tile.x] = create('enemy')
     S.effects = copy
   }
@@ -312,7 +430,7 @@ function executeCast(S, { spell, aimPos }) {
     applyFloodToTile: (tile) => placeEffect(tile, createFloodEffect),
     isTileValidForHeal,
     healTile,
-    zapTile
+    zapTile,
   })
 
   wiz.current_mana -= cost
@@ -322,7 +440,12 @@ function executeCast(S, { spell, aimPos }) {
   S.frames.push(S.objects)
 }
 
-export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer, itemLayer = null) {
+export function castEnemyWizardSpells(
+  terrainLayer,
+  objectLayer,
+  effectLayer,
+  itemLayer = null,
+) {
   // Spells are cast from the ground only. (enemyAI.js lands him first when it can.)
   if (isCurrentlyFlying(objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
     return {
@@ -331,7 +454,7 @@ export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer, it
       zapEffects: [],
       frames: [],
       castCount: 0,
-      startThreat: { total: 0, units: [] }
+      startThreat: { total: 0, units: [] },
     }
   }
 
@@ -343,7 +466,11 @@ export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer, it
     zapEffects: [],
     frames: [],
     casts: 0,
-    terrainCounts: countTerrainAround(terrainLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
+    terrainCounts: countTerrainAround(
+      terrainLayer,
+      ENEMY_WIZARD.x,
+      ENEMY_WIZARD.y,
+    ),
   }
 
   const startThreat = scanThreat(objectLayer, ENEMY_WIZARD.x, ENEMY_WIZARD.y)
@@ -354,12 +481,15 @@ export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer, it
     const tier = getThreatTier(threat.total)
 
     let action = chooseHeal(S)
-    if (!action && tier !== 'calm' && zaps < MAX_ZAPS_PER_TURN) action = chooseZap(S, tier)
+    if (!action && tier !== 'calm' && zaps < MAX_ZAPS_PER_TURN)
+      action = chooseZap(S, tier)
     if (!action) action = chooseEscape(S)
     if (!action) action = chooseSummon(S)
     if (!action) break
 
-    console.debug(`[enemy wizard] ${action.kind}: ${action.spell.name} (threat ${threat.total}, ${tier})`)
+    console.debug(
+      `[enemy wizard] ${action.kind}: ${action.spell.name} (threat ${threat.total}, ${tier})`,
+    )
 
     executeCast(S, action)
     if (action.kind === 'zap') zaps++
@@ -371,6 +501,6 @@ export function castEnemyWizardSpells(terrainLayer, objectLayer, effectLayer, it
     zapEffects: S.zapEffects,
     frames: S.frames,
     castCount: S.casts,
-    startThreat
+    startThreat,
   }
 }

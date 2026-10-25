@@ -5,11 +5,19 @@ export const THREAT_RADIUS = 2
 export const TERRAIN_SCAN_RADIUS = 5
 
 export function isPlayerSide(cell) {
-  return !!cell && (cell.type === 'player' || (cell.type === 'creature' && cell.owner === 'player'))
+  return (
+    !!cell &&
+    (cell.type === 'player' ||
+      (cell.type === 'creature' && cell.owner === 'player'))
+  )
 }
 
 export function isEnemySide(cell) {
-  return !!cell && (cell.type === 'enemyWizard' || (cell.type === 'creature' && cell.owner === 'enemy'))
+  return (
+    !!cell &&
+    (cell.type === 'enemyWizard' ||
+      (cell.type === 'creature' && cell.owner === 'enemy'))
+  )
 }
 
 function dims(layer) {
@@ -34,7 +42,12 @@ export function scanThreat(objectLayer, cx, cy, radius = THREAT_RADIUS) {
   return { total, units }
 }
 
-export function countTerrainAround(terrainLayer, cx, cy, radius = TERRAIN_SCAN_RADIUS) {
+export function countTerrainAround(
+  terrainLayer,
+  cx,
+  cy,
+  radius = TERRAIN_SCAN_RADIUS,
+) {
   const { w, h } = dims(terrainLayer)
   const counts = {}
 
@@ -86,16 +99,27 @@ export function evaluateBlast(objectLayer, ax, ay, radius) {
     playerValue,
     ownValue,
     ownWizardHit,
-    net: playerValue - ownValue
+    net: playerValue - ownValue,
   }
 }
 
-export function findBestBlast(objectLayer, caster, range, blastRadius, { mode = 'window', minClearance = 0 } = {}) {
+export function findBestBlast(
+  objectLayer,
+  caster,
+  range,
+  blastRadius,
+  { mode = 'window', minClearance = 0 } = {},
+) {
   const { w, h } = dims(objectLayer)
 
   let candidates
   if (mode === 'units') {
-    candidates = listPlayerUnitsInRange(objectLayer, caster.x, caster.y, range).map(u => ({ x: u.x, y: u.y }))
+    candidates = listPlayerUnitsInRange(
+      objectLayer,
+      caster.x,
+      caster.y,
+      range,
+    ).map((u) => ({ x: u.x, y: u.y }))
   } else {
     candidates = getAreaTiles(caster.x, caster.y, range, w, h)
   }
@@ -103,7 +127,14 @@ export function findBestBlast(objectLayer, caster, range, blastRadius, { mode = 
   let best = null
 
   for (const t of candidates) {
-    const distance = wrappedChebyshevDistance(caster.x, caster.y, t.x, t.y, w, h)
+    const distance = wrappedChebyshevDistance(
+      caster.x,
+      caster.y,
+      t.x,
+      t.y,
+      w,
+      h,
+    )
     if (distance > range) continue
     if (distance - blastRadius < minClearance) continue
 

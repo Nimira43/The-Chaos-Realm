@@ -70,7 +70,7 @@
   [
     "wall",
     "rough",
-    "doorUnlocked",
+    "wall",
     "road",
     "wall",
     "rough",
@@ -103,7 +103,7 @@
   ],
   [
     "wall",
-    "wall",
+    "doorUnlocked",
     "wall",
     "road",
     "wall",

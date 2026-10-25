@@ -4,9 +4,21 @@ import { Link } from 'react-router-dom'
 const VIDEO_DOWNLOAD_URL = null
 
 const MENU = [
-  { to: '/game', title: 'Game Engine', sub: 'Race the enemy wizard to the portal' },
-  { to: '/map-editor', title: 'Map Editor', sub: 'Paint your own battlegrounds' },
-  { to: '/wizard-editor', title: 'Wizard Editor', sub: 'Shape spellbooks and stats' }
+  {
+    to: '/game',
+    title: 'Game Engine',
+    sub: 'Race the enemy wizard to the portal',
+  },
+  {
+    to: '/map-editor',
+    title: 'Map Editor',
+    sub: 'Paint your own battlegrounds',
+  },
+  {
+    to: '/wizard-editor',
+    title: 'Wizard Editor',
+    sub: 'Shape spellbooks and stats',
+  },
 ]
 
 export default function Home() {
@@ -33,7 +45,7 @@ export default function Home() {
         <p className='home-tagline'>Summon. Conquer. Vanquish.</p>
 
         <nav className='home-wrapper'>
-          {MENU.map(item => (
+          {MENU.map((item) => (
             <Link key={item.to} to={item.to}>
               <button className='home-btn'>
                 {item.title}
@@ -47,7 +59,8 @@ export default function Home() {
           <a
             className='home-video-download'
             href={VIDEO_DOWNLOAD_URL}
-            target='_blank' rel='noreferrer'
+            target='_blank'
+            rel='noreferrer'
           >
             Get the background video
           </a>

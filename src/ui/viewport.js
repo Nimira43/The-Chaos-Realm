@@ -1,9 +1,13 @@
 import { terrainColours } from '../engine/terrain.js'
-import { wrap, wrappedDelta, wrappedChebyshevDistance } from '../engine/utils.js'
+import {
+  wrap,
+  wrappedDelta,
+  wrappedChebyshevDistance,
+} from '../engine/utils.js'
 import { CREATURES } from '../data/creatures.js'
 
 function getCreatureCode(name) {
-  const creature = CREATURES.find(c => c.name === name)
+  const creature = CREATURES.find((c) => c.name === name)
   if (creature?.ident_code) return creature.ident_code
 
   return name
@@ -13,7 +17,7 @@ function getCreatureCode(name) {
 }
 
 function drawFireTile(ctx, screenX, screenY, tileSize) {
-  const flicker = (Date.now() % 400 < 200)
+  const flicker = Date.now() % 400 < 200
   const pad = tileSize * 0.12
   const left = screenX + pad
   const right = screenX + tileSize - pad
@@ -45,7 +49,7 @@ function drawFireTile(ctx, screenX, screenY, tileSize) {
 }
 
 function drawGooeyBlobTile(ctx, screenX, screenY, tileSize) {
-  const pulse = (Date.now() % 900 < 450)
+  const pulse = Date.now() % 900 < 450
 
   const centreX = screenX + tileSize / 2
   const centreY = screenY + tileSize / 2
@@ -64,13 +68,13 @@ function drawGooeyBlobTile(ctx, screenX, screenY, tileSize) {
     radius * 0.18,
     -0.6,
     0,
-    Math.PI * 2
+    Math.PI * 2,
   )
   ctx.fill()
 }
 
 function drawTangleVineTile(ctx, screenX, screenY, tileSize) {
-  const pulse = (Date.now() % 900 < 450)
+  const pulse = Date.now() % 900 < 450
   const scale = pulse ? 1 : 0.85
 
   const centreX = screenX + tileSize / 2
@@ -85,8 +89,14 @@ function drawTangleVineTile(ctx, screenX, screenY, tileSize) {
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI / 3) * i
     ctx.beginPath()
-    ctx.moveTo(centreX + Math.cos(angle) * innerRadius, centreY + Math.sin(angle) * innerRadius)
-    ctx.lineTo(centreX + Math.cos(angle) * outerRadius, centreY + Math.sin(angle) * outerRadius)
+    ctx.moveTo(
+      centreX + Math.cos(angle) * innerRadius,
+      centreY + Math.sin(angle) * innerRadius,
+    )
+    ctx.lineTo(
+      centreX + Math.cos(angle) * outerRadius,
+      centreY + Math.sin(angle) * outerRadius,
+    )
     ctx.stroke()
   }
 
@@ -154,11 +164,15 @@ function drawMountBadge(ctx, screenX, screenY, tileSize, letter, colour) {
   ctx.font = `bold ${Math.max(10, size * 0.8)}px monospace`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(letter, screenX + inset + size / 2, screenY + inset + size / 2 + 1)
+  ctx.fillText(
+    letter,
+    screenX + inset + size / 2,
+    screenY + inset + size / 2 + 1,
+  )
 }
 
 function drawAppleTile(ctx, screenX, screenY, tileSize) {
-  const pulse = (Date.now() % 900 < 450)
+  const pulse = Date.now() % 900 < 450
 
   const centreX = screenX + tileSize / 2
   const centreY = screenY + tileSize / 2
@@ -178,7 +192,7 @@ function drawAppleTile(ctx, screenX, screenY, tileSize) {
     radius * 0.18,
     -0.6,
     0,
-    Math.PI * 2
+    Math.PI * 2,
   )
   ctx.fill()
 }
@@ -202,7 +216,7 @@ const JEWEL_COLOURS = {
   emerald: '#8fe88f',
   ruby: '#ff0000',
   sapphire: '#1f5c99',
-  diamond: '#d3d3d3'
+  diamond: '#d3d3d3',
 }
 
 function drawSparkle(ctx, x, y, size, alpha) {
@@ -243,14 +257,20 @@ function drawJewelTile(ctx, screenX, screenY, tileSize, gem, seed) {
   const spots = [
     { dx: -0.17, dy: -0.14 },
     { dx: 0.16, dy: -0.06 },
-    { dx: 0.02, dy: 0.17 }
+    { dx: 0.02, dy: 0.17 },
   ]
 
   spots.forEach((spot, i) => {
     const phase = (t + i / spots.length) % 1
     const alpha = Math.sin(phase * Math.PI)
     if (alpha < 0.05) return
-    drawSparkle(ctx, centreX + spot.dx * tileSize, centreY + spot.dy * tileSize, tileSize * 0.07 * alpha + 1, alpha)
+    drawSparkle(
+      ctx,
+      centreX + spot.dx * tileSize,
+      centreY + spot.dy * tileSize,
+      tileSize * 0.07 * alpha + 1,
+      alpha,
+    )
   })
 }
 
@@ -259,7 +279,7 @@ function drawWeaponTile(ctx, screenX, screenY, tileSize, code, magic) {
   const inset = (tileSize - size) / 2
 
   if (magic) {
-    const pulse = (Date.now() % 900 < 450)
+    const pulse = Date.now() % 900 < 450
     ctx.shadowColor = '#c96bff'
     ctx.shadowBlur = pulse ? 10 : 4
   }
@@ -276,7 +296,8 @@ function drawWeaponTile(ctx, screenX, screenY, tileSize, code, magic) {
 }
 
 function drawZapFlash(ctx, screenX, screenY, tileSize, elapsedMs) {
-  const colour = elapsedMs < 150 ? '#ffffff' : elapsedMs < 350 ? '#ff9500' : '#ffffff'
+  const colour =
+    elapsedMs < 150 ? '#ffffff' : elapsedMs < 350 ? '#ff9500' : '#ffffff'
   const centreX = screenX + tileSize / 2
   const centreY = screenY + tileSize / 2
 
@@ -300,7 +321,7 @@ export function drawViewport(
   effectLayer,
   rangeHighlight,
   itemLayer,
-  zapEffects
+  zapEffects,
 ) {
   const radius = Math.floor(viewTiles / 2)
   const centreX = selected?.type === 'player' ? player.x : cursor.x
@@ -308,7 +329,6 @@ export function drawViewport(
 
   for (let vy = 0; vy < viewTiles; vy++) {
     for (let vx = 0; vx < viewTiles; vx++) {
-
       const worldX = wrap(centreX + (vx - radius), map[0].length)
       const worldY = wrap(centreY + (vy - radius), map.length)
 
@@ -325,14 +345,16 @@ export function drawViewport(
     ctx.fillStyle = 'rgba(135, 206, 235, 0.35)'
     for (let vy = 0; vy < viewTiles; vy++) {
       for (let vx = 0; vx < viewTiles; vx++) {
-
         const worldX = wrap(centreX + (vx - radius), map[0].length)
         const worldY = wrap(centreY + (vy - radius), map.length)
 
         const dist = wrappedChebyshevDistance(
-          rangeHighlight.origin.x, rangeHighlight.origin.y,
-          worldX, worldY,
-          map[0].length, map.length
+          rangeHighlight.origin.x,
+          rangeHighlight.origin.y,
+          worldX,
+          worldY,
+          map[0].length,
+          map.length,
         )
 
         if (dist <= rangeHighlight.radius) {
@@ -345,33 +367,46 @@ export function drawViewport(
   if (itemLayer) {
     for (let vy = 0; vy < viewTiles; vy++) {
       for (let vx = 0; vx < viewTiles; vx++) {
-
         const worldX = wrap(centreX + (vx - radius), map[0].length)
         const worldY = wrap(centreY + (vy - radius), map.length)
 
         const items = itemLayer[worldY][worldX]
         if (!items) continue
 
-        if (items.some(item => item.type === 'key')) {
+        if (items.some((item) => item.type === 'key')) {
           drawKeyItemTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
 
-        if (items.some(item => item.type === 'apple')) {
+        if (items.some((item) => item.type === 'apple')) {
           drawAppleTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
 
-        if (items.some(item => item.type === 'coin')) {
+        if (items.some((item) => item.type === 'coin')) {
           drawCoinTile(ctx, vx * tileSize, vy * tileSize, tileSize)
         }
 
-        const jewel = items.find(item => item.type === 'jewel')
+        const jewel = items.find((item) => item.type === 'jewel')
         if (jewel) {
-          drawJewelTile(ctx, vx * tileSize, vy * tileSize, tileSize, jewel.gem, worldX * 7 + worldY * 13)
+          drawJewelTile(
+            ctx,
+            vx * tileSize,
+            vy * tileSize,
+            tileSize,
+            jewel.gem,
+            worldX * 7 + worldY * 13,
+          )
         }
 
-        const weapon = items.find(item => item.type === 'weapon')
+        const weapon = items.find((item) => item.type === 'weapon')
         if (weapon) {
-          drawWeaponTile(ctx, vx * tileSize, vy * tileSize, tileSize, weapon.weaponCode, weapon.magic)
+          drawWeaponTile(
+            ctx,
+            vx * tileSize,
+            vy * tileSize,
+            tileSize,
+            weapon.weaponCode,
+            weapon.magic,
+          )
         }
       }
     }
@@ -380,7 +415,6 @@ export function drawViewport(
   if (effectLayer) {
     for (let vy = 0; vy < viewTiles; vy++) {
       for (let vx = 0; vx < viewTiles; vx++) {
-
         const worldX = wrap(centreX + (vx - radius), map[0].length)
         const worldY = wrap(centreY + (vy - radius), map.length)
 
@@ -402,7 +436,6 @@ export function drawViewport(
 
   for (let vy = 0; vy < viewTiles; vy++) {
     for (let vx = 0; vx < viewTiles; vx++) {
-
       const worldX = wrap(centreX + (vx - radius), map[0].length)
       const worldY = wrap(centreY + (vy - radius), map.length)
 
@@ -414,7 +447,7 @@ export function drawViewport(
           vx * tileSize + 6,
           vy * tileSize + 6,
           tileSize - 12,
-          tileSize - 12
+          tileSize - 12,
         )
 
         const code = getCreatureCode(obj.name)
@@ -426,7 +459,7 @@ export function drawViewport(
         ctx.fillText(
           code,
           vx * tileSize + tileSize / 2,
-          vy * tileSize + tileSize / 2
+          vy * tileSize + tileSize / 2,
         )
       }
 
@@ -436,7 +469,7 @@ export function drawViewport(
           vx * tileSize + 4,
           vy * tileSize + 4,
           tileSize - 8,
-          tileSize - 8
+          tileSize - 8,
         )
 
         ctx.fillStyle = 'white'
@@ -446,23 +479,36 @@ export function drawViewport(
         ctx.fillText(
           'EW',
           vx * tileSize + tileSize / 2,
-          vy * tileSize + tileSize / 2
+          vy * tileSize + tileSize / 2,
         )
       }
 
       if (obj?.mount) {
         const flying = !!obj.mount.flying
-        drawMountBadge(ctx, vx * tileSize, vy * tileSize, tileSize, flying ? 'F' : 'R', flying ? '#87ceeb' : '#3cb043')
+        drawMountBadge(
+          ctx,
+          vx * tileSize,
+          vy * tileSize,
+          tileSize,
+          flying ? 'F' : 'R',
+          flying ? '#87ceeb' : '#3cb043',
+        )
       } else if (obj?.flying) {
-        drawMountBadge(ctx, vx * tileSize, vy * tileSize, tileSize, 'F', '#87ceeb')
+        drawMountBadge(
+          ctx,
+          vx * tileSize,
+          vy * tileSize,
+          tileSize,
+          'F',
+          '#87ceeb',
+        )
       }
-
     }
   }
 
   if (zapEffects && zapEffects.length > 0) {
     const now = Date.now()
-    zapEffects.forEach(z => {
+    zapEffects.forEach((z) => {
       const remaining = z.until - now
       if (remaining <= 0) return
 
@@ -471,7 +517,13 @@ export function drawViewport(
       if (Math.abs(dx) > radius || Math.abs(dy) > radius) return // off-screen
 
       const elapsed = 500 - remaining
-      drawZapFlash(ctx, (dx + radius) * tileSize, (dy + radius) * tileSize, tileSize, elapsed)
+      drawZapFlash(
+        ctx,
+        (dx + radius) * tileSize,
+        (dy + radius) * tileSize,
+        tileSize,
+        elapsed,
+      )
     })
   }
 
@@ -486,31 +538,28 @@ export function drawViewport(
   const playerCellNow = objectLayer[player.y]?.[player.x]
   if (playerCellNow?.mount) {
     const flying = !!playerCellNow.mount.flying
-    drawMountBadge(ctx, playerScreenX, playerScreenY, tileSize, flying ? 'F' : 'R', flying ? '#87ceeb' : '#3cb043')
+    drawMountBadge(
+      ctx,
+      playerScreenX,
+      playerScreenY,
+      tileSize,
+      flying ? 'F' : 'R',
+      flying ? '#87ceeb' : '#3cb043',
+    )
   }
 
   if (!selected) {
-    const flash = (Date.now() % 600 < 300)
+    const flash = Date.now() % 600 < 300
     ctx.strokeStyle = flash ? 'yellow' : 'orange'
     ctx.lineWidth = 3
 
-    ctx.strokeRect(
-      radius * tileSize,
-      radius * tileSize,
-      tileSize,
-      tileSize
-    )
+    ctx.strokeRect(radius * tileSize, radius * tileSize, tileSize, tileSize)
   }
 
   if (selected?.type === 'player') {
     ctx.strokeStyle = 'orangered'
     ctx.lineWidth = 4
 
-    ctx.strokeRect(
-      radius * tileSize,
-      radius * tileSize,
-      tileSize,
-      tileSize
-    )
+    ctx.strokeRect(radius * tileSize, radius * tileSize, tileSize, tileSize)
   }
 }

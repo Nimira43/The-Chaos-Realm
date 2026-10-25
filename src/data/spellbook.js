@@ -40,9 +40,6 @@ export function buildSpellbook() {
     { name: 'Magic Bolt', manaCost: 6, initialSpellLevel: 5, currentSpellLevel: 5, category: 'offensive', duration: 'instant' },
     { name: 'Magic Lightning', manaCost: 12, initialSpellLevel: 5, currentSpellLevel: 5, category: 'offensive', duration: 'instant' }
   ]
-  // --- UTILITY (instant) ---
-  // { name: 'Teleport', manaCost: 16, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
-  // { name: 'Magic Eye', manaCost: 8, currentSpellLevel: 5, category: 'utility', duration: 'instant' },
 }
 
 export function resetSpellbook(spellbook) {

@@ -12,7 +12,7 @@ export const GEMS = {
   emerald: { name: 'Emerald', points: 3 },
   ruby: { name: 'Ruby', points: 5 },
   sapphire: { name: 'Sapphire', points: 2 },
-  diamond: { name: 'Diamond', points: 4 }
+  diamond: { name: 'Diamond', points: 4 },
 }
 
 const MIN_APPLES = 4
@@ -26,18 +26,27 @@ const JEWEL_TABLE = {
   ruby: [0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2],
   diamond: [1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3],
   emerald: [2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4],
-  sapphire: [2, 3, 3, 3, 4, 4, 5, 5, 5, 5, 6]
+  sapphire: [2, 3, 3, 3, 4, 4, 5, 5, 5, 5, 6],
 }
 
-const PICKUP_UNPLACEABLE_TERRAIN = ['mountain', 'wall', 'lava', 'water', 'doorLocked', 'doorUnlocked']
+const PICKUP_UNPLACEABLE_TERRAIN = [
+  'mountain',
+  'wall',
+  'lava',
+  'water',
+  'doorLocked',
+  'doorUnlocked',
+]
 const PLACEMENT_ATTEMPTS = 200
 const CONSUMED_ON_PICKUP = ['apple', 'coin', 'jewel']
-const WEAPON_BASE_NAMES = WEAPONS.filter(w => !w.name.startsWith('magic ')).map(w => w.name)
+const WEAPON_BASE_NAMES = WEAPONS.filter(
+  (w) => !w.name.startsWith('magic '),
+).map((w) => w.name)
 
 let nextItemId = 1
 
 export function createWeaponItem(name) {
-  const data = WEAPONS.find(w => w.name === name)
+  const data = WEAPONS.find((w) => w.name === name)
   return {
     id: nextItemId++,
     type: 'weapon',
@@ -49,12 +58,13 @@ export function createWeaponItem(name) {
     ranged: data.ranged_combat || 0,
     thrown: data.thrown_combat || 0,
     attackUndead: data.attack_undead,
-    magic: data.name.startsWith('magic ')
+    magic: data.name.startsWith('magic '),
   }
 }
 
 function pickRandomWeaponName() {
-  const base = WEAPON_BASE_NAMES[Math.floor(Math.random() * WEAPON_BASE_NAMES.length)]
+  const base =
+    WEAPON_BASE_NAMES[Math.floor(Math.random() * WEAPON_BASE_NAMES.length)]
   return Math.random() < MAGIC_WEAPON_CHANCE ? `magic ${base}` : base
 }
 
@@ -63,16 +73,34 @@ export function createKeyItem() {
 }
 
 export function createAppleItem() {
-  return { id: nextItemId++, type: 'apple', name: 'Apple', weight: APPLE_WEIGHT }
+  return {
+    id: nextItemId++,
+    type: 'apple',
+    name: 'Apple',
+    weight: APPLE_WEIGHT,
+  }
 }
 
 export function createCoinItem() {
-  return { id: nextItemId++, type: 'coin', name: 'Gold Coin', weight: TREASURE_WEIGHT, points: COIN_POINTS }
+  return {
+    id: nextItemId++,
+    type: 'coin',
+    name: 'Gold Coin',
+    weight: TREASURE_WEIGHT,
+    points: COIN_POINTS,
+  }
 }
 
 export function createJewelItem(gem) {
   const info = GEMS[gem]
-  return { id: nextItemId++, type: 'jewel', gem, name: info.name, weight: TREASURE_WEIGHT, points: info.points }
+  return {
+    id: nextItemId++,
+    type: 'jewel',
+    gem,
+    name: info.name,
+    weight: TREASURE_WEIGHT,
+    points: info.points,
+  }
 }
 
 export function isConsumedOnPickup(item) {
@@ -88,11 +116,11 @@ export function canCarryItem(carryLimit, inventory, item) {
 }
 
 export function hasKey(inventory) {
-  return (inventory || []).some(item => item.type === 'key')
+  return (inventory || []).some((item) => item.type === 'key')
 }
 
 export function removeFirstKey(inventory) {
-  const index = (inventory || []).findIndex(item => item.type === 'key')
+  const index = (inventory || []).findIndex((item) => item.type === 'key')
   if (index === -1) return inventory || []
   const copy = [...inventory]
   copy.splice(index, 1)
@@ -106,14 +134,15 @@ function randomBetween(min, max) {
 export function getJewelCounts(total) {
   const index = Math.min(MAX_JEWELS, Math.max(MIN_JEWELS, total)) - MIN_JEWELS
   const counts = {}
-  for (const gem of Object.keys(JEWEL_TABLE)) counts[gem] = JEWEL_TABLE[gem][index]
+  for (const gem of Object.keys(JEWEL_TABLE))
+    counts[gem] = JEWEL_TABLE[gem][index]
   return counts
 }
 
 function scatterItems(terrainLayer, objectLayer, itemLayer, count, makeItem) {
   const height = terrainLayer.length
   const width = terrainLayer[0].length
-  const newItemLayer = itemLayer.map(row => [...row])
+  const newItemLayer = itemLayer.map((row) => [...row])
 
   let placed = 0
   let attempts = 0
@@ -138,19 +167,39 @@ function scatterItems(terrainLayer, objectLayer, itemLayer, count, makeItem) {
 export function placeRandomPickups(terrainLayer, objectLayer, itemLayer) {
   let layer = itemLayer
 
-  layer = scatterItems(terrainLayer, objectLayer, layer, randomBetween(MIN_APPLES, MAX_APPLES), createAppleItem)
+  layer = scatterItems(
+    terrainLayer,
+    objectLayer,
+    layer,
+    randomBetween(MIN_APPLES, MAX_APPLES),
+    createAppleItem,
+  )
 
   const jewelCounts = getJewelCounts(randomBetween(MIN_JEWELS, MAX_JEWELS))
   for (const gem of Object.keys(jewelCounts)) {
-    layer = scatterItems(terrainLayer, objectLayer, layer, jewelCounts[gem], () => createJewelItem(gem))
+    layer = scatterItems(
+      terrainLayer,
+      objectLayer,
+      layer,
+      jewelCounts[gem],
+      () => createJewelItem(gem),
+    )
   }
 
-  layer = scatterItems(terrainLayer, objectLayer, layer, randomBetween(MIN_COINS, MAX_COINS), createCoinItem)
+  layer = scatterItems(
+    terrainLayer,
+    objectLayer,
+    layer,
+    randomBetween(MIN_COINS, MAX_COINS),
+    createCoinItem,
+  )
 
   layer = scatterItems(
-    terrainLayer, objectLayer, layer,
+    terrainLayer,
+    objectLayer,
+    layer,
     randomBetween(MIN_WEAPONS, MAX_WEAPONS),
-    () => createWeaponItem(pickRandomWeaponName())
+    () => createWeaponItem(pickRandomWeaponName()),
   )
 
   return layer
@@ -160,8 +209,9 @@ export function findPickupCandidate(itemLayer, x, y, carryLimit, inventory) {
   const itemsHere = itemLayer[y]?.[x]
   if (!itemsHere || itemsHere.length === 0) return null
 
-  const index = itemsHere.findIndex(item =>
-    isConsumedOnPickup(item) || canCarryItem(carryLimit, inventory, item)
+  const index = itemsHere.findIndex(
+    (item) =>
+      isConsumedOnPickup(item) || canCarryItem(carryLimit, inventory, item),
   )
   if (index === -1) return null
 

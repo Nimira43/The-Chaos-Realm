@@ -6,14 +6,20 @@ export const FLOOR_SHIELD_FROM = 'fliers'
 
 const SHIELDING_TERRAIN = ['floor', 'doorLocked', 'doorUnlocked', 'doorOpen']
 
-function isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, attackerProfile) {
+function isShieldedByFloor(
+  terrainLayer,
+  defenderPos,
+  defenderProfile,
+  attackerProfile,
+) {
   if (!terrainLayer || defenderProfile.flying) return false
-  if (!SHIELDING_TERRAIN.includes(terrainLayer[defenderPos.y]?.[defenderPos.x])) return false
+  if (!SHIELDING_TERRAIN.includes(terrainLayer[defenderPos.y]?.[defenderPos.x]))
+    return false
   return FLOOR_SHIELD_FROM === 'all' || !!attackerProfile?.flying
 }
 
 const DAMAGE_ROLL_MAX = 6
-const LAVA_DAMAGE_PERCENT = 0.10
+const LAVA_DAMAGE_PERCENT = 0.1
 
 export const FIRE_DAMAGE_PER_TURN = 8
 export const GOOEY_DAMAGE_PER_TURN = 8
@@ -25,7 +31,7 @@ export const TANGLE_VINE_HEALTH = 40
 
 function rollDamage(attackerCombat, defenderDefence) {
   const swing = Math.floor(Math.random() * DAMAGE_ROLL_MAX) + 1
-  return Math.max(1, (attackerCombat + swing) - defenderDefence)
+  return Math.max(1, attackerCombat + swing - defenderDefence)
 }
 
 function getWeaponBonus(inventory) {
@@ -58,7 +64,7 @@ function getCombatProfile(cell) {
       lavaType: m.stats.lava_type,
       flying: !!m.flying,
       attackUndead: bonus.attackUndead,
-      mounted: true
+      mounted: true,
     }
   }
 
@@ -72,7 +78,9 @@ function getCombatProfile(cell) {
       undead: PLAYER.undead,
       lavaType: PLAYER.lava_type,
       attackUndead: bonus.attackUndead,
-      apply: (newHealth) => { PLAYER.current_health = newHealth }
+      apply: (newHealth) => {
+        PLAYER.current_health = newHealth
+      },
     }
   }
 
@@ -87,7 +95,9 @@ function getCombatProfile(cell) {
       undead: ref.undead,
       lavaType: ref.lava_type,
       attackUndead: bonus.attackUndead,
-      apply: (newHealth) => { ref.current_health = newHealth }
+      apply: (newHealth) => {
+        ref.current_health = newHealth
+      },
     }
   }
 
@@ -102,7 +112,7 @@ function getCombatProfile(cell) {
       lavaType: cell.stats.lava_type,
       flying: !!cell.flying,
       attackUndead: bonus.attackUndead,
-      apply: null
+      apply: null,
     }
   }
   return null
@@ -133,7 +143,7 @@ function applyDamageToCell(objectLayer, pos, damage) {
     defeated: false,
     targetType: null,
     killedOwner: null,
-    killPoints: 0
+    killPoints: 0,
   }
 
   const cell = objectLayer[pos.y][pos.x]
@@ -146,7 +156,7 @@ function applyDamageToCell(objectLayer, pos, damage) {
   const fatal = newHealth <= 0
 
   if (profile.mounted) {
-    const newLayer = objectLayer.map(row => [...row])
+    const newLayer = objectLayer.map((row) => [...row])
 
     // eslint-disable-next-line no-unused-vars
     const { mount, ...riderOnly } = cell
@@ -162,7 +172,7 @@ function applyDamageToCell(objectLayer, pos, damage) {
           defeated: true,
           targetType: cell.type,
           killedOwner: value.owner,
-          killPoints: value.points
+          killPoints: value.points,
         }
       }
 
@@ -173,11 +183,14 @@ function applyDamageToCell(objectLayer, pos, damage) {
         defeated: false,
         targetType: cell.type,
         killedOwner: cell.mount.owner ?? cell.owner,
-        killPoints: cell.mount.stats.victory_points ?? 0
+        killPoints: cell.mount.stats.victory_points ?? 0,
       }
     }
 
-    newLayer[pos.y][pos.x] = { ...cell, mount: { ...cell.mount, current_health: newHealth } }
+    newLayer[pos.y][pos.x] = {
+      ...cell,
+      mount: { ...cell.mount, current_health: newHealth },
+    }
     return { ...nothing, objectLayer: newLayer, damage, targetType: cell.type }
   }
 
@@ -186,12 +199,14 @@ function applyDamageToCell(objectLayer, pos, damage) {
   if (profile.apply) {
     profile.apply(newHealth)
     if (fatal) {
-      newLayer = objectLayer.map(row => [...row])
+      newLayer = objectLayer.map((row) => [...row])
       newLayer[pos.y][pos.x] = null
     }
   } else {
-    newLayer = objectLayer.map(row => [...row])
-    newLayer[pos.y][pos.x] = fatal ? null : { ...cell, current_health: newHealth }
+    newLayer = objectLayer.map((row) => [...row])
+    newLayer[pos.y][pos.x] = fatal
+      ? null
+      : { ...cell, current_health: newHealth }
   }
 
   const value = fatal ? getCellKillValue(cell) : { owner: null, points: 0 }
@@ -202,20 +217,39 @@ function applyDamageToCell(objectLayer, pos, damage) {
     defeated: fatal,
     targetType: cell.type,
     killedOwner: value.owner,
-    killPoints: value.points
+    killPoints: value.points,
   }
 }
 
-export function resolveThrownWeaponAttack({ objectLayer, terrainLayer, defenderPos, throwerCombat, thrownCombat, bypassUndead }) {
+export function resolveThrownWeaponAttack({
+  objectLayer,
+  terrainLayer,
+  defenderPos,
+  throwerCombat,
+  thrownCombat,
+  bypassUndead,
+}) {
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
 
   if (!defenderCell) {
-    return { objectLayer, damage: 0, defeated: false, defenderType: null, blocked: false }
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: null,
+      blocked: false,
+    }
   }
 
   const defenderProfile = getCombatProfile(defenderCell)
   if (!defenderProfile) {
-    return { objectLayer, damage: 0, defeated: false, defenderType: null, blocked: false }
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+      defenderType: null,
+      blocked: false,
+    }
   }
 
   if (defenderProfile.flying) {
@@ -225,7 +259,7 @@ export function resolveThrownWeaponAttack({ objectLayer, terrainLayer, defenderP
       defeated: false,
       defenderType: defenderCell.type,
       blocked: true,
-      blockedReason: 'target-airborne'
+      blockedReason: 'target-airborne',
     }
   }
 
@@ -236,7 +270,7 @@ export function resolveThrownWeaponAttack({ objectLayer, terrainLayer, defenderP
       defeated: false,
       defenderType: defenderCell.type,
       blocked: true,
-      blockedReason: 'target-on-floor'
+      blockedReason: 'target-on-floor',
     }
   }
 
@@ -247,11 +281,14 @@ export function resolveThrownWeaponAttack({ objectLayer, terrainLayer, defenderP
       defeated: false,
       defenderType: defenderCell.type,
       blocked: true,
-      blockedReason: 'undead-immune'
+      blockedReason: 'undead-immune',
     }
   }
 
-  const damage = rollDamage(throwerCombat + thrownCombat, defenderProfile.defence)
+  const damage = rollDamage(
+    throwerCombat + thrownCombat,
+    defenderProfile.defence,
+  )
   const result = applyDamageToCell(objectLayer, defenderPos, damage)
 
   return {
@@ -261,25 +298,63 @@ export function resolveThrownWeaponAttack({ objectLayer, terrainLayer, defenderP
     defenderType: result.targetType,
     killedOwner: result.killedOwner,
     killPoints: result.killPoints,
-    blocked: false
+    blocked: false,
   }
 }
 
-function getBlockReason(attackerProfile, defenderProfile, terrainLayer, defenderPos) {
-  if (defenderProfile.flying && !attackerProfile.flying) return 'target-airborne'
-  if (isShieldedByFloor(terrainLayer, defenderPos, defenderProfile, attackerProfile)) return 'target-on-floor'
-  if (defenderProfile.undead && !attackerProfile.undead && !attackerProfile.attackUndead) return 'undead-immune'
+function getBlockReason(
+  attackerProfile,
+  defenderProfile,
+  terrainLayer,
+  defenderPos,
+) {
+  if (defenderProfile.flying && !attackerProfile.flying)
+    return 'target-airborne'
+  if (
+    isShieldedByFloor(
+      terrainLayer,
+      defenderPos,
+      defenderProfile,
+      attackerProfile,
+    )
+  )
+    return 'target-on-floor'
+  if (
+    defenderProfile.undead &&
+    !attackerProfile.undead &&
+    !attackerProfile.attackUndead
+  )
+    return 'undead-immune'
   return null
 }
 
-export function getAttackBlockReason({ objectLayer, terrainLayer, attackerPos, defenderPos }) {
-  const attackerProfile = getCombatProfile(objectLayer[attackerPos.y][attackerPos.x])
-  const defenderProfile = getCombatProfile(objectLayer[defenderPos.y][defenderPos.x])
+export function getAttackBlockReason({
+  objectLayer,
+  terrainLayer,
+  attackerPos,
+  defenderPos,
+}) {
+  const attackerProfile = getCombatProfile(
+    objectLayer[attackerPos.y][attackerPos.x],
+  )
+  const defenderProfile = getCombatProfile(
+    objectLayer[defenderPos.y][defenderPos.x],
+  )
   if (!attackerProfile || !defenderProfile) return null
-  return getBlockReason(attackerProfile, defenderProfile, terrainLayer, defenderPos)
+  return getBlockReason(
+    attackerProfile,
+    defenderProfile,
+    terrainLayer,
+    defenderPos,
+  )
 }
 
-export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defenderPos }) {
+export function resolveAttack({
+  objectLayer,
+  terrainLayer,
+  attackerPos,
+  defenderPos,
+}) {
   const attackerCell = objectLayer[attackerPos.y][attackerPos.x]
   const defenderCell = objectLayer[defenderPos.y][defenderPos.x]
 
@@ -289,7 +364,7 @@ export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defender
       damage: 0,
       defeated: false,
       defenderType: null,
-      blocked: false
+      blocked: false,
     }
   }
 
@@ -302,11 +377,16 @@ export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defender
       damage: 0,
       defeated: false,
       defenderType: null,
-      blocked: false
+      blocked: false,
     }
   }
 
-  const blockedReason = getBlockReason(attackerProfile, defenderProfile, terrainLayer, defenderPos)
+  const blockedReason = getBlockReason(
+    attackerProfile,
+    defenderProfile,
+    terrainLayer,
+    defenderPos,
+  )
   if (blockedReason) {
     return {
       objectLayer,
@@ -314,7 +394,7 @@ export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defender
       defeated: false,
       defenderType: defenderCell.type,
       blocked: true,
-      blockedReason
+      blockedReason,
     }
   }
 
@@ -328,57 +408,65 @@ export function resolveAttack({ objectLayer, terrainLayer, attackerPos, defender
     defenderType: result.targetType,
     killedOwner: result.killedOwner,
     killPoints: result.killPoints,
-    blocked: false
+    blocked: false,
   }
 }
 
 export function applyLavaDamage(objectLayer, pos) {
   const cell = objectLayer[pos.y][pos.x]
-  if (!cell) return {
-    objectLayer,
-    damage: 0,
-    defeated: false
-  }
+  if (!cell)
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+    }
 
   const profile = getCombatProfile(cell)
-  if (!profile) return {
-    objectLayer,
-    damage: 0,
-    defeated: false
-  }
-  if (profile.lavaType || profile.flying) return {
-    objectLayer,
-    damage: 0,
-    defeated: false
-  }
+  if (!profile)
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+    }
+  if (profile.lavaType || profile.flying)
+    return {
+      objectLayer,
+      damage: 0,
+      defeated: false,
+    }
 
-  const damage = Math.max(1, Math.ceil(profile.maxHealth * LAVA_DAMAGE_PERCENT))
+  const damage = Math.max(
+    1,
+    Math.ceil(profile.maxHealth * LAVA_DAMAGE_PERCENT),
+  )
   const result = applyDamageToCell(objectLayer, pos, damage)
 
   return {
     objectLayer: result.objectLayer,
     damage: result.damage,
-    defeated: result.defeated
+    defeated: result.defeated,
   }
 }
 
 function makeEnvironmentDamageFn(amountPerTurn) {
   return (objectLayer, pos) => {
     const cell = objectLayer[pos.y][pos.x]
-    if (!cell) return {
-      objectLayer,
-      damage: 0,
-      defeated: false,
-      targetType: null
-    }
+    if (!cell)
+      return {
+        objectLayer,
+        damage: 0,
+        defeated: false,
+        targetType: null,
+      }
 
     const profile = getCombatProfile(cell)
-    if (!profile) return {
-      objectLayer,
-      damage: 0,
-      defeated: false,
-      targetType: null
-    }
+    if (!profile)
+      return {
+        objectLayer,
+        damage: 0,
+        defeated: false,
+        targetType: null,
+      }
 
     const result = applyDamageToCell(objectLayer, pos, amountPerTurn)
     return {
@@ -387,14 +475,18 @@ function makeEnvironmentDamageFn(amountPerTurn) {
       defeated: result.defeated,
       targetType: result.targetType,
       killedOwner: result.killedOwner,
-      killPoints: result.killPoints
+      killPoints: result.killPoints,
     }
   }
 }
 
 export const applyFireDamage = makeEnvironmentDamageFn(FIRE_DAMAGE_PER_TURN)
-export const applyGooeyBlobDamage = makeEnvironmentDamageFn(GOOEY_DAMAGE_PER_TURN)
-export const applyTangleVineDamage = makeEnvironmentDamageFn(TANGLE_VINE_DAMAGE_PER_TURN)
+export const applyGooeyBlobDamage = makeEnvironmentDamageFn(
+  GOOEY_DAMAGE_PER_TURN,
+)
+export const applyTangleVineDamage = makeEnvironmentDamageFn(
+  TANGLE_VINE_DAMAGE_PER_TURN,
+)
 
 const WALL_DEFENCE = { blob: GOOEY_BLOB_DEFENCE, vine: TANGLE_VINE_DEFENCE }
 
@@ -412,7 +504,8 @@ function getMagicResistance(cell) {
 
 export function applyMagicDamage(objectLayer, pos, level) {
   const cell = objectLayer[pos.y][pos.x]
-  if (!cell) return { objectLayer, damage: 0, defeated: false, targetType: null }
+  if (!cell)
+    return { objectLayer, damage: 0, defeated: false, targetType: null }
 
   const resistance = getMagicResistance(cell)
   const swing = Math.floor(Math.random() * MAGIC_DAMAGE_ROLL_MAX) + 1
@@ -427,11 +520,16 @@ export function applyMagicDamage(objectLayer, pos, level) {
     defeated: result.defeated,
     targetType: result.targetType,
     killedOwner: result.killedOwner,
-    killPoints: result.killPoints
+    killPoints: result.killPoints,
   }
 }
 
-export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCombat, pos }) {
+export function resolveWallEffectAttack({
+  effectLayer,
+  terrainLayer,
+  attackerCombat,
+  pos,
+}) {
   const cell = effectLayer[pos.y][pos.x]
 
   if (!cell || (cell.type !== 'blob' && cell.type !== 'vine')) {
@@ -439,7 +537,7 @@ export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCom
       effectLayer,
       terrainLayer,
       damage: 0,
-      destroyed: false
+      destroyed: false,
     }
   }
 
@@ -447,12 +545,17 @@ export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCom
   const newHealth = cell.health - damage
   const destroyed = newHealth <= 0
 
-  const newEffectLayer = effectLayer.map(row => [...row])
+  const newEffectLayer = effectLayer.map((row) => [...row])
   let newTerrainLayer = terrainLayer
 
   if (destroyed) {
     newEffectLayer[pos.y][pos.x] = null
-    newTerrainLayer = scarWallEffectDestroyedTile(terrainLayer, pos.x, pos.y, cell.type)
+    newTerrainLayer = scarWallEffectDestroyedTile(
+      terrainLayer,
+      pos.x,
+      pos.y,
+      cell.type,
+    )
   } else {
     newEffectLayer[pos.y][pos.x] = { ...cell, health: newHealth }
   }
@@ -461,7 +564,6 @@ export function resolveWallEffectAttack({ effectLayer, terrainLayer, attackerCom
     effectLayer: newEffectLayer,
     terrainLayer: newTerrainLayer,
     damage,
-    destroyed
+    destroyed,
   }
 }
-

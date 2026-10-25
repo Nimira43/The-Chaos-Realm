@@ -4,7 +4,14 @@ import { MAP_WIDTH, MAP_HEIGHT, getMovementCost } from './terrain.js'
 import { wrap } from './utils.js'
 import { NEIGHBOUR_OFFSETS } from './pathfinding.js'
 import { getMoverStats } from './mounts.js'
-import { applyFireDamage, applyGooeyBlobDamage, applyTangleVineDamage, getCellKillValue, GOOEY_BLOB_HEALTH, TANGLE_VINE_HEALTH } from './combat.js'
+import {
+  applyFireDamage,
+  applyGooeyBlobDamage,
+  applyTangleVineDamage,
+  getCellKillValue,
+  GOOEY_BLOB_HEALTH,
+  TANGLE_VINE_HEALTH,
+} from './combat.js'
 
 export const WALL_EFFECT_TYPES = ['fire', 'blob', 'vine', 'flood']
 export const ATTACKABLE_EFFECT_TYPES = ['blob', 'vine']
@@ -27,25 +34,73 @@ export function createFireEffect(owner) {
 }
 
 export function createBlobEffect(owner) {
-  return { type: 'blob', turnsRemaining: GOOEY_DURATION_TURNS, health: GOOEY_BLOB_HEALTH, owner }
+  return {
+    type: 'blob',
+    turnsRemaining: GOOEY_DURATION_TURNS,
+    health: GOOEY_BLOB_HEALTH,
+    owner,
+  }
 }
 
 export function createVineEffect(owner) {
-  return { type: 'vine', health: TANGLE_VINE_HEALTH, owner } 
+  return { type: 'vine', health: TANGLE_VINE_HEALTH, owner }
 }
 
 export function createFloodEffect(owner) {
-  return { type: 'flood', owner } 
+  return { type: 'flood', owner }
 }
 
-const FIRE_UNIGNITABLE_TERRAIN = ['rock', 'swamp', 'water', 'mountain', 'portal', 'wasteland']
-const FIRE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'doorLocked', 'doorUnlocked', 'doorOpen']
+const FIRE_UNIGNITABLE_TERRAIN = [
+  'rock',
+  'swamp',
+  'water',
+  'mountain',
+  'portal',
+  'wasteland',
+]
+const FIRE_DESTROYS_TERRAIN = [
+  'grass',
+  'rough',
+  'forest',
+  'floor',
+  'road',
+  'wall',
+  'doorLocked',
+  'doorUnlocked',
+  'doorOpen',
+]
 
 const GOOEY_UNSPREADABLE_TERRAIN = ['mountain', 'portal', 'wasteland']
-const GOOEY_DESTROYS_TERRAIN = ['swamp', 'water', 'forest', 'rough', 'grass', 'floor', 'road', 'wall', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock']
+const GOOEY_DESTROYS_TERRAIN = [
+  'swamp',
+  'water',
+  'forest',
+  'rough',
+  'grass',
+  'floor',
+  'road',
+  'wall',
+  'doorLocked',
+  'doorUnlocked',
+  'doorOpen',
+  'rock',
+]
 
 const TANGLE_UNCASTABLE_TERRAIN = ['mountain', 'portal']
-const TANGLE_DESTROYS_TERRAIN = ['grass', 'rough', 'forest', 'floor', 'road', 'wall', 'doorLocked', 'doorUnlocked', 'doorOpen', 'rock', 'swamp', 'water']
+const TANGLE_DESTROYS_TERRAIN = [
+  'grass',
+  'rough',
+  'forest',
+  'floor',
+  'road',
+  'wall',
+  'doorLocked',
+  'doorUnlocked',
+  'doorOpen',
+  'rock',
+  'swamp',
+  'water',
+]
 
 const FLOOD_UNCASTABLE_TERRAIN = ['mountain', 'portal', 'lava']
 
@@ -98,40 +153,44 @@ function scarTileToWasteland(terrainLayer, x, y, destroysList) {
   if (current === 'wasteland') return terrainLayer
   if (!destroysList.includes(current)) return terrainLayer
 
-  const newLayer = terrainLayer.map(row => [...row])
+  const newLayer = terrainLayer.map((row) => [...row])
   newLayer[y][x] = 'wasteland'
   return newLayer
 }
 
 export function scarWallEffectDestroyedTile(terrainLayer, x, y, effectType) {
-  const destroysList = effectType === 'vine' ? TANGLE_DESTROYS_TERRAIN : GOOEY_DESTROYS_TERRAIN
+  const destroysList =
+    effectType === 'vine' ? TANGLE_DESTROYS_TERRAIN : GOOEY_DESTROYS_TERRAIN
   return scarTileToWasteland(terrainLayer, x, y, destroysList)
 }
 
 const RESPECTS_FACTION = { fire: true, blob: true, vine: false, flood: false }
 
 function getNeighbourTiles(x, y) {
-  return NEIGHBOUR_OFFSETS.map(offset => ({
+  return NEIGHBOUR_OFFSETS.map((offset) => ({
     x: wrap(x + offset.x, MAP_WIDTH),
-    y: wrap(y + offset.y, MAP_HEIGHT)
+    y: wrap(y + offset.y, MAP_HEIGHT),
   }))
 }
 
 function isAdjacentToFlood(effectLayer, x, y) {
-  return getNeighbourTiles(x, y).some(n => effectLayer[n.y][n.x]?.type === 'flood')
+  return getNeighbourTiles(x, y).some(
+    (n) => effectLayer[n.y][n.x]?.type === 'flood',
+  )
 }
 
 function isAdjacentToPlayerFlood(effectLayer, x, y) {
-  return getNeighbourTiles(x, y).some(n => {
+  return getNeighbourTiles(x, y).some((n) => {
     const e = effectLayer[n.y][n.x]
     return e?.type === 'flood' && e.owner === 'player'
   })
 }
 
 function hasEscapeRoute(terrainLayer, objectLayer, effectLayer, x, y, entity) {
-  return getNeighbourTiles(x, y).some(n => {
+  return getNeighbourTiles(x, y).some((n) => {
     if (objectLayer[n.y][n.x] !== null) return false
-    if (isEnvironmentEffectBlocking(effectLayer, n.x, n.y, entity)) return false
+    if (isEnvironmentEffectBlocking(effectLayer, n.x, n.y, entity))
+      return false
     return getMovementCost(terrainLayer[n.y][n.x], entity) < 999
   })
 }
@@ -152,18 +211,22 @@ function applyFloodDrowning(terrainLayer, objectLayer, effectLayer) {
         entity = PLAYER
         targetType = 'player'
         getFlag = () => PLAYER.floodTrapped
-        setFlag = (v) => { PLAYER.floodTrapped = v }
+        setFlag = (v) => {
+          PLAYER.floodTrapped = v
+        }
       } else if (cell.type === 'enemyWizard') {
         entity = cell.ref
         targetType = 'enemyWizard'
         getFlag = () => cell.ref.floodTrapped
-        setFlag = (v) => { cell.ref.floodTrapped = v }
+        setFlag = (v) => {
+          cell.ref.floodTrapped = v
+        }
       } else if (cell.type === 'creature') {
         entity = cell.stats
         targetType = 'creature'
         getFlag = () => cell.floodTrapped
         setFlag = (v) => {
-          workingObjects = workingObjects.map(row => [...row])
+          workingObjects = workingObjects.map((row) => [...row])
           const current = workingObjects[y][x]
           if (current) workingObjects[y][x] = { ...current, floodTrapped: v }
         }
@@ -172,17 +235,29 @@ function applyFloodDrowning(terrainLayer, objectLayer, effectLayer) {
       }
 
       const moverStats = getMoverStats(cell, entity)
-      const trapped = isAdjacentToFlood(effectLayer, x, y) && !hasEscapeRoute(terrainLayer, workingObjects, effectLayer, x, y, moverStats)
+      const trapped =
+        isAdjacentToFlood(effectLayer, x, y) &&
+        !hasEscapeRoute(
+          terrainLayer,
+          workingObjects,
+          effectLayer,
+          x,
+          y,
+          moverStats,
+        )
 
       if (trapped) {
         if (getFlag()) {
           const value = getCellKillValue(workingObjects[y][x])
-          if (value.owner === 'enemy' && isAdjacentToPlayerFlood(effectLayer, x, y)) scoreEarned += value.points
+          if (
+            value.owner === 'enemy' &&
+            isAdjacentToPlayerFlood(effectLayer, x, y)
+          )
+            scoreEarned += value.points
 
-          workingObjects = workingObjects.map(row => [...row])
+          workingObjects = workingObjects.map((row) => [...row])
           workingObjects[y][x] = null
           defeatedTargets.push(targetType)
-
         } else {
           setFlag(true)
         }
@@ -195,7 +270,7 @@ function applyFloodDrowning(terrainLayer, objectLayer, effectLayer) {
   return {
     objectLayer: workingObjects,
     defeatedTargets,
-    scoreEarned
+    scoreEarned,
   }
 }
 
@@ -210,18 +285,27 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
       if (!effect || effect.type === 'flood') continue
 
       const occupant = workingObjects[y][x]
-      if (RESPECTS_FACTION[effect.type] && occupant && occupant.owner === effect.owner) continue
+      if (
+        RESPECTS_FACTION[effect.type] &&
+        occupant &&
+        occupant.owner === effect.owner
+      )
+        continue
 
       const damageFn =
-        effect.type === 'fire' ? applyFireDamage :
-        effect.type === 'blob' ? applyGooeyBlobDamage :
-        applyTangleVineDamage
+        effect.type === 'fire'
+          ? applyFireDamage
+          : effect.type === 'blob'
+            ? applyGooeyBlobDamage
+            : applyTangleVineDamage
 
       const result = damageFn(workingObjects, { x, y })
       workingObjects = result.objectLayer
-      if (result.defeated && result.targetType) defeatedTargets.push(result.targetType)
+      if (result.defeated && result.targetType)
+        defeatedTargets.push(result.targetType)
 
-      if (effect.owner === 'player' && result.killedOwner === 'enemy') scoreEarned += result.killPoints
+      if (effect.owner === 'player' && result.killedOwner === 'enemy')
+        scoreEarned += result.killPoints
     }
   }
 
@@ -231,14 +315,17 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
   for (let y = 0; y < effectLayer.length; y++) {
     for (let x = 0; x < effectLayer[0].length; x++) {
       const effect = effectLayer[y][x]
-      if (!effect || effect.type === 'vine' || effect.type === 'flood') continue
+      if (!effect || effect.type === 'vine' || effect.type === 'flood')
+        continue
 
-      const spreadChance = effect.type === 'fire' ? FIRE_SPREAD_CHANCE : GOOEY_SPREAD_CHANCE
+      const spreadChance =
+        effect.type === 'fire' ? FIRE_SPREAD_CHANCE : GOOEY_SPREAD_CHANCE
       if (Math.random() >= spreadChance) continue
 
-      const isEligible = effect.type === 'fire'
-        ? (n) => isFireSpreadTarget(terrainLayer, effectLayer, n.x, n.y)
-        : (n) => isTileSpreadableForBlob(terrainLayer, effectLayer, n.x, n.y)
+      const isEligible =
+        effect.type === 'fire'
+          ? (n) => isFireSpreadTarget(terrainLayer, effectLayer, n.x, n.y)
+          : (n) => isTileSpreadableForBlob(terrainLayer, effectLayer, n.x, n.y)
 
       const candidates = getNeighbourTiles(x, y).filter(isEligible)
       if (candidates.length === 0) continue
@@ -251,10 +338,14 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
     }
   }
 
-  const newEffectLayer = effectLayer.map(row => [...row])
+  const newEffectLayer = effectLayer.map((row) => [...row])
 
-  fireSpreadTargets.forEach(({ x, y, owner }) => { newEffectLayer[y][x] = createFireEffect(owner) })
-  blobSpreadTargets.forEach(({ x, y, owner }) => { newEffectLayer[y][x] = createBlobEffect(owner) })
+  fireSpreadTargets.forEach(({ x, y, owner }) => {
+    newEffectLayer[y][x] = createFireEffect(owner)
+  })
+  blobSpreadTargets.forEach(({ x, y, owner }) => {
+    newEffectLayer[y][x] = createBlobEffect(owner)
+  })
 
   let newTerrainLayer = terrainLayer
 
@@ -269,14 +360,26 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
         newEffectLayer[y][x] = { ...original, turnsRemaining: remaining }
       } else {
         newEffectLayer[y][x] = null
-        const destroysList = original.type === 'fire' ? FIRE_DESTROYS_TERRAIN : GOOEY_DESTROYS_TERRAIN
-        const scarred = scarTileToWasteland(newTerrainLayer, x, y, destroysList)
+        const destroysList =
+          original.type === 'fire'
+            ? FIRE_DESTROYS_TERRAIN
+            : GOOEY_DESTROYS_TERRAIN
+        const scarred = scarTileToWasteland(
+          newTerrainLayer,
+          x,
+          y,
+          destroysList,
+        )
         if (scarred !== newTerrainLayer) newTerrainLayer = scarred
       }
     }
   }
 
-  const drownResult = applyFloodDrowning(newTerrainLayer, workingObjects, newEffectLayer)
+  const drownResult = applyFloodDrowning(
+    newTerrainLayer,
+    workingObjects,
+    newEffectLayer,
+  )
   workingObjects = drownResult.objectLayer
   defeatedTargets.push(...drownResult.defeatedTargets)
   scoreEarned += drownResult.scoreEarned
@@ -286,6 +389,6 @@ export function tickEnvironmentEffects(terrainLayer, objectLayer, effectLayer) {
     effectLayer: newEffectLayer,
     terrainLayer: newTerrainLayer,
     defeatedTargets,
-    scoreEarned
+    scoreEarned,
   }
 }

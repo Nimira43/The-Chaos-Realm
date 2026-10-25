@@ -1,5 +1,10 @@
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
-import { MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD, getMovementCost } from './terrain.js'
+import {
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  IMPASSABLE_THRESHOLD,
+  getMovementCost,
+} from './terrain.js'
 import { wrap } from './utils.js'
 import { hasKey } from './items.js'
 import { getMoverStats } from './mounts.js'
@@ -7,7 +12,14 @@ import { getMoverStats } from './mounts.js'
 export const ESCAPE_REGION_SIZE = 100
 
 const NEIGHBOURS = [
-  [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ]
 
 function floodRegion(terrainLayer, stats, lockedPassable, limit) {
@@ -46,12 +58,16 @@ export function isSealedIn(terrainLayer, objectLayer, itemLayer) {
   const closed = floodRegion(terrainLayer, stats, false, ESCAPE_REGION_SIZE)
   if (closed.size >= ESCAPE_REGION_SIZE) return false
 
-  const keyInRoom = hasKey(ENEMY_WIZARD.inventory) ||
-    [...closed].some(k => {
+  const keyInRoom =
+    hasKey(ENEMY_WIZARD.inventory) ||
+    [...closed].some((k) => {
       const [x, y] = k.split(',').map(Number)
-      return (itemLayer?.[y]?.[x] || []).some(item => item.type === 'key')
+      return (itemLayer?.[y]?.[x] || []).some((item) => item.type === 'key')
     })
   if (!keyInRoom) return true
 
-  return floodRegion(terrainLayer, stats, true, ESCAPE_REGION_SIZE).size < ESCAPE_REGION_SIZE
+  return (
+    floodRegion(terrainLayer, stats, true, ESCAPE_REGION_SIZE).size <
+    ESCAPE_REGION_SIZE
+  )
 }

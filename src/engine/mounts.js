@@ -1,6 +1,6 @@
 export const RIDE_AP_COST = 2
 export const DISMOUNT_AP_COST = 2
-export const FLY_TOGGLE_AP_COST = 2 
+export const FLY_TOGGLE_AP_COST = 2
 
 export const FLYING_MOVE_COST = 2
 export const FLYING_BLOCKED_TERRAIN = []
@@ -13,7 +13,9 @@ export function isMountCreature(stats) {
   return !!stats?.mount
 }
 
-export function canFly(stats) { return (stats?.action_points_flying ?? 0) > 0 }
+export function canFly(stats) {
+  return (stats?.action_points_flying ?? 0) > 0
+}
 
 export function isMounted(cell) {
   return !!cell?.mount
@@ -64,12 +66,12 @@ export function createMountCell(mount, x, y) {
     stats: mount.stats,
     inventory: mount.inventory || [],
     flying: mount.flying || false,
-    wanderTarget: null
+    wanderTarget: null,
   }
 }
 
 export function mountRider(objectLayer, riderPos, mountPos) {
-  const copy = objectLayer.map(row => [...row])
+  const copy = objectLayer.map((row) => [...row])
   const mountCell = copy[mountPos.y][mountPos.x]
   const riderCell = copy[riderPos.y][riderPos.x]
 
@@ -83,15 +85,15 @@ export function mountRider(objectLayer, riderPos, mountPos) {
       current_health: mountCell.current_health,
       stats: mountCell.stats,
       inventory: mountCell.inventory || [],
-      flying: false
-    }
+      flying: false,
+    },
   }
 
   return copy
 }
 
 export function dismountRider(objectLayer, riderPos, mountPos) {
-  const copy = objectLayer.map(row => [...row])
+  const copy = objectLayer.map((row) => [...row])
   const { mount, ...riderOnly } = copy[riderPos.y][riderPos.x]
 
   copy[riderPos.y][riderPos.x] = riderOnly

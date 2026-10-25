@@ -3,7 +3,13 @@ import { PLAYER } from '../data/player.js'
 import { getMovementCost, MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap, wrappedManhattanDistance } from './utils.js'
 import { applyLavaDamage } from './combat.js'
-import { canRide, isMounted, isCurrentlyFlying, mountRider, RIDE_AP_COST } from './mounts.js'
+import {
+  canRide,
+  isMounted,
+  isCurrentlyFlying,
+  mountRider,
+  RIDE_AP_COST,
+} from './mounts.js'
 import { findAdjacentMount } from './useMountActions.js'
 
 export const SIGHT_RANGE = 10
@@ -16,13 +22,27 @@ export function chebyshevDist(ax, ay, bx, by) {
 
 export function findNearestPlayerTarget(objectLayer, originX, originY) {
   let nearest = { x: PLAYER.x, y: PLAYER.y, type: 'player' }
-  let bestDist = wrappedManhattanDistance(originX, originY, PLAYER.x, PLAYER.y, MAP_WIDTH, MAP_HEIGHT)
+  let bestDist = wrappedManhattanDistance(
+    originX,
+    originY,
+    PLAYER.x,
+    PLAYER.y,
+    MAP_WIDTH,
+    MAP_HEIGHT,
+  )
 
   for (let y = 0; y < objectLayer.length; y++) {
     for (let x = 0; x < objectLayer[y].length; x++) {
       const cell = objectLayer[y][x]
       if (cell && cell.type === 'creature' && cell.owner === 'player') {
-        const dist = wrappedManhattanDistance(originX, originY, x, y, MAP_WIDTH, MAP_HEIGHT)
+        const dist = wrappedManhattanDistance(
+          originX,
+          originY,
+          x,
+          y,
+          MAP_WIDTH,
+          MAP_HEIGHT,
+        )
         if (dist < bestDist) {
           bestDist = dist
           nearest = { x, y, type: 'creature' }
@@ -33,7 +53,7 @@ export function findNearestPlayerTarget(objectLayer, originX, originY) {
 
   return {
     target: nearest,
-    dist: bestDist
+    dist: bestDist,
   }
 }
 
@@ -44,13 +64,23 @@ export function listPlayerTargets(objectLayer, originX, originY) {
     for (let x = 0; x < objectLayer[y].length; x++) {
       const cell = objectLayer[y][x]
       if (!cell) continue
-      const isTarget = cell.type === 'player' || (cell.type === 'creature' && cell.owner === 'player')
+      const isTarget =
+        cell.type === 'player' ||
+        (cell.type === 'creature' && cell.owner === 'player')
       if (!isTarget) continue
 
       targets.push({
-        x, y,
+        x,
+        y,
         type: cell.type,
-        dist: wrappedManhattanDistance(originX, originY, x, y, MAP_WIDTH, MAP_HEIGHT)
+        dist: wrappedManhattanDistance(
+          originX,
+          originY,
+          x,
+          y,
+          MAP_WIDTH,
+          MAP_HEIGHT,
+        ),
       })
     }
   }
@@ -58,16 +88,27 @@ export function listPlayerTargets(objectLayer, originX, originY) {
   return targets.sort((a, b) => a.dist - b.dist)
 }
 
-export function pickWanderTarget(originX, originY, terrainLayer, objectLayer, entity) {
+export function pickWanderTarget(
+  originX,
+  originY,
+  terrainLayer,
+  objectLayer,
+  entity,
+) {
   for (let i = 0; i < WANDER_ATTEMPTS; i++) {
-    const dx = Math.floor(Math.random() * (WANDER_RADIUS * 2 + 1)) - WANDER_RADIUS
-    const dy = Math.floor(Math.random() * (WANDER_RADIUS * 2 + 1)) - WANDER_RADIUS
+    const dx =
+      Math.floor(Math.random() * (WANDER_RADIUS * 2 + 1)) - WANDER_RADIUS
+    const dy =
+      Math.floor(Math.random() * (WANDER_RADIUS * 2 + 1)) - WANDER_RADIUS
     if (dx === 0 && dy === 0) continue
 
     const x = wrap(originX + dx, MAP_WIDTH)
     const y = wrap(originY + dy, MAP_HEIGHT)
 
-    if (getMovementCost(terrainLayer[y][x], entity) < 999 && objectLayer[y][x] === null) {
+    if (
+      getMovementCost(terrainLayer[y][x], entity) < 999 &&
+      objectLayer[y][x] === null
+    ) {
       return { x, y }
     }
   }
@@ -96,7 +137,10 @@ export function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
       let j = i
       let total = 0
       while (j < path.length && currentLayer[path[j].y][path[j].x] !== null) {
-        if (isCurrentlyFlying(currentLayer[path[j].y][path[j].x])) { total = Infinity; break }
+        if (isCurrentlyFlying(currentLayer[path[j].y][path[j].x])) {
+          total = Infinity
+          break
+        }
         total += getMovementCost(terrainLayer[path[j].y][path[j].x], entity)
         j++
       }
@@ -139,13 +183,23 @@ export function walkPath({ path, ap, terrainLayer, objectLayer, onStep }) {
     ap: remainingAp,
     moved,
     lastPosition,
-    selfDefeated, frames
+    selfDefeated,
+    frames,
   }
 }
 
-export function tryRideAdjacentMount(objectLayer, terrainLayer, x, y, owner, riderStats, riderAp) {
+export function tryRideAdjacentMount(
+  objectLayer,
+  terrainLayer,
+  x,
+  y,
+  owner,
+  riderStats,
+  riderAp,
+) {
   const riderCell = objectLayer[y][x]
-  if (!canRide(riderStats) || isMounted(riderCell) || riderAp < RIDE_AP_COST) return null
+  if (!canRide(riderStats) || isMounted(riderCell) || riderAp < RIDE_AP_COST)
+    return null
 
   const found = findAdjacentMount(objectLayer, terrainLayer, x, y, owner)
   if (!found) return null

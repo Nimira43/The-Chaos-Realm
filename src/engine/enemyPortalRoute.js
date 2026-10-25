@@ -1,20 +1,35 @@
-import { MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD, getMovementCost } from './terrain.js'
-import { wrap } from './utils.js'
-import { canLandOn } from './useMountActions.js'
+import {
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  IMPASSABLE_THRESHOLD,
+  getMovementCost,
+} from "./terrain.js"
+import { wrap } from "./utils.js"
+import { canLandOn } from "./useMountActions.js"
 
 const NEIGHBOURS = [
-  [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ]
 
-const CLOSED_DOORS = ['doorLocked', 'doorUnlocked']
+const CLOSED_DOORS = ["doorLocked", "doorUnlocked"]
 
 function labelPieces(terrainLayer, groundStats) {
-  const label = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(-1))
+  const label = Array.from({ length: MAP_HEIGHT }, () =>
+    Array(MAP_WIDTH).fill(-1),
+  )
   let count = 0
 
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
-      if (label[y][x] !== -1 || !isWalkable(terrainLayer[y][x], groundStats)) continue
+      if (label[y][x] !== -1 || !isWalkable(terrainLayer[y][x], groundStats))
+        continue
 
       const queue = [{ x, y }]
       label[y][x] = count
@@ -23,7 +38,11 @@ function labelPieces(terrainLayer, groundStats) {
         for (const [dx, dy] of NEIGHBOURS) {
           const nx = wrap(cur.x + dx, MAP_WIDTH)
           const ny = wrap(cur.y + dy, MAP_HEIGHT)
-          if (label[ny][nx] !== -1 || !isWalkable(terrainLayer[ny][nx], groundStats)) continue
+          if (
+            label[ny][nx] !== -1 ||
+            !isWalkable(terrainLayer[ny][nx], groundStats)
+          )
+            continue
           label[ny][nx] = count
           queue.push({ x: nx, y: ny })
         }
@@ -36,7 +55,7 @@ function labelPieces(terrainLayer, groundStats) {
 }
 
 function isWalkable(terrain, groundStats) {
-  if (terrain === 'lava' || CLOSED_DOORS.includes(terrain)) return false
+  if (terrain === "lava" || CLOSED_DOORS.includes(terrain)) return false
   return getMovementCost(terrain, groundStats) < IMPASSABLE_THRESHOLD
 }
 
@@ -44,7 +63,8 @@ function findDoors(terrainLayer) {
   const doors = []
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
-      if (CLOSED_DOORS.includes(terrainLayer[y][x])) doors.push({ x, y, locked: terrainLayer[y][x] === 'doorLocked' })
+      if (CLOSED_DOORS.includes(terrainLayer[y][x]))
+        doors.push({ x, y, locked: terrainLayer[y][x] === "doorLocked" })
     }
   }
   return doors
@@ -65,7 +85,7 @@ function keysInPiece(itemLayer, label, id) {
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       if (label[y][x] !== id) continue
-      n += (itemLayer[y][x] || []).filter(i => i.type === 'key').length
+      n += (itemLayer[y][x] || []).filter((i) => i.type === "key").length
     }
   }
   return n
@@ -92,13 +112,13 @@ function playForward(startId, portalId, label, doors, itemLayer, keysHeld) {
       if (opened.has(d)) continue
       const door = doors[d]
       const beside = piecesBeside(label, door.x, door.y)
-      if (![...beside].some(id => reached.has(id))) continue
+      if (![...beside].some((id) => reached.has(id))) continue
       if (door.locked) {
         if (keys <= 0) continue
         keys--
       }
       opened.add(d)
-      beside.forEach(id => reached.add(id))
+      beside.forEach((id) => reached.add(id))
       progressed = true
     }
 
@@ -108,7 +128,14 @@ function playForward(startId, portalId, label, doors, itemLayer, keysHeld) {
   return false
 }
 
-export function findWalkInLandings(terrainLayer, objectLayer, itemLayer, groundStats, portal, keysHeld = 0) {
+export function findWalkInLandings(
+  terrainLayer,
+  objectLayer,
+  itemLayer,
+  groundStats,
+  portal,
+  keysHeld = 0,
+) {
   const { label, count } = labelPieces(terrainLayer, groundStats)
   const portalId = label[portal.y][portal.x]
   if (portalId === -1) return []
@@ -116,7 +143,8 @@ export function findWalkInLandings(terrainLayer, objectLayer, itemLayer, groundS
   const doors = findDoors(terrainLayer)
   const good = new Array(count).fill(null)
   const isGood = (id) => {
-    if (good[id] === null) good[id] = playForward(id, portalId, label, doors, itemLayer, keysHeld)
+    if (good[id] === null)
+      good[id] = playForward(id, portalId, label, doors, itemLayer, keysHeld)
     return good[id]
   }
 
@@ -126,17 +154,32 @@ export function findWalkInLandings(terrainLayer, objectLayer, itemLayer, groundS
       const id = label[y][x]
       if (id === -1 || (x === portal.x && y === portal.y)) continue
       if (objectLayer[y][x]) continue
-      if (!canLandOn(terrainLayer[y][x], groundStats, itemLayer?.[y]?.[x])) continue
+      if (!canLandOn(terrainLayer[y][x], groundStats, itemLayer?.[y]?.[x]))
+        continue
       if (isGood(id)) landings.push({ x, y })
     }
   }
   return landings
 }
 
-export function isOnWalkInGround(terrainLayer, itemLayer, groundStats, pos, portal, keysHeld = 0) {
+export function isOnWalkInGround(
+  terrainLayer,
+  itemLayer,
+  groundStats,
+  pos,
+  portal,
+  keysHeld = 0,
+) {
   const { label } = labelPieces(terrainLayer, groundStats)
   const portalId = label[portal.y][portal.x]
   const id = label[pos.y][pos.x]
   if (portalId === -1 || id === -1) return false
-  return playForward(id, portalId, label, findDoors(terrainLayer), itemLayer, keysHeld)
+  return playForward(
+    id,
+    portalId,
+    label,
+    findDoors(terrainLayer),
+    itemLayer,
+    keysHeld,
+  )
 }

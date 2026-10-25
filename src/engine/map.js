@@ -43,7 +43,10 @@ export function addBlob(map, terrain, centerX, centerY, radius) {
         const dy = y - offsetY
         const jitter = Math.random() * 1.2 - 0.6
 
-        if (dx * dx + dy * dy <= (smallRadius + jitter) * (smallRadius + jitter)) {
+        if (
+          dx * dx + dy * dy <=
+          (smallRadius + jitter) * (smallRadius + jitter)
+        ) {
           const wx = wrap(x, MAP_WIDTH)
           const wy = wrap(y, MAP_HEIGHT)
           map[wy][wx] = terrain
@@ -58,46 +61,56 @@ export function generateProceduralMap() {
 
   // Rough patches
   for (let i = 0; i < 8; i++) {
-    addBlob(m, 'rough',
+    addBlob(
+      m,
+      'rough',
       Math.floor(Math.random() * MAP_WIDTH),
       Math.floor(Math.random() * MAP_HEIGHT),
-      2 + Math.floor(Math.random() * 3)
+      2 + Math.floor(Math.random() * 3),
     )
   }
 
   // Rock clusters
   for (let i = 0; i < 6; i++) {
-    addBlob(m, 'rock',
+    addBlob(
+      m,
+      'rock',
       Math.floor(Math.random() * MAP_WIDTH),
       Math.floor(Math.random() * MAP_HEIGHT),
-      2 + Math.floor(Math.random() * 3)
+      2 + Math.floor(Math.random() * 3),
     )
   }
 
   // Swamp pools
   for (let i = 0; i < 5; i++) {
-    addBlob(m, 'swamp',
+    addBlob(
+      m,
+      'swamp',
       Math.floor(Math.random() * MAP_WIDTH),
       Math.floor(Math.random() * MAP_HEIGHT),
-      2 + Math.floor(Math.random() * 3)
+      2 + Math.floor(Math.random() * 3),
     )
   }
 
   // Lakes
   for (let i = 0; i < 4; i++) {
-    addBlob(m, 'water',
+    addBlob(
+      m,
+      'water',
       Math.floor(Math.random() * MAP_WIDTH),
       Math.floor(Math.random() * MAP_HEIGHT),
-      2 + Math.floor(Math.random() * 4)
+      2 + Math.floor(Math.random() * 4),
     )
   }
 
   // Forests
   for (let i = 0; i < 7; i++) {
-    addBlob(m, 'forest',
+    addBlob(
+      m,
+      'forest',
       Math.floor(Math.random() * MAP_WIDTH),
       Math.floor(Math.random() * MAP_HEIGHT),
-      2 + Math.floor(Math.random() * 4)
+      2 + Math.floor(Math.random() * 4),
     )
   }
 
