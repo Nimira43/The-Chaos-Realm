@@ -3,18 +3,39 @@ import { wrap } from './utils.js'
 import { tryMove, findFlyOverPath } from './movement.js'
 import { PLAYER } from '../data/player.js'
 import { getMovementCost, IMPASSABLE_THRESHOLD } from './terrain.js'
-import { resolveAttack, applyLavaDamage, resolveWallEffectAttack, ATTACK_AP_COST } from './combat.js'
-import { isEnvironmentEffectBlocking, ATTACKABLE_EFFECT_TYPES } from './environmentEffects.js'
-import { isMounted, isCurrentlyFlying, getMoverStats, getMoverAp, withMoverAp } from './mounts.js'
+import {
+  resolveAttack,
+  applyLavaDamage,
+  resolveWallEffectAttack,
+  ATTACK_AP_COST,
+} from './combat.js'
+import {
+  isEnvironmentEffectBlocking,
+  ATTACKABLE_EFFECT_TYPES,
+} from './environmentEffects.js'
+import {
+  isMounted,
+  isCurrentlyFlying,
+  getMoverStats,
+  getMoverAp,
+  withMoverAp,
+} from './mounts.js'
 
 function blockedMessage(reason, who) {
-  if (reason === 'target-airborne') return who ? `${who} can't reach that target — it's flying!` : 'Out of reach — that target is flying!'
-  if (reason === 'target-on-floor') return "Fliers can't reach a unit standing on a floor or a door!"
-  return who ? `${who} cannot harm the undead with a normal attack!` : 'Normal attacks cannot harm the undead!'
+  if (reason === 'target-airborne')
+    return who
+      ? `${who} can't reach that target — it's flying!`
+      : 'Out of reach — that target is flying!'
+  if (reason === 'target-on-floor')
+    return "Fliers can't reach a unit standing on a floor or a door!"
+  return who
+    ? `${who} cannot harm the undead with a normal attack!`
+    : 'Normal attacks cannot harm the undead!'
 }
 
 function creditKill(result, addScore) {
-  if (result.killedOwner === 'enemy' && result.killPoints > 0) addScore(result.killPoints)
+  if (result.killedOwner === 'enemy' && result.killPoints > 0)
+    addScore(result.killPoints)
 }
 
 export default function useInput({
@@ -38,9 +59,8 @@ export default function useInput({
   setGameStatus,
   setGameOverMessage,
   isAnimating,
-  addScore
+  addScore,
 }) {
-
   useEffect(() => {
     function handleKey(e) {
       if (showLoadModal) return
@@ -49,8 +69,7 @@ export default function useInput({
 
       const active = document.activeElement
       const isTyping =
-        active &&
-        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
+        active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
 
       if (isTyping) return
 
@@ -95,9 +114,9 @@ export default function useInput({
 
       if (!selected) {
         if (dx || dy) {
-          setCursor(c => ({
+          setCursor((c) => ({
             x: wrap(c.x + dx, map[0].length),
-            y: wrap(c.y + dy, map.length)
+            y: wrap(c.y + dy, map.length),
           }))
         }
         return
@@ -122,12 +141,17 @@ export default function useInput({
 
             const cell = layer[PLAYER.y][PLAYER.x]
             if (!cell?.mount) return layer
-            const copy = layer.map(row => [...row])
-            copy[PLAYER.y][PLAYER.x] = withMoverAp(cell, cell.mount.ap - ATTACK_AP_COST)
+            const copy = layer.map((row) => [...row])
+            copy[PLAYER.y][PLAYER.x] = withMoverAp(
+              cell,
+              cell.mount.ap - ATTACK_AP_COST,
+            )
             return copy
           }
 
-          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, moverStats)) {
+          if (
+            isEnvironmentEffectBlocking(effectLayer, newX, newY, moverStats)
+          ) {
             const occupant = objectLayer[newY][newX]
 
             if (occupant !== null) {
@@ -138,13 +162,11 @@ export default function useInput({
                   objectLayer,
                   terrainLayer,
                   attackerPos: { x: PLAYER.x, y: PLAYER.y },
-                  defenderPos: { x: newX, y: newY }
+                  defenderPos: { x: newX, y: newY },
                 })
 
                 if (result.blocked) {
-                  console.log(
-                    blockedMessage(result.blockedReason, null)
-                  )
+                  console.log(blockedMessage(result.blockedReason, null))
                   return
                 }
 
@@ -169,7 +191,7 @@ export default function useInput({
                 effectLayer,
                 terrainLayer,
                 attackerCombat: moverStats.combat,
-                pos: { x: newX, y: newY }
+                pos: { x: newX, y: newY },
               })
 
               const spentLayer = spendPlayerAttackAp(objectLayer)
@@ -189,12 +211,30 @@ export default function useInput({
 
           let hop = null
 
-          if (occupant !== null && moverStats.isFlyingNow && !isCurrentlyFlying(occupant) && (occupant.owner !== 'enemy' || e.shiftKey)) {
-            const crossed = findFlyOverPath(objectLayer, PLAYER.x, PLAYER.y, dx, dy)
-            const hopCost = crossed ? crossed.reduce((sum, t) => sum + getMovementCost(map[t.y][t.x], moverStats), 0) : Infinity
+          if (
+            occupant !== null &&
+            moverStats.isFlyingNow &&
+            !isCurrentlyFlying(occupant) &&
+            (occupant.owner !== 'enemy' || e.shiftKey)
+          ) {
+            const crossed = findFlyOverPath(
+              objectLayer,
+              PLAYER.x,
+              PLAYER.y,
+              dx,
+              dy,
+            )
+            const hopCost = crossed
+              ? crossed.reduce(
+                  (sum, t) => sum + getMovementCost(map[t.y][t.x], moverStats),
+                  0,
+                )
+              : Infinity
 
             if (!crossed || moverAp < hopCost) {
-              console.log("Can't fly over that — no free tile beyond, or not enough AP")
+              console.log(
+                "Can't fly over that — no free tile beyond, or not enough AP",
+              )
               return
             }
 
@@ -209,13 +249,11 @@ export default function useInput({
                 objectLayer,
                 terrainLayer,
                 attackerPos: { x: PLAYER.x, y: PLAYER.y },
-                defenderPos: { x: newX, y: newY }
+                defenderPos: { x: newX, y: newY },
               })
 
               if (result.blocked) {
-                console.log(
-                  blockedMessage(result.blockedReason, null)
-                )
+                console.log(blockedMessage(result.blockedReason, null))
                 return
               }
 
@@ -226,7 +264,7 @@ export default function useInput({
                 setEnemyPosition(null)
               }
             } else {
-              console.log("Player cannot move onto an occupied tile")
+              console.log('Player cannot move onto an occupied tile')
             }
             return
           }
@@ -254,17 +292,17 @@ export default function useInput({
           if (moved) {
             const newPos = { x: PLAYER.x, y: PLAYER.y }
 
-            setObjectLayer(prev => {
-              let copy = prev.map(row => [...row])
+            setObjectLayer((prev) => {
+              let copy = prev.map((row) => [...row])
               const movingCell = copy[playerPosition.y][playerPosition.x]
               copy[playerPosition.y][playerPosition.x] = null
               copy[newPos.y][newPos.x] = mounted
                 ? withMoverAp(movingCell, mountApAfterMove)
                 : {
-                  type: 'player',
-                  name: 'Wizard',
-                  owner: 'player'
-                }
+                    type: 'player',
+                    name: 'Wizard',
+                    owner: 'player',
+                  }
 
               if (terrainLayer[newPos.y][newPos.x] === 'lava') {
                 const lavaResult = applyLavaDamage(copy, newPos)
@@ -278,7 +316,10 @@ export default function useInput({
             setCursor(newPos)
             setPlayerPosition(newPos)
 
-            if (terrainLayer[newPos.y][newPos.x] === 'portal' && !moverStats.isFlyingNow) {
+            if (
+              terrainLayer[newPos.y][newPos.x] === 'portal' &&
+              !moverStats.isFlyingNow
+            ) {
               setGameStatus('won')
               setGameOverMessage('You reached the portal! Victory!')
             }
@@ -302,7 +343,9 @@ export default function useInput({
           const newX = wrap(x + dx, map[0].length)
           const newY = wrap(y + dy, map.length)
 
-          if (isEnvironmentEffectBlocking(effectLayer, newX, newY, moverStats)) {
+          if (
+            isEnvironmentEffectBlocking(effectLayer, newX, newY, moverStats)
+          ) {
             const occupant = objectLayer[newY][newX]
 
             if (occupant !== null) {
@@ -313,12 +356,12 @@ export default function useInput({
                   objectLayer,
                   terrainLayer,
                   attackerPos: { x, y },
-                  defenderPos: { x: newX, y: newY }
+                  defenderPos: { x: newX, y: newY },
                 })
 
                 if (result.blocked) {
                   console.log(
-                    blockedMessage(result.blockedReason, creature.name)
+                    blockedMessage(result.blockedReason, creature.name),
                   )
                   return
                 }
@@ -328,8 +371,12 @@ export default function useInput({
                 const attackerCellNow = updatedLayer[y][x]
 
                 if (attackerCellNow) {
-                  updatedLayer = updatedLayer.map(row => [...row])
-                  updatedLayer[y][x] = withMoverAp(attackerCellNow, getMoverAp(attackerCellNow, attackerCellNow.ap) - ATTACK_AP_COST)
+                  updatedLayer = updatedLayer.map((row) => [...row])
+                  updatedLayer[y][x] = withMoverAp(
+                    attackerCellNow,
+                    getMoverAp(attackerCellNow, attackerCellNow.ap) -
+                      ATTACK_AP_COST,
+                  )
                 }
 
                 setObjectLayer(updatedLayer)
@@ -350,11 +397,11 @@ export default function useInput({
                 effectLayer,
                 terrainLayer,
                 attackerCombat: moverStats.combat,
-                pos: { x: newX, y: newY }
+                pos: { x: newX, y: newY },
               })
 
-              setObjectLayer(prev => {
-                const copy = prev.map(row => [...row])
+              setObjectLayer((prev) => {
+                const copy = prev.map((row) => [...row])
                 copy[y][x] = withMoverAp(creature, moverAp - ATTACK_AP_COST)
                 return copy
               })
@@ -373,9 +420,19 @@ export default function useInput({
           let dest = { x: newX, y: newY }
           let hopCost = null
 
-          if (occupant !== null && moverStats.isFlyingNow && !isCurrentlyFlying(occupant) && (occupant.owner !== 'enemy' || e.shiftKey)) {
+          if (
+            occupant !== null &&
+            moverStats.isFlyingNow &&
+            !isCurrentlyFlying(occupant) &&
+            (occupant.owner !== 'enemy' || e.shiftKey)
+          ) {
             const crossed = findFlyOverPath(objectLayer, x, y, dx, dy)
-            const cost = crossed ? crossed.reduce((sum, t) => sum + getMovementCost(map[t.y][t.x], moverStats), 0) : Infinity
+            const cost = crossed
+              ? crossed.reduce(
+                  (sum, t) => sum + getMovementCost(map[t.y][t.x], moverStats),
+                  0,
+                )
+              : Infinity
 
             if (!crossed || moverAp < cost) return
 
@@ -391,12 +448,12 @@ export default function useInput({
                 objectLayer,
                 terrainLayer,
                 attackerPos: { x, y },
-                defenderPos: { x: newX, y: newY }
+                defenderPos: { x: newX, y: newY },
               })
 
               if (result.blocked) {
                 console.log(
-                  blockedMessage(result.blockedReason, creature.name)
+                  blockedMessage(result.blockedReason, creature.name),
                 )
                 return
               }
@@ -406,8 +463,12 @@ export default function useInput({
               const attackerCellNow = updatedLayer[y][x]
 
               if (attackerCellNow) {
-                updatedLayer = updatedLayer.map(row => [...row])
-                updatedLayer[y][x] = withMoverAp(attackerCellNow, getMoverAp(attackerCellNow, attackerCellNow.ap) - ATTACK_AP_COST)
+                updatedLayer = updatedLayer.map((row) => [...row])
+                updatedLayer[y][x] = withMoverAp(
+                  attackerCellNow,
+                  getMoverAp(attackerCellNow, attackerCellNow.ap) -
+                    ATTACK_AP_COST,
+                )
               }
 
               setObjectLayer(updatedLayer)
@@ -425,18 +486,21 @@ export default function useInput({
           if (cost >= IMPASSABLE_THRESHOLD) return
           if (moverAp < cost) return
 
-          let updatedLayer = objectLayer.map(row => [...row])
+          let updatedLayer = objectLayer.map((row) => [...row])
           updatedLayer[y][x] = null
           updatedLayer[dest.y][dest.x] = {
             ...withMoverAp(creature, moverAp - cost),
             x: dest.x,
-            y: dest.y
+            y: dest.y,
           }
 
           let defeated = false
 
           if (terrainType === 'lava') {
-            const lavaResult = applyLavaDamage(updatedLayer, { x: dest.x, y: dest.y })
+            const lavaResult = applyLavaDamage(updatedLayer, {
+              x: dest.x,
+              y: dest.y,
+            })
             updatedLayer = lavaResult.objectLayer
             defeated = lavaResult.defeated
           }
@@ -476,7 +540,6 @@ export default function useInput({
     setGameStatus,
     setGameOverMessage,
     isAnimating,
-    addScore
+    addScore,
   ])
 }
-

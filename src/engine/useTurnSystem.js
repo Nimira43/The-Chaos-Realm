@@ -1,12 +1,17 @@
 import { PLAYER } from '../data/player.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { runEnemyWizardAI, runEnemyCreaturesAI } from './enemyAI.js'
-import { terrainCost, MAP_WIDTH, MAP_HEIGHT, IMPASSABLE_THRESHOLD } from './terrain.js'
+import {
+  terrainCost,
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  IMPASSABLE_THRESHOLD,
+} from './terrain.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
 import { isCurrentlyFlying } from './mounts.js'
 
 export const MAX_ROUNDS = 30
-export const PORTAL_TURN = Math.round(MAX_ROUNDS * 2 / 3)
+export const PORTAL_TURN = Math.round((MAX_ROUNDS * 2) / 3)
 
 const FRAME_DELAY_MS = 120
 
@@ -85,9 +90,8 @@ export default function useTurnSystem({
   setGameOverMessage,
   setIsAnimating,
   turnTokenRef,
-  addScore
+  addScore,
 }) {
-
   const endTurn = () => {
     if (gameStatus !== 'playing') return
     if (round >= MAX_ROUNDS) return
@@ -102,38 +106,45 @@ export default function useTurnSystem({
 
     ENEMY_WIZARD.ap = ENEMY_WIZARD.max_ap
 
-    const playerRegen = Math.ceil(PLAYER.current_mana * 0.10)
+    const playerRegen = Math.ceil(PLAYER.current_mana * 0.1)
     PLAYER.current_mana = Math.min(
       PLAYER.current_mana + playerRegen,
-      PLAYER.max_mana
+      PLAYER.max_mana,
     )
 
-    const enemyRegen = Math.ceil(ENEMY_WIZARD.current_mana * 0.10)
+    const enemyRegen = Math.ceil(ENEMY_WIZARD.current_mana * 0.1)
     ENEMY_WIZARD.current_mana = Math.min(
       ENEMY_WIZARD.current_mana + enemyRegen,
-      ENEMY_WIZARD.max_mana
+      ENEMY_WIZARD.max_mana,
     )
 
-    const resetActionPoints = (layer) => layer.map(row => row.map(cell => {
-      if (!cell) return cell
-      let updated = cell
+    const resetActionPoints = (layer) =>
+      layer.map((row) =>
+        row.map((cell) => {
+          if (!cell) return cell
+          let updated = cell
 
-      if (cell.type === 'creature') {
-        const ownMaxAp = (!updated.mount && updated.flying)
-          ? updated.stats.action_points_flying
-          : updated.stats.action_points_ground
-        updated = { ...updated, ap: ownMaxAp }
-      }
+          if (cell.type === 'creature') {
+            const ownMaxAp =
+              !updated.mount && updated.flying
+                ? updated.stats.action_points_flying
+                : updated.stats.action_points_ground
+            updated = { ...updated, ap: ownMaxAp }
+          }
 
-      if (updated.mount) {
-        const mountMaxAp = updated.mount.flying
-          ? updated.mount.stats.action_points_flying
-          : updated.mount.stats.action_points_ground
-        updated = { ...updated, mount: { ...updated.mount, ap: mountMaxAp } }
-      }
+          if (updated.mount) {
+            const mountMaxAp = updated.mount.flying
+              ? updated.mount.stats.action_points_flying
+              : updated.mount.stats.action_points_ground
+            updated = {
+              ...updated,
+              mount: { ...updated.mount, ap: mountMaxAp },
+            }
+          }
 
-      return updated
-    }))
+          return updated
+        }),
+      )
 
     const withCreatureAp = resetActionPoints(objectLayer)
 
@@ -150,21 +161,30 @@ export default function useTurnSystem({
     let newMessage = ''
 
     if (!activePortalPosition && nextRound >= PORTAL_TURN) {
-      const spawnTile = portalStart || pickRandomPortalTile(workingTerrain, workingLayer)
+      const spawnTile =
+        portalStart || pickRandomPortalTile(workingTerrain, workingLayer)
 
       if (spawnTile) {
-        const newTerrain = workingTerrain.map(row => [...row])
+        const newTerrain = workingTerrain.map((row) => [...row])
         newTerrain[spawnTile.y][spawnTile.x] = 'portal'
 
         workingTerrain = newTerrain
         activePortalPosition = spawnTile
         setPortalPosition(spawnTile)
 
-        if (PLAYER.x === spawnTile.x && PLAYER.y === spawnTile.y && !isCurrentlyFlying(workingLayer[PLAYER.y][PLAYER.x])) {
+        if (
+          PLAYER.x === spawnTile.x &&
+          PLAYER.y === spawnTile.y &&
+          !isCurrentlyFlying(workingLayer[PLAYER.y][PLAYER.x])
+        ) {
           newStatus = 'won'
           newMessage = 'The portal opened beneath your feet — victory!'
-        } else if (enemyPosition && ENEMY_WIZARD.x === spawnTile.x && ENEMY_WIZARD.y === spawnTile.y &&
-          !isCurrentlyFlying(workingLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
+        } else if (
+          enemyPosition &&
+          ENEMY_WIZARD.x === spawnTile.x &&
+          ENEMY_WIZARD.y === spawnTile.y &&
+          !isCurrentlyFlying(workingLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])
+        ) {
           newStatus = 'lost'
           newMessage = 'The portal opened beneath the enemy wizard — you lose.'
         }
@@ -174,7 +194,13 @@ export default function useTurnSystem({
     }
 
     if (enemyPosition) {
-      const wizardResult = runEnemyWizardAI(workingTerrain, workingLayer, activePortalPosition, workingEffectLayer, workingItemLayer)
+      const wizardResult = runEnemyWizardAI(
+        workingTerrain,
+        workingLayer,
+        activePortalPosition,
+        workingEffectLayer,
+        workingItemLayer,
+      )
       workingLayer = wizardResult.objectLayer
       workingEffectLayer = wizardResult.effectLayer
       workingTerrain = wizardResult.terrainLayer
@@ -182,8 +208,15 @@ export default function useTurnSystem({
       frames = frames.concat(wizardResult.frames)
 
       if (wizardResult.zapEffects && wizardResult.zapEffects.length > 0) {
-        const stamped = wizardResult.zapEffects.map(z => ({ x: z.x, y: z.y, until: Date.now() + 500 }))
-        setZapEffects(prev => [...prev.filter(z => z.until > Date.now()), ...stamped])
+        const stamped = wizardResult.zapEffects.map((z) => ({
+          x: z.x,
+          y: z.y,
+          until: Date.now() + 500,
+        }))
+        setZapEffects((prev) => [
+          ...prev.filter((z) => z.until > Date.now()),
+          ...stamped,
+        ])
       }
 
       if (wizardResult.selfDefeated) {
@@ -211,7 +244,13 @@ export default function useTurnSystem({
       }
     }
 
-    const creatureResult = runEnemyCreaturesAI(workingTerrain, workingLayer, workingEffectLayer, workingItemLayer, activePortalPosition)
+    const creatureResult = runEnemyCreaturesAI(
+      workingTerrain,
+      workingLayer,
+      workingEffectLayer,
+      workingItemLayer,
+      activePortalPosition,
+    )
     workingLayer = creatureResult.objectLayer
     workingTerrain = creatureResult.terrainLayer
     workingItemLayer = creatureResult.itemLayer
@@ -222,7 +261,11 @@ export default function useTurnSystem({
       newMessage = 'Your wizard has fallen!'
     }
 
-    const environmentResult = tickEnvironmentEffects(workingTerrain, workingLayer, workingEffectLayer)
+    const environmentResult = tickEnvironmentEffects(
+      workingTerrain,
+      workingLayer,
+      workingEffectLayer,
+    )
     workingLayer = environmentResult.objectLayer
     workingEffectLayer = environmentResult.effectLayer
     workingTerrain = environmentResult.terrainLayer
@@ -233,7 +276,8 @@ export default function useTurnSystem({
       newMessage = 'Your wizard has been destroyed by the environment!'
     }
 
-    if (environmentResult.scoreEarned > 0) addScore(environmentResult.scoreEarned)
+    if (environmentResult.scoreEarned > 0)
+      addScore(environmentResult.scoreEarned)
 
     if (environmentResult.defeatedTargets.includes('enemyWizard')) {
       setEnemyPosition(null)
@@ -272,4 +316,3 @@ export default function useTurnSystem({
 
   return endTurn
 }
-

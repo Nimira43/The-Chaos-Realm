@@ -591,7 +591,7 @@ export const CREATURES = [
     mount: true,
     ride_mounts: false,
     undead: false,
-    use_options: true,
+    use_options: false,
     wood_type: false,
     water_type: false,
     rock_type: true,

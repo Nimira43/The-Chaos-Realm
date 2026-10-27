@@ -52,14 +52,29 @@ export const terrainCost = {
 
 export function isTerrain(tile) {
   return [
-    'grass', 'rough', 'rock', 'swamp', 'water', 'forest', 'wall', 'road',
-    'doorLocked', 'doorUnlocked', 'doorOpen', 'floor', 'mountain', 'lava', 'wasteland'
+    'grass',
+    'rough',
+    'rock',
+    'swamp',
+    'water',
+    'forest',
+    'wall',
+    'road',
+    'doorLocked',
+    'doorUnlocked',
+    'doorOpen',
+    'floor',
+    'mountain',
+    'lava',
+    'wasteland',
   ].includes(tile)
 }
 
 export function getMovementCost(terrainType, entity) {
   if (entity?.isFlyingNow) {
-    return FLYING_BLOCKED_TERRAIN.includes(terrainType) ? 999 : FLYING_MOVE_COST
+    return FLYING_BLOCKED_TERRAIN.includes(terrainType)
+      ? 999
+      : FLYING_MOVE_COST
   }
 
   if (terrainType === 'water' && entity?.water_type) {

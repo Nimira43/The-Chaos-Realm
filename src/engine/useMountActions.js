@@ -13,15 +13,24 @@ import {
   withFlying,
   RIDE_AP_COST,
   DISMOUNT_AP_COST,
-  FLY_TOGGLE_AP_COST
+  FLY_TOGGLE_AP_COST,
 } from './mounts.js'
 
 function getNeighbours(x, y, width, height) {
   const offsets = [
-    { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
-    { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: -1, y: -1 }
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+    { x: 1, y: 1 },
+    { x: 1, y: -1 },
+    { x: -1, y: 1 },
+    { x: -1, y: -1 },
   ]
-  return offsets.map(o => ({ x: wrap(x + o.x, width), y: wrap(y + o.y, height) }))
+  return offsets.map((o) => ({
+    x: wrap(x + o.x, width),
+    y: wrap(y + o.y, height),
+  }))
 }
 
 export function getRiderStats(cell) {
@@ -37,13 +46,27 @@ function getSelectedRider(selected, objectLayer) {
 
   if (selected.type === 'player') {
     const cell = objectLayer[PLAYER.y][PLAYER.x]
-    return { x: PLAYER.x, y: PLAYER.y, ap: PLAYER.ap, stats: PLAYER, cell, owner: 'player' }
+    return {
+      x: PLAYER.x,
+      y: PLAYER.y,
+      ap: PLAYER.ap,
+      stats: PLAYER,
+      cell,
+      owner: 'player',
+    }
   }
 
   if (selected.type === 'creature') {
     const cell = objectLayer[selected.y]?.[selected.x]
     if (!cell || cell.type !== 'creature') return null
-    return { x: selected.x, y: selected.y, ap: cell.ap, stats: cell.stats, cell, owner: cell.owner }
+    return {
+      x: selected.x,
+      y: selected.y,
+      ap: cell.ap,
+      stats: cell.stats,
+      cell,
+      owner: cell.owner,
+    }
   }
 
   return null
@@ -55,55 +78,115 @@ export function findAdjacentMount(objectLayer, terrainLayer, x, y, riderOwner) {
 
   for (const n of getNeighbours(x, y, width, height)) {
     const cell = objectLayer[n.y][n.x]
-    if (cell && cell.type === 'creature' && cell.owner === riderOwner && isMountCreature(cell.stats) && !cell.mount) {
+    if (
+      cell &&
+      cell.type === 'creature' &&
+      cell.owner === riderOwner &&
+      isMountCreature(cell.stats) &&
+      !cell.mount
+    ) {
       return { pos: n, cell }
     }
   }
   return null
 }
 
-function findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, x, y, mountStats) {
+function findFreeAdjacentTile(
+  terrainLayer,
+  objectLayer,
+  effectLayer,
+  x,
+  y,
+  mountStats,
+) {
   const height = terrainLayer.length
   const width = terrainLayer[0].length
 
   for (const n of getNeighbours(x, y, width, height)) {
     if (objectLayer[n.y][n.x] !== null) continue
-    if (isEnvironmentEffectBlocking(effectLayer, n.x, n.y, mountStats)) continue
-    if (getMovementCost(terrainLayer[n.y][n.x], mountStats) >= IMPASSABLE_THRESHOLD) continue
+    if (isEnvironmentEffectBlocking(effectLayer, n.x, n.y, mountStats))
+      continue
+    if (
+      getMovementCost(terrainLayer[n.y][n.x], mountStats) >=
+      IMPASSABLE_THRESHOLD
+    )
+      continue
     return n
   }
   return null
 }
 
-export function findDismountTile(terrainLayer, objectLayer, effectLayer, x, y, riderStats) {
+export function findDismountTile(
+  terrainLayer,
+  objectLayer,
+  effectLayer,
+  x,
+  y,
+  riderStats,
+) {
   const cell = objectLayer[y][x]
   if (!cell?.mount) return null
 
   const terrainHere = terrainLayer[y][x]
-  if (getMovementCost(terrainHere, riderStats) >= IMPASSABLE_THRESHOLD) return null
+  if (getMovementCost(terrainHere, riderStats) >= IMPASSABLE_THRESHOLD)
+    return null
   if (terrainHere === 'lava' && !riderStats?.lava_type) return null
 
-  return findFreeAdjacentTile(terrainLayer, objectLayer, effectLayer, x, y, cell.mount.stats)
+  return findFreeAdjacentTile(
+    terrainLayer,
+    objectLayer,
+    effectLayer,
+    x,
+    y,
+    cell.mount.stats,
+  )
 }
 
 export const NO_LANDING_TERRAIN = [
-  'floor', 'wall', 'mountain', 'lava', 'portal',
-  'doorLocked', 'doorUnlocked', 'doorOpen'
+  'floor',
+  'wall',
+  'mountain',
+  'lava',
+  'portal',
+  'doorLocked',
+  'doorUnlocked',
+  'doorOpen',
 ]
-export const NO_TAKEOFF_TERRAIN = ['doorLocked', 'doorUnlocked', 'doorOpen', 'lava', 'floor']
+export const NO_TAKEOFF_TERRAIN = [
+  'doorLocked',
+  'doorUnlocked',
+  'doorOpen',
+  'lava',
+  'floor',
+]
 
 export function canLandOn(terrainType, stats, items) {
   if (NO_LANDING_TERRAIN.includes(terrainType)) return false
-  if (Array.isArray(items) && items.some(i => i?.type === 'key')) return false
-  return getMovementCost(terrainType, { ...stats, isFlyingNow: false }) < IMPASSABLE_THRESHOLD
+  if (Array.isArray(items) && items.some((i) => i?.type === 'key'))
+    return false
+  return (
+    getMovementCost(terrainType, { ...stats, isFlyingNow: false }) <
+    IMPASSABLE_THRESHOLD
+  )
 }
 
 export function canTakeOffFrom(terrainType) {
   return !NO_TAKEOFF_TERRAIN.includes(terrainType)
 }
 
-export function getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer) {
-  const none = { canRide: false, canDismount: false, canFly: false, canLand: false }
+export function getMountActionAvailability(
+  selected,
+  terrainLayer,
+  objectLayer,
+  effectLayer,
+  itemLayer,
+) {
+  const none = {
+    canRide: false,
+    canDismount: false,
+    canFly: false,
+    canLand: false,
+  }
   const rider = getSelectedRider(selected, objectLayer)
   if (!rider) return none
 
@@ -115,9 +198,22 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
       canDismountFlag =
         !rider.cell.mount.flying &&
         rider.cell.mount.ap >= DISMOUNT_AP_COST &&
-        !!findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
+        !!findDismountTile(
+          terrainLayer,
+          objectLayer,
+          effectLayer,
+          rider.x,
+          rider.y,
+          rider.stats,
+        )
     } else {
-      const mount = findAdjacentMount(objectLayer, terrainLayer, rider.x, rider.y, rider.owner)
+      const mount = findAdjacentMount(
+        objectLayer,
+        terrainLayer,
+        rider.x,
+        rider.y,
+        rider.owner,
+      )
       canRideFlag = !!mount && rider.ap >= RIDE_AP_COST
     }
   }
@@ -125,37 +221,60 @@ export function getMountActionAvailability(selected, terrainLayer, objectLayer, 
   let flyer = null
 
   if (rider.cell?.mount) {
-    flyer = { stats: rider.cell.mount.stats, ap: rider.cell.mount.ap, flying: !!rider.cell.mount.flying }
-    } else if (rider.cell?.type === 'creature' && canFly(rider.cell.stats)) {
-    flyer = { stats: rider.cell.stats, ap: rider.cell.ap, flying: !!rider.cell.flying }
+    flyer = {
+      stats: rider.cell.mount.stats,
+      ap: rider.cell.mount.ap,
+      flying: !!rider.cell.mount.flying,
+    }
+  } else if (rider.cell?.type === 'creature' && canFly(rider.cell.stats)) {
+    flyer = {
+      stats: rider.cell.stats,
+      ap: rider.cell.ap,
+      flying: !!rider.cell.flying,
+    }
   }
 
   let canFlyFlag = false
   let canLandFlag = false
 
-
   if (flyer && canFly(flyer.stats)) {
-    if (flyer.flying) canLandFlag = canLandOn(terrainLayer[rider.y][rider.x], flyer.stats, itemLayer?.[rider.y]?.[rider.x]) && flyer.ap >= FLY_TOGGLE_AP_COST
-    else canFlyFlag = canTakeOffFrom(terrainLayer[rider.y][rider.x]) && flyer.ap >= FLY_TOGGLE_AP_COST
+    if (flyer.flying)
+      canLandFlag =
+        canLandOn(
+          terrainLayer[rider.y][rider.x],
+          flyer.stats,
+          itemLayer?.[rider.y]?.[rider.x],
+        ) && flyer.ap >= FLY_TOGGLE_AP_COST
+    else
+      canFlyFlag =
+        canTakeOffFrom(terrainLayer[rider.y][rider.x]) &&
+        flyer.ap >= FLY_TOGGLE_AP_COST
   }
 
   return {
     canRide: canRideFlag,
     canDismount: canDismountFlag,
     canFly: canFlyFlag,
-    canLand: canLandFlag
+    canLand: canLandFlag,
   }
 }
 
-export default function useMountActions({ terrainLayer, objectLayer, effectLayer, itemLayer, selected, setObjectLayer, setAp }) {
-
+export default function useMountActions({
+  terrainLayer,
+  objectLayer,
+  effectLayer,
+  itemLayer,
+  selected,
+  setObjectLayer,
+  setAp,
+}) {
   const spendRiderAp = (cost) => {
     if (selected.type === 'player') {
       PLAYER.ap -= cost
       setAp(PLAYER.ap)
     } else {
-      setObjectLayer(prev => {
-        const copy = prev.map(row => [...row])
+      setObjectLayer((prev) => {
+        const copy = prev.map((row) => [...row])
         const cell = copy[selected.y][selected.x]
         copy[selected.y][selected.x] = { ...cell, ap: cell.ap - cost }
         return copy
@@ -168,10 +287,18 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
     if (!rider || !canRide(rider.stats) || rider.cell?.mount) return
     if (rider.ap < RIDE_AP_COST) return
 
-    const found = findAdjacentMount(objectLayer, terrainLayer, rider.x, rider.y, rider.owner)
+    const found = findAdjacentMount(
+      objectLayer,
+      terrainLayer,
+      rider.x,
+      rider.y,
+      rider.owner,
+    )
     if (!found) return
 
-    setObjectLayer(prev => mountRider(prev, { x: rider.x, y: rider.y }, found.pos))
+    setObjectLayer((prev) =>
+      mountRider(prev, { x: rider.x, y: rider.y }, found.pos),
+    )
     spendRiderAp(RIDE_AP_COST)
   }
 
@@ -181,24 +308,40 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
     if (rider.cell.mount.flying) return
     if (rider.cell.mount.ap < DISMOUNT_AP_COST) return
 
-    const freeTile = findDismountTile(terrainLayer, objectLayer, effectLayer, rider.x, rider.y, rider.stats)
+    const freeTile = findDismountTile(
+      terrainLayer,
+      objectLayer,
+      effectLayer,
+      rider.x,
+      rider.y,
+      rider.stats,
+    )
     if (!freeTile) return
 
-    setObjectLayer(prev => {
+    setObjectLayer((prev) => {
       const copy = dismountRider(prev, { x: rider.x, y: rider.y }, freeTile)
-      copy[freeTile.y][freeTile.x] = { ...copy[freeTile.y][freeTile.x], ap: copy[freeTile.y][freeTile.x].ap - DISMOUNT_AP_COST }
+      copy[freeTile.y][freeTile.x] = {
+        ...copy[freeTile.y][freeTile.x],
+        ap: copy[freeTile.y][freeTile.x].ap - DISMOUNT_AP_COST,
+      }
       return copy
     })
   }
 
   const takeFlight = () => {
-    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer)
+    const avail = getMountActionAvailability(
+      selected,
+      terrainLayer,
+      objectLayer,
+      effectLayer,
+      itemLayer,
+    )
     if (!avail.canFly) return
 
-    setObjectLayer(prev => {
+    setObjectLayer((prev) => {
       const rider = getSelectedRider(selected, prev)
       if (!rider) return prev
-      const copy = prev.map(row => [...row])
+      const copy = prev.map((row) => [...row])
       const flown = withFlying(copy[rider.y][rider.x], true)
       copy[rider.y][rider.x] = flown.mount
         ? withMoverAp(flown, flown.mount.ap - FLY_TOGGLE_AP_COST)
@@ -208,13 +351,19 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
   }
 
   const land = () => {
-    const avail = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer)
+    const avail = getMountActionAvailability(
+      selected,
+      terrainLayer,
+      objectLayer,
+      effectLayer,
+      itemLayer,
+    )
     if (!avail.canLand) return
 
-    setObjectLayer(prev => {
+    setObjectLayer((prev) => {
       const rider = getSelectedRider(selected, prev)
       if (!rider) return prev
-      const copy = prev.map(row => [...row])
+      const copy = prev.map((row) => [...row])
       const landed = withFlying(copy[rider.y][rider.x], false)
       copy[rider.y][rider.x] = landed.mount
         ? withMoverAp(landed, landed.mount.ap - FLY_TOGGLE_AP_COST)
@@ -227,6 +376,6 @@ export default function useMountActions({ terrainLayer, objectLayer, effectLayer
     rideMount,
     dismountMount,
     takeFlight,
-    land
+    land,
   }
 }

@@ -2,26 +2,45 @@ import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrappedChebyshevDistance, getAreaTiles } from './utils.js'
 
 export const SUMMON_COUNT_BY_LEVEL = {
-  1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
 }
 
 export const RANGED_SPELL_BASE_RANGE = 8
 export const HEALING_RANGE = 1
 
 const ADJACENT_OFFSETS = [
-  { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
-  { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: -1, y: -1 }
+  { x: 1, y: 0 },
+  { x: -1, y: 0 },
+  { x: 0, y: 1 },
+  { x: 0, y: -1 },
+  { x: 1, y: 1 },
+  { x: 1, y: -1 },
+  { x: -1, y: 1 },
+  { x: -1, y: -1 },
 ]
 
-export function castCreatureSummonSpell({ casterPos, creatureName, spellLevel, isTileFree, spawnCreature }) {
+export function castCreatureSummonSpell({
+  casterPos,
+  creatureName,
+  spellLevel,
+  isTileFree,
+  spawnCreature,
+}) {
   const summonCount = SUMMON_COUNT_BY_LEVEL[spellLevel] || 1
 
-  const adjacentTiles = ADJACENT_OFFSETS.map(offset => ({
+  const adjacentTiles = ADJACENT_OFFSETS.map((offset) => ({
     x: casterPos.x + offset.x,
-    y: casterPos.y + offset.y
+    y: casterPos.y + offset.y,
   }))
 
-  const freeTiles = adjacentTiles.filter(tile => isTileFree(tile))
+  const freeTiles = adjacentTiles.filter((tile) => isTileFree(tile))
 
   let spawnTiles
 
@@ -37,20 +56,25 @@ export function castCreatureSummonSpell({ casterPos, creatureName, spellLevel, i
       pool.splice(index, 1)
     }
   }
-  spawnTiles.forEach(tile => {
+  spawnTiles.forEach((tile) => {
     spawnCreature(creatureName, tile)
   })
 }
 
-function castEnvironmentTileSpell({ casterPos, spellLevel, isTileValid, applyToTile }) {
+function castEnvironmentTileSpell({
+  casterPos,
+  spellLevel,
+  isTileValid,
+  applyToTile,
+}) {
   const tileCount = SUMMON_COUNT_BY_LEVEL[spellLevel] || 1
 
-  const adjacentTiles = ADJACENT_OFFSETS.map(offset => ({
+  const adjacentTiles = ADJACENT_OFFSETS.map((offset) => ({
     x: casterPos.x + offset.x,
-    y: casterPos.y + offset.y
+    y: casterPos.y + offset.y,
   }))
 
-  const validTiles = adjacentTiles.filter(tile => isTileValid(tile))
+  const validTiles = adjacentTiles.filter((tile) => isTileValid(tile))
 
   let tilesToAffect
 
@@ -67,59 +91,129 @@ function castEnvironmentTileSpell({ casterPos, spellLevel, isTileValid, applyToT
     }
   }
 
-  tilesToAffect.forEach(tile => {
+  tilesToAffect.forEach((tile) => {
     applyToTile(tile)
   })
 }
 
-export function castMagicFireSpell({ casterPos, spellLevel, isTileIgnitable, igniteTile }) {
-  castEnvironmentTileSpell({ casterPos, spellLevel, isTileValid: isTileIgnitable, applyToTile: igniteTile })
+export function castMagicFireSpell({
+  casterPos,
+  spellLevel,
+  isTileIgnitable,
+  igniteTile,
+}) {
+  castEnvironmentTileSpell({
+    casterPos,
+    spellLevel,
+    isTileValid: isTileIgnitable,
+    applyToTile: igniteTile,
+  })
 }
 
-export function castGooeyBlobSpell({ casterPos, spellLevel, isTileSpreadableForBlob, spreadBlobTile }) {
-  castEnvironmentTileSpell({ casterPos, spellLevel, isTileValid: isTileSpreadableForBlob, applyToTile: spreadBlobTile })
+export function castGooeyBlobSpell({
+  casterPos,
+  spellLevel,
+  isTileSpreadableForBlob,
+  spreadBlobTile,
+}) {
+  castEnvironmentTileSpell({
+    casterPos,
+    spellLevel,
+    isTileValid: isTileSpreadableForBlob,
+    applyToTile: spreadBlobTile,
+  })
 }
 
-export function castTangleVineSpell({ casterPos, aimPos, spellLevel, isTileValidForVine, applyVineToTile }) {
+export function castTangleVineSpell({
+  casterPos,
+  aimPos,
+  spellLevel,
+  isTileValidForVine,
+  applyVineToTile,
+}) {
   if (!aimPos) return
 
   const maxRange = RANGED_SPELL_BASE_RANGE + spellLevel
-  const distance = wrappedChebyshevDistance(casterPos.x, casterPos.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
+  const distance = wrappedChebyshevDistance(
+    casterPos.x,
+    casterPos.y,
+    aimPos.x,
+    aimPos.y,
+    MAP_WIDTH,
+    MAP_HEIGHT,
+  )
 
   if (distance > maxRange) {
     console.warn('Tangle Vine cast out of range')
     return
   }
 
-  const areaTiles = getAreaTiles(aimPos.x, aimPos.y, spellLevel, MAP_WIDTH, MAP_HEIGHT)
+  const areaTiles = getAreaTiles(
+    aimPos.x,
+    aimPos.y,
+    spellLevel,
+    MAP_WIDTH,
+    MAP_HEIGHT,
+  )
 
-  areaTiles.forEach(tile => {
+  areaTiles.forEach((tile) => {
     if (isTileValidForVine(tile)) applyVineToTile(tile)
   })
 }
 
-export function castFloodSpell({ casterPos, aimPos, spellLevel, isTileValidForFlood, applyFloodToTile }) {
+export function castFloodSpell({
+  casterPos,
+  aimPos,
+  spellLevel,
+  isTileValidForFlood,
+  applyFloodToTile,
+}) {
   if (!aimPos) return
 
   const maxRange = RANGED_SPELL_BASE_RANGE + spellLevel
-  const distance = wrappedChebyshevDistance(casterPos.x, casterPos.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
+  const distance = wrappedChebyshevDistance(
+    casterPos.x,
+    casterPos.y,
+    aimPos.x,
+    aimPos.y,
+    MAP_WIDTH,
+    MAP_HEIGHT,
+  )
 
   if (distance > maxRange) {
     console.warn('Flood cast out of range')
     return
   }
 
-  const areaTiles = getAreaTiles(aimPos.x, aimPos.y, spellLevel, MAP_WIDTH, MAP_HEIGHT)
+  const areaTiles = getAreaTiles(
+    aimPos.x,
+    aimPos.y,
+    spellLevel,
+    MAP_WIDTH,
+    MAP_HEIGHT,
+  )
 
-  areaTiles.forEach(tile => {
+  areaTiles.forEach((tile) => {
     if (isTileValidForFlood(tile)) applyFloodToTile(tile)
   })
 }
 
-export function castHealingSpell({ casterPos, aimPos, isTileValidForHeal, healTile }) {
+export function castHealingSpell({
+  casterPos,
+  aimPos,
+  isTileValidForHeal,
+  healTile,
+}) {
   if (!aimPos) return
 
-  const distance = wrappedChebyshevDistance(casterPos.x, casterPos.y, aimPos.x, aimPos.y, MAP_WIDTH, MAP_HEIGHT)
+  const distance = wrappedChebyshevDistance(
+    casterPos.x,
+    casterPos.y,
+    aimPos.x,
+    aimPos.y,
+    MAP_WIDTH,
+    MAP_HEIGHT,
+  )
 
   if (distance > HEALING_RANGE) {
     console.warn('Healing Potion cast out of range')
@@ -142,7 +236,7 @@ export function castMagicBoltSpell({ aimPos, spellLevel, zapTile }) {
 export function castMagicLightningSpell({ aimPos, spellLevel, zapTile }) {
   if (!aimPos) return
   const areaTiles = getAreaTiles(aimPos.x, aimPos.y, 1, MAP_WIDTH, MAP_HEIGHT)
-  areaTiles.forEach(tile => zapTile(tile, spellLevel))
+  areaTiles.forEach((tile) => zapTile(tile, spellLevel))
 }
 
 function castEnvironmentSpell({
@@ -156,23 +250,45 @@ function castEnvironmentSpell({
   isTileValidForVine,
   applyVineToTile,
   isTileValidForFlood,
-  applyFloodToTile
+  applyFloodToTile,
 }) {
   switch (spell.name) {
     case 'Magic Fire':
-      castMagicFireSpell({ casterPos, spellLevel: spell.currentSpellLevel, isTileIgnitable, igniteTile })
+      castMagicFireSpell({
+        casterPos,
+        spellLevel: spell.currentSpellLevel,
+        isTileIgnitable,
+        igniteTile,
+      })
       break
 
     case 'Gooey Blob':
-      castGooeyBlobSpell({ casterPos, spellLevel: spell.currentSpellLevel, isTileSpreadableForBlob, spreadBlobTile })
+      castGooeyBlobSpell({
+        casterPos,
+        spellLevel: spell.currentSpellLevel,
+        isTileSpreadableForBlob,
+        spreadBlobTile,
+      })
       break
 
     case 'Tangle Vine':
-      castTangleVineSpell({ casterPos, aimPos, spellLevel: spell.currentSpellLevel, isTileValidForVine, applyVineToTile })
+      castTangleVineSpell({
+        casterPos,
+        aimPos,
+        spellLevel: spell.currentSpellLevel,
+        isTileValidForVine,
+        applyVineToTile,
+      })
       break
 
     case 'Flood':
-      castFloodSpell({ casterPos, aimPos, spellLevel: spell.currentSpellLevel, isTileValidForFlood, applyFloodToTile })
+      castFloodSpell({
+        casterPos,
+        aimPos,
+        spellLevel: spell.currentSpellLevel,
+        isTileValidForFlood,
+        applyFloodToTile,
+      })
       break
 
     default:
@@ -181,7 +297,13 @@ function castEnvironmentSpell({
   }
 }
 
-function castPotionSpell({ spell, casterPos, aimPos, isTileValidForHeal, healTile }) {
+function castPotionSpell({
+  spell,
+  casterPos,
+  aimPos,
+  isTileValidForHeal,
+  healTile,
+}) {
   switch (spell.name) {
     case 'Healing Potion':
       castHealingSpell({ casterPos, aimPos, isTileValidForHeal, healTile })
@@ -196,11 +318,19 @@ function castPotionSpell({ spell, casterPos, aimPos, isTileValidForHeal, healTil
 function castOffensiveSpell({ spell, aimPos, zapTile }) {
   switch (spell.name) {
     case 'Magic Bolt':
-      castMagicBoltSpell({ aimPos, spellLevel: spell.currentSpellLevel, zapTile })
+      castMagicBoltSpell({
+        aimPos,
+        spellLevel: spell.currentSpellLevel,
+        zapTile,
+      })
       break
 
     case 'Magic Lightning':
-      castMagicLightningSpell({ aimPos, spellLevel: spell.currentSpellLevel, zapTile })
+      castMagicLightningSpell({
+        aimPos,
+        spellLevel: spell.currentSpellLevel,
+        zapTile,
+      })
       break
 
     default:
@@ -225,7 +355,7 @@ export function castSpell({
   applyFloodToTile,
   isTileValidForHeal,
   healTile,
-  zapTile
+  zapTile,
 }) {
   if (!spell) {
     console.warn('castSpell called with no spell')
@@ -239,7 +369,7 @@ export function castSpell({
         creatureName: spell.name,
         spellLevel: spell.currentSpellLevel,
         isTileFree,
-        spawnCreature
+        spawnCreature,
       })
       break
 
@@ -255,12 +385,18 @@ export function castSpell({
         isTileValidForVine,
         applyVineToTile,
         isTileValidForFlood,
-        applyFloodToTile
+        applyFloodToTile,
       })
       break
 
     case 'potion':
-      castPotionSpell({ spell, casterPos, aimPos, isTileValidForHeal, healTile })
+      castPotionSpell({
+        spell,
+        casterPos,
+        aimPos,
+        isTileValidForHeal,
+        healTile,
+      })
       break
 
     case 'offensive':

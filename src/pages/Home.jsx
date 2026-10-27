@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { listResumableRuns } from '../data/campaignRun.js'
 
 const VIDEO_DOWNLOAD_URL = null
 
@@ -23,6 +24,24 @@ const MENU = [
 
 export default function Home() {
   const [videoFailed, setVideoFailed] = useState(false)
+  const resumable = listResumableRuns()[0]
+  const menu = [
+    ...(resumable
+      ? [
+          {
+            to: `/game?run=${resumable.id}`,
+            title: 'Continue Campaign',
+            sub: `${resumable.wizardName} · level ${resumable.index + 1} of ${resumable.levels.length}`,
+          },
+        ]
+      : []),
+    {
+      to: '/game?campaign=new',
+      title: '3 Level Campaign',
+      sub: 'Pick a wizard, play three levels, visit the shop',
+    },
+    ...MENU,
+  ]
 
   return (
     <div className='home-container'>
@@ -45,7 +64,7 @@ export default function Home() {
         <p className='home-tagline'>Summon. Conquer. Vanquish.</p>
 
         <nav className='home-wrapper'>
-          {MENU.map((item) => (
+          {menu.map((item) => (
             <Link key={item.to} to={item.to}>
               <button className='home-btn'>
                 {item.title}

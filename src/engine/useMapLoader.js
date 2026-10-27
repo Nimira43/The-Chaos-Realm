@@ -1,14 +1,21 @@
-import { isTerrain } from './terrain.js'
-import { generateProceduralMap } from './map.js'
-import { wrap } from './utils.js'
-import { PLAYER } from '../data/player.js'
-import { ENEMY_WIZARD } from '../data/enemyWizard.js'
-import { SPELLBOOK, resetSpellbook } from '../data/spellbook.js'
-import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
-import { createKeyItem, placeRandomPickups } from './items.js'
-import { pickWizardStarts } from './wizardStarts.js'
+import { isTerrain } from "./terrain.js"
+import { generateProceduralMap } from "./map.js"
+import { wrap } from "./utils.js"
+import { PLAYER } from "../data/player.js"
+import { ENEMY_WIZARD } from "../data/enemyWizard.js"
+import { SPELLBOOK, resetSpellbook } from "../data/spellbook.js"
+import { ENEMY_SPELLBOOK } from "../data/enemySpellbook.js"
+import { createKeyItem, placeRandomPickups } from "./items.js"
+import { pickWizardStarts } from "./wizardStarts.js"
 
-const SPAWN_TERRAIN_EXCLUDED = ['mountain', 'wall', 'lava', 'water', 'doorLocked', 'doorUnlocked']
+const SPAWN_TERRAIN_EXCLUDED = [
+  "mountain",
+  "wall",
+  "lava",
+  "water",
+  "doorLocked",
+  "doorUnlocked",
+]
 
 function inferSpawnTerrain(terrain, x, y, width, height) {
   const tally = {}
@@ -21,7 +28,7 @@ function inferSpawnTerrain(terrain, x, y, width, height) {
       const ny = wrap(y + dy, height)
       const neighbourTerrain = terrain[ny][nx]
 
-      if (!neighbourTerrain) continue 
+      if (!neighbourTerrain) continue
       if (SPAWN_TERRAIN_EXCLUDED.includes(neighbourTerrain)) continue
 
       tally[neighbourTerrain] = (tally[neighbourTerrain] || 0) + 1
@@ -38,7 +45,7 @@ function inferSpawnTerrain(terrain, x, y, width, height) {
     }
   }
 
-  return best || 'grass'
+  return best || "grass"
 }
 
 export default function useMapLoader({
@@ -59,18 +66,17 @@ export default function useMapLoader({
   setScore,
   setIsAnimating,
   turnTokenRef,
-  mapFilename
+  mapFilename,
 }) {
-
   const restartGame = () => {
     turnTokenRef.current += 1
     setIsAnimating(false)
 
     const generated = generateProceduralMap()
     setTerrainLayer(generated)
-    const objects = generated.map(row => row.map(() => null))
-    const effects = generated.map(row => row.map(() => null))
-    let items = generated.map(row => row.map(() => null))
+    const objects = generated.map((row) => row.map(() => null))
+    const effects = generated.map((row) => row.map(() => null))
+    let items = generated.map((row) => row.map(() => null))
 
     resetSpellbook(SPELLBOOK)
     resetSpellbook(ENEMY_SPELLBOOK)
@@ -86,9 +92,9 @@ export default function useMapLoader({
     PLAYER.inventory = []
 
     objects[PLAYER.y][PLAYER.x] = {
-      type: 'player',
-      name: 'Wizard',
-      owner: 'player'
+      type: "player",
+      name: "Wizard",
+      owner: "player",
     }
 
     ENEMY_WIZARD.x = starts.enemy.x
@@ -101,14 +107,14 @@ export default function useMapLoader({
     ENEMY_WIZARD.inventory = []
 
     objects[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = {
-      type: 'enemyWizard',
-      name: 'Enemy Wizard',
-      owner: 'enemy',
-      ref: ENEMY_WIZARD
+      type: "enemyWizard",
+      name: "Enemy Wizard",
+      owner: "enemy",
+      ref: ENEMY_WIZARD,
     }
 
     setEnemyPosition({ x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y })
-  
+
     items = placeRandomPickups(generated, objects, items)
     setObjectLayer(objects)
     setEffectLayer(effects)
@@ -123,19 +129,19 @@ export default function useMapLoader({
 
     setPortalStart(null)
     setPortalPosition(null)
-    setGameStatus('playing')
-    setGameOverMessage('')
+    setGameStatus("playing")
+    setGameOverMessage("")
     setScore(0)
 
     try {
       resetSpellbook(SPELLBOOK)
       resetSpellbook(ENEMY_SPELLBOOK)
     } catch (err) {
-      console.error('Failed to reset spellbooks on restart:', err)
+      console.error("Failed to reset spellbooks on restart:", err)
     }
 
-    console.log('Generated map size:', generated.length, generated[0].length)
-    console.log('RESTART GAME CALLED')
+    console.log("Generated map size:", generated.length, generated[0].length)
+    console.log("RESTART GAME CALLED")
   }
 
   const loadHandcraftedMap = (jsonMap) => {
@@ -175,19 +181,19 @@ export default function useMapLoader({
           objects[y][x] = null
           spawnMarkerPositions.push({ x, y })
 
-          if (tile === 'playerWizard') {
+          if (tile === "playerWizard") {
             playerStart = { x, y }
           }
 
-          if (tile === 'enemyWizard') {
+          if (tile === "enemyWizard") {
             enemyStart = { x, y }
           }
 
-          if (tile === 'portal') {
+          if (tile === "portal") {
             portalStart = { x, y }
           }
 
-          if (tile === 'key') {
+          if (tile === "key") {
             keyPositions.push({ x, y })
           }
         }
@@ -209,11 +215,13 @@ export default function useMapLoader({
 
     const resolvedPlayerStart = playerStart || {
       x: Math.floor(width / 2),
-      y: Math.floor(height / 2)
+      y: Math.floor(height / 2),
     }
 
     if (!playerStart) {
-      console.warn('No playerWizard tile found in this map — placing the player at the map centre instead.')
+      console.warn(
+        "No playerWizard tile found in this map — placing the player at the map centre instead.",
+      )
     }
 
     PLAYER.x = resolvedPlayerStart.x
@@ -225,9 +233,9 @@ export default function useMapLoader({
     PLAYER.inventory = []
 
     objects[resolvedPlayerStart.y][resolvedPlayerStart.x] = {
-      type: 'player',
-      name: 'Wizard',
-      owner: 'player'
+      type: "player",
+      name: "Wizard",
+      owner: "player",
     }
 
     setPlayerPosition(resolvedPlayerStart)
@@ -244,10 +252,10 @@ export default function useMapLoader({
       ENEMY_WIZARD.inventory = []
 
       objects[enemyStart.y][enemyStart.x] = {
-        type: 'enemyWizard',
-        name: 'Enemy Wizard',
-        owner: 'enemy',
-        ref: ENEMY_WIZARD
+        type: "enemyWizard",
+        name: "Enemy Wizard",
+        owner: "enemy",
+        ref: ENEMY_WIZARD,
       }
 
       setEnemyPosition(enemyStart)
@@ -266,15 +274,15 @@ export default function useMapLoader({
 
     setPortalStart(portalStart)
     setPortalPosition(null)
-    setGameStatus('playing')
-    setGameOverMessage('')
+    setGameStatus("playing")
+    setGameOverMessage("")
     setScore(0)
 
     try {
       resetSpellbook(SPELLBOOK)
       resetSpellbook(ENEMY_SPELLBOOK)
     } catch (err) {
-      console.error('Failed to reset spellbooks on map load:', err)
+      console.error("Failed to reset spellbooks on map load:", err)
     }
   }
 
@@ -284,13 +292,13 @@ export default function useMapLoader({
       const data = await res.json()
       loadHandcraftedMap(data)
     } catch {
-      alert('Map not found')
+      alert("Map not found")
     }
   }
 
   return {
     restartGame,
     loadMapFromFile,
-    loadHandcraftedMap
+    loadHandcraftedMap,
   }
 }

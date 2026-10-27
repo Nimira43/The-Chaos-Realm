@@ -21,6 +21,23 @@ import '../index.css'
 import { useEffect } from 'react'
 import WizardPicker from '../ui/WizardPicker.jsx'
 import { applyWizardToGame } from '../data/applyWizard.js'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  CampaignComplete,
+  CampaignDefeat,
+  CampaignShop,
+} from '../ui/CampaignScreens.jsx'
+import {
+  TEST_CAMPAIGN_LEVELS,
+  applyPurchases,
+  createRun,
+  deleteRun,
+  getBank,
+  getRun,
+  pickPlayableLevels,
+  saveRun,
+  winLevel,
+} from '../data/campaignRun.js'
 
 function getHoverInfo(objectLayer, terrainLayer, cursor) {
   if (!terrainLayer.length || !objectLayer.length) return null
@@ -143,10 +160,25 @@ export default function GameEngine() {
     endTurn,
     restartGame,
     loadMapFromFile,
+    loadMapByName,
   } = useGameEngine()
 
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const runParam = searchParams.get('run')
+  const startingCampaign = searchParams.get('campaign') === 'new'
+
+  const [run, setRun] = useState(null)
+  const [phase, setPhase] = useState('play')
+  const [lastResult, setLastResult] = useState(null)
+  const [campaignError, setCampaignError] = useState(null)
+  const levelHandledRef = useRef(false)
+  const resumedRef = useRef(false)
+
+  const inCampaign = !!run
   const gameOver = gameStatus !== 'playing'
-  const actionsLocked = gameOver || isAnimating
+  const actionsLocked =
+    gameOver || isAnimating || (inCampaign && phase !== 'play')
 
   const bowInfo = getBowInfo(objectLayer)
   const throwInfo = getThrowInfo(objectLayer)
@@ -169,14 +201,96 @@ export default function GameEngine() {
   const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
   const playerMount = objectLayer[PLAYER.y]?.[PLAYER.x]?.mount
 
-  const [pickerOpen, setPickerOpen] = useState(true)
+  const [pickerOpen, setPickerOpen] = useState(!runParam)
   const [wizardName, setWizardName] = useState(null)
 
   useEffect(() => {
     restartGame()
   }, [])
 
+  async function beginLevel(r) {
+    setPhase('loading')
+    applyWizardToGame(r.clone)
+    try {
+      await loadMapByName(r.levels[r.index])
+      levelHandledRef.current = false
+      setPhase('play')
+    } catch (err) {
+      console.error(err)
+      setCampaignError(`Could not load ${r.levels[r.index]}.`)
+    }
+  }
+
+  async function startCampaign(clone) {
+    setPickerOpen(false)
+    setPhase('loading')
+    const levels = await pickPlayableLevels(TEST_CAMPAIGN_LEVELS)
+    if (levels.length < TEST_CAMPAIGN_LEVELS) {
+      setCampaignError('Could not find enough playable levels in /created-maps.')
+      return
+    }
+    const newRun = saveRun(createRun({ clone, levels }))
+    setRun(newRun)
+    setWizardName(clone.name)
+    navigate(`/game?run=${newRun.id}`, { replace: true })
+    await beginLevel(newRun)
+  }
+
+  useEffect(() => {
+    if (!runParam || resumedRef.current || run?.id === runParam) return
+    resumedRef.current = true
+
+    const saved = getRun(runParam)
+    if (!saved || saved.status === 'complete') {
+      navigate('/', { replace: true })
+      return
+    }
+
+    setRun(saved)
+    setWizardName(saved.wizardName)
+    setPickerOpen(false)
+
+    if (saved.status === 'shopping') {
+      applyWizardToGame(saved.clone)
+      setPhase('shop')
+    } else {
+      beginLevel(saved)
+    }
+  }, [runParam])
+
+  useEffect(() => {
+    if (!run || phase !== 'play' || levelHandledRef.current) return
+
+    if (gameStatus === 'won') {
+      levelHandledRef.current = true
+      const updated = saveRun(winLevel(run, score))
+      setRun(updated)
+      setLastResult({ earned: score, message: gameOverMessage })
+      setPhase(updated.status === 'complete' ? 'complete' : 'shop')
+    } else if (gameStatus !== 'playing') {
+      levelHandledRef.current = true
+      deleteRun(run.id)
+      setPhase('failed')
+    }
+  }, [gameStatus, phase, run, score, gameOverMessage])
+
+  function handleShopContinue(draft) {
+    const bought = applyPurchases(run, draft)
+    if (!bought.ok) {
+      setCampaignError(bought.error)
+      return
+    }
+    const next = saveRun(bought.run)
+    setRun(next)
+    setLastResult(null)
+    beginLevel(next)
+  }
+
   function handleWizardChosen(clone) {
+    if (startingCampaign && !run) {
+      startCampaign(clone)
+      return
+    }
     applyWizardToGame(clone)
     setWizardName(clone.name)
     setPickerOpen(false)
@@ -299,6 +413,13 @@ export default function GameEngine() {
             Turn {round} / {MAX_ROUNDS}
           </div>
           <div id='score-display'>Score: {score}</div>
+          {inCampaign && (
+            <div className='turn-note'>
+              Level {Math.min(run.index + 1, run.levels.length)} of{' '}
+              {run.levels.length} · {run.levels[run.index]} · Bank{' '}
+              {getBank(run)}
+            </div>
+          )}
           {isAnimating && !gameOver && (
             <div className='turn-note'>Enemy turn…</div>
           )}
@@ -512,38 +633,82 @@ export default function GameEngine() {
               <div>Item: {info.items.map((item) => item.name).join(', ')}</div>
             )}
 
-            <button
-              className='load-map-btn'
-              onClick={(e) => {
-                setShowLoadModal(true)
-                e.currentTarget.blur()
-              }}
-            >
-              Load Map
-            </button>
+            {inCampaign ? (
+              <>
+                <div>Campaign: {run.wizardName}</div>
+                <button onClick={() => navigate('/')}>Leave campaign</button>
+              </>
+            ) : (
+              <>
+                <button
+                  className='load-map-btn'
+                  onClick={(e) => {
+                    setShowLoadModal(true)
+                    e.currentTarget.blur()
+                  }}
+                >
+                  Load Map
+                </button>
 
-            <button className='generate-map-btn' onClick={handleRestartClick}>
-              Generate Map
-            </button>
+                <button className='generate-map-btn' onClick={handleRestartClick}>
+                  Generate Map
+                </button>
 
-            <button
-              className='load-map-btn'
-              onClick={(e) => {
-                setPickerOpen(true)
-                e.currentTarget.blur()
-              }}
-            >
-              Wizard{wizardName ? `: ${wizardName}` : ''}
-            </button>
+                <button
+                  className='load-map-btn'
+                  onClick={(e) => {
+                    setPickerOpen(true)
+                    e.currentTarget.blur()
+                  }}
+                >
+                  Wizard{wizardName ? `: ${wizardName}` : ''}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         {pickerOpen && (
           <WizardPicker
-            canClose={wizardName !== null}
-            onClose={() => setPickerOpen(false)}
+            canClose={wizardName !== null || startingCampaign}
+            onClose={() =>
+              startingCampaign && !run ? navigate('/') : setPickerOpen(false)
+            }
             onConfirm={handleWizardChosen}
           />
+        )}
+
+        {inCampaign && phase === 'shop' && (
+          <CampaignShop
+            run={run}
+            result={lastResult}
+            onContinue={handleShopContinue}
+          />
+        )}
+
+        {inCampaign && phase === 'complete' && <CampaignComplete run={run} />}
+
+        {inCampaign && phase === 'failed' && (
+          <CampaignDefeat run={run} message={gameOverMessage} />
+        )}
+
+        {phase === 'loading' && <div className='toast'>Loading level…</div>}
+
+        {campaignError && (
+          <div className='modal'>
+            <div className='modal-content'>
+              <h2>Campaign problem</h2>
+              <p>{campaignError}</p>
+              <button
+                onClick={() => {
+                  setCampaignError(null)
+                  navigate('/')
+                }}
+              >
+                Back to Home
+              </button>
+            </div>
+          </div>
         )}
 
         {showLoadModal && (
@@ -573,7 +738,7 @@ export default function GameEngine() {
           </div>
         )}
 
-        {gameOver && (
+        {gameOver && !inCampaign && (
           <div className='modal'>
             <div
               className={`modal-content game-over-content ${gameStatus === 'won' ? 'victory' : 'defeat'}`}

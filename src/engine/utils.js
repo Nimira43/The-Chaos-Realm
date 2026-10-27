@@ -25,7 +25,10 @@ export function getAreaTiles(centerX, centerY, radius, width, height) {
   const tiles = []
   for (let dy = -radius; dy <= radius; dy++) {
     for (let dx = -radius; dx <= radius; dx++) {
-      tiles.push({ x: wrap(centerX + dx, width), y: wrap(centerY + dy, height) })
+      tiles.push({
+        x: wrap(centerX + dx, width),
+        y: wrap(centerY + dy, height),
+      })
     }
   }
   return tiles

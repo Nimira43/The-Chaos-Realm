@@ -6,13 +6,17 @@ import useMapLoader from './useMapLoader.js'
 import useInput from './useInput.js'
 import useTurnSystem from './useTurnSystem.js'
 import useItemActions, { getActionAvailability } from './useItemActions.js'
-import useMountActions, { getMountActionAvailability } from './useMountActions.js'
+import useMountActions, {
+  getMountActionAvailability,
+} from './useMountActions.js'
 
 export default function useGameEngine() {
-  const [terrainLayer, setTerrainLayer] = useState(() => generateProceduralMap())
+  const [terrainLayer, setTerrainLayer] = useState(() =>
+    generateProceduralMap(),
+  )
 
   const [objectLayer, setObjectLayer] = useState(() => {
-    const layer = terrainLayer.map(row => row.map(() => null))
+    const layer = terrainLayer.map((row) => row.map(() => null))
     PLAYER.x = 16
     PLAYER.y = 16
     PLAYER.ap = PLAYER.max_ap
@@ -20,32 +24,32 @@ export default function useGameEngine() {
     layer[PLAYER.y][PLAYER.x] = {
       type: 'player',
       name: 'Wizard',
-      owner: 'player'
+      owner: 'player',
     }
 
     return layer
   })
 
   const [effectLayer, setEffectLayer] = useState(() =>
-    terrainLayer.map(row => row.map(() => null))
+    terrainLayer.map((row) => row.map(() => null)),
   )
 
   const [itemLayer, setItemLayer] = useState(() =>
-    terrainLayer.map(row => row.map(() => null))
+    terrainLayer.map((row) => row.map(() => null)),
   )
 
   const [zapEffects, setZapEffects] = useState([])
 
   const [playerPosition, setPlayerPosition] = useState(() => ({
     x: PLAYER.x,
-    y: PLAYER.y
+    y: PLAYER.y,
   }))
 
   const [enemyPosition, setEnemyPosition] = useState(null)
 
   const [cursor, setCursor] = useState(() => ({
     x: PLAYER.x,
-    y: PLAYER.y
+    y: PLAYER.y,
   }))
 
   const [selected, setSelected] = useState(null)
@@ -55,12 +59,15 @@ export default function useGameEngine() {
   const [mapFilename, setMapFilename] = useState('')
   const [portalStart, setPortalStart] = useState(null)
   const [portalPosition, setPortalPosition] = useState(null)
-  const [gameStatus, setGameStatus] = useState('playing') 
+  const [gameStatus, setGameStatus] = useState('playing')
   const [gameOverMessage, setGameOverMessage] = useState('')
   const [isAnimating, setIsAnimating] = useState(false)
   const turnTokenRef = useRef(0)
   const [score, setScore] = useState(0)
-  const addScore = useCallback((points) => setScore(prev => prev + points), [])
+  const addScore = useCallback(
+    (points) => setScore((prev) => prev + points),
+    [],
+  )
 
   useInput({
     cursor,
@@ -83,13 +90,10 @@ export default function useGameEngine() {
     setGameStatus,
     setGameOverMessage,
     isAnimating,
-    addScore
+    addScore,
   })
 
-  const {
-    restartGame,
-    loadMapFromFile,
-  } = useMapLoader({
+  const { restartGame, loadMapFromFile, loadHandcraftedMap } = useMapLoader({
     setTerrainLayer,
     setObjectLayer,
     setEffectLayer,
@@ -107,8 +111,14 @@ export default function useGameEngine() {
     setScore,
     setIsAnimating,
     turnTokenRef,
-    mapFilename
+    mapFilename,
   })
+
+  const loadMapByName = async (name) => {
+    const res = await fetch(`/created-maps/${name}.json`)
+    if (!res.ok) throw new Error(`Level ${name} not found`)
+    loadHandcraftedMap(await res.json())
+  }
 
   const castSpellForPlayer = useSpellcasting({
     terrainLayer,
@@ -124,10 +134,18 @@ export default function useGameEngine() {
     setGameStatus,
     setGameOverMessage,
     addScore,
-    PLAYER
+    PLAYER,
   })
 
-  const { pickUpItem, useKeyOnDoor, openDoor, closeDoor, dropWeapon, shootBow, throwWeapon } = useItemActions({
+  const {
+    pickUpItem,
+    useKeyOnDoor,
+    openDoor,
+    closeDoor,
+    dropWeapon,
+    shootBow,
+    throwWeapon,
+  } = useItemActions({
     terrainLayer,
     objectLayer,
     itemLayer,
@@ -137,10 +155,15 @@ export default function useGameEngine() {
     setTerrainLayer,
     setAp,
     addScore,
-    setEnemyPosition
+    setEnemyPosition,
   })
 
-  const itemActionAvailability = getActionAvailability(selected, terrainLayer, objectLayer, itemLayer)
+  const itemActionAvailability = getActionAvailability(
+    selected,
+    terrainLayer,
+    objectLayer,
+    itemLayer,
+  )
 
   const { rideMount, dismountMount, takeFlight, land } = useMountActions({
     terrainLayer,
@@ -149,26 +172,25 @@ export default function useGameEngine() {
     itemLayer,
     selected,
     setObjectLayer,
-    setAp
+    setAp,
   })
 
-  const mountActionAvailability = getMountActionAvailability(selected, terrainLayer, objectLayer, effectLayer, itemLayer)
+  const mountActionAvailability = getMountActionAvailability(
+    selected,
+    terrainLayer,
+    objectLayer,
+    effectLayer,
+    itemLayer,
+  )
 
   const info = {
-    terrain:
-      terrainLayer.length
-        ? terrainLayer[cursor.y][cursor.x]
-        : 'grass',
+    terrain: terrainLayer.length ? terrainLayer[cursor.y][cursor.x] : 'grass',
 
-    occupiers:
-      objectLayer[cursor.y][cursor.x]
-        ? [objectLayer[cursor.y][cursor.x]]
-        : [],
+    occupiers: objectLayer[cursor.y][cursor.x]
+      ? [objectLayer[cursor.y][cursor.x]]
+      : [],
 
-    items:
-      itemLayer.length
-        ? (itemLayer[cursor.y][cursor.x] || [])
-        : []
+    items: itemLayer.length ? itemLayer[cursor.y][cursor.x] || [] : [],
   }
 
   const endTurn = useTurnSystem({
@@ -195,7 +217,7 @@ export default function useGameEngine() {
     setGameOverMessage,
     setIsAnimating,
     turnTokenRef,
-    addScore
+    addScore,
   })
 
   return {
@@ -236,6 +258,7 @@ export default function useGameEngine() {
     setMapFilename,
     endTurn,
     restartGame,
-    loadMapFromFile
+    loadMapFromFile,
+    loadMapByName,
   }
 }
