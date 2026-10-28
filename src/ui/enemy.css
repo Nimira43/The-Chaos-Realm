@@ -1,0 +1,134 @@
+/* Developer enemy panel (inside the wizard picker) and the shop's "next wizard" line. */
+.en-dev {
+  margin-top: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.en-dev summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 16px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  list-style: none;
+}
+.en-dev summary::-webkit-details-marker {
+  display: none;
+}
+.en-dev summary::before {
+  content: "▸ ";
+  color: var(--text-faint);
+}
+.en-dev[open] summary::before {
+  content: "▾ ";
+}
+.en-dev-now {
+  margin-left: 8px;
+  color: var(--ember);
+  font-weight: 700;
+}
+
+.en-dev-body {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.en-dev-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.en-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 17px;
+  color: var(--text-dim);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+.en-opt:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.en-opt.on {
+  color: var(--text);
+  border-color: var(--main);
+  background: var(--ember-soft);
+}
+.en-opt input {
+  accent-color: var(--main);
+}
+
+.en-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  color: var(--text-dim);
+}
+.en-level .wz-num {
+  width: 72px;
+}
+.en-hint {
+  font-size: 15px;
+  color: var(--text-faint);
+  flex: 1;
+  min-width: 160px;
+}
+
+.en-card {
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.en-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.en-name {
+  font-size: 20px;
+  color: var(--text);
+  font-weight: 700;
+}
+.en-blurb {
+  font-size: 15px;
+  color: var(--text-faint);
+}
+.en-spells {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.en-spell {
+  font-size: 14px;
+  padding: 2px 8px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.shop-next-enemy {
+  margin-top: 4px;
+  font-size: 16px;
+  color: var(--text-faint);
+}
+.shop-next-enemy b {
+  color: var(--ember);
+  font-weight: 700;
+}

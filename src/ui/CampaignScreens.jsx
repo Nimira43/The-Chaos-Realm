@@ -12,10 +12,11 @@ import {
   priceBlueprint,
 } from '../data/wizardRules.js'
 import { getBank, shopDelta } from '../data/campaignRun.js'
+import './enemy.css'
 
 const TABS = ['Spellbook', 'Stats']
 
-export function CampaignShop({ run, result, onContinue }) {
+export function CampaignShop({ run, result, nextEnemy, onContinue }) {
   const catalogue = useMemo(() => getSpellCatalogue(), [])
   const owned = run.clone
 
@@ -82,6 +83,12 @@ export function CampaignShop({ run, result, onContinue }) {
               Spend them in the shop, then on to level {nextLevel} of{' '}
               {run.levels.length}.
             </p>
+            {nextEnemy && (
+              <p className='shop-next-enemy'>
+                Next wizard: <b>{nextEnemy.name}</b>
+                {nextEnemy.budget ? ` · power ${nextEnemy.budget}` : ''}
+              </p>
+            )}
           </div>
 
           <div className='shop-bank'>

@@ -7,6 +7,7 @@ import {
   recallPick,
 } from '../data/wizardStore.js'
 import { priceBlueprint } from '../data/wizardRules.js'
+import EnemyDevPanel from './EnemyDevPanel.jsx'
 import './wizard.css'
 
 function describeSpells(blueprint) {
@@ -60,72 +61,77 @@ export default function WizardPicker({ onConfirm, onClose, canClose }) {
       >
         <h2>Choose your wizard</h2>
 
-        {blueprints.length === 0 ? (
-          <p>
-            You haven't made a wizard yet. Open the Wizard Editor to create one.
-          </p>
-        ) : (
-          <div
-            className='wz-picker-list'
-            role='radiogroup'
-            aria-label='Wizard blueprints'
-          >
-            {blueprints.map((b) => {
-              const price = priceBlueprint(b)
-              return (
-                <div
-                  key={b.id}
-                  role='radio'
-                  aria-checked={b.id === selectedId}
-                  tabIndex={0}
-                  className={`wz-card ${b.id === selectedId ? 'selected' : ''}`}
-                  onClick={() => setSelectedId(b.id)}
-                  onDoubleClick={() => confirm(b)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      setSelectedId(b.id)
-                    }
-                  }}
-                >
-                  <div className='wz-card-head'>
-                    <span className='wz-card-name'>{b.name}</span>
-                    {b.builtIn ? (
-                      <span className='wz-badge'>Built-in</span>
-                    ) : (
-                      <span className='wz-badge'>
-                        {Math.max(0, price.bank)} banked
+        <div className='wz-picker-scroll'>
+          {blueprints.length === 0 ? (
+            <p>
+              You haven't made a wizard yet. Open the Wizard Editor to create
+              one.
+            </p>
+          ) : (
+            <div
+              className='wz-picker-list'
+              role='radiogroup'
+              aria-label='Wizard blueprints'
+            >
+              {blueprints.map((b) => {
+                const price = priceBlueprint(b)
+                return (
+                  <div
+                    key={b.id}
+                    role='radio'
+                    aria-checked={b.id === selectedId}
+                    tabIndex={0}
+                    className={`wz-card ${b.id === selectedId ? 'selected' : ''}`}
+                    onClick={() => setSelectedId(b.id)}
+                    onDoubleClick={() => confirm(b)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setSelectedId(b.id)
+                      }
+                    }}
+                  >
+                    <div className='wz-card-head'>
+                      <span className='wz-card-name'>{b.name}</span>
+                      {b.builtIn ? (
+                        <span className='wz-badge'>Built-in</span>
+                      ) : (
+                        <span className='wz-badge'>
+                          {Math.max(0, price.bank)} banked
+                        </span>
+                      )}
+                    </div>
+
+                    <div className='wz-card-stats'>
+                      <span>
+                        Mana <b>{b.stats.max_mana}</b>
                       </span>
-                    )}
-                  </div>
+                      <span>
+                        AP <b>{b.stats.max_ap}</b>
+                      </span>
+                      <span>
+                        Stamina <b>{b.stats.stamina}</b>
+                      </span>
+                      <span>
+                        Combat <b>{b.stats.combat}</b>
+                      </span>
+                      <span>
+                        Defence <b>{b.stats.defence}</b>
+                      </span>
+                      <span>
+                        Magic res <b>{b.stats.magic_resistance}</b>
+                      </span>
+                    </div>
 
-                  <div className='wz-card-stats'>
-                    <span>
-                      Mana <b>{b.stats.max_mana}</b>
-                    </span>
-                    <span>
-                      AP <b>{b.stats.max_ap}</b>
-                    </span>
-                    <span>
-                      Stamina <b>{b.stats.stamina}</b>
-                    </span>
-                    <span>
-                      Combat <b>{b.stats.combat}</b>
-                    </span>
-                    <span>
-                      Defence <b>{b.stats.defence}</b>
-                    </span>
-                    <span>
-                      Magic res <b>{b.stats.magic_resistance}</b>
-                    </span>
+                    <div className='wz-card-spells'>{describeSpells(b)}</div>
                   </div>
+                )
+              })}
+            </div>
+          )}
 
-                  <div className='wz-card-spells'>{describeSpells(b)}</div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+          <EnemyDevPanel />
+        </div>
 
         <div className='wz-picker-footer'>
           <Link to='/wizard-editor'>Wizard Editor ›</Link>

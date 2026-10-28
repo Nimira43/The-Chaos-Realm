@@ -21,6 +21,8 @@ import '../index.css'
 import { useEffect } from 'react'
 import WizardPicker from '../ui/WizardPicker.jsx'
 import { applyWizardToGame } from '../data/applyWizard.js'
+import { applyEnemyToGame } from '../data/applyEnemy.js'
+import { enemyForLevel } from '../data/enemyForLevel.js'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CampaignComplete,
@@ -203,6 +205,7 @@ export default function GameEngine() {
 
   const [pickerOpen, setPickerOpen] = useState(!runParam)
   const [wizardName, setWizardName] = useState(null)
+  const [enemyName, setEnemyName] = useState(null)
 
   useEffect(() => {
     restartGame()
@@ -211,6 +214,9 @@ export default function GameEngine() {
   async function beginLevel(r) {
     setPhase('loading')
     applyWizardToGame(r.clone)
+    const foe = enemyForLevel(r.index + 1, { seed: `${r.id}:${r.index}` })
+    applyEnemyToGame(foe)
+    setEnemyName(foe.name)
     try {
       await loadMapByName(r.levels[r.index])
       levelHandledRef.current = false
@@ -226,7 +232,9 @@ export default function GameEngine() {
     setPhase('loading')
     const levels = await pickPlayableLevels(TEST_CAMPAIGN_LEVELS)
     if (levels.length < TEST_CAMPAIGN_LEVELS) {
-      setCampaignError('Could not find enough playable levels in /created-maps.')
+      setCampaignError(
+        'Could not find enough playable levels in /created-maps.',
+      )
       return
     }
     const newRun = saveRun(createRun({ clone, levels }))
@@ -292,6 +300,9 @@ export default function GameEngine() {
       return
     }
     applyWizardToGame(clone)
+    const foe = enemyForLevel(1, { seed: `free${Date.now()}` })
+    applyEnemyToGame(foe)
+    setEnemyName(foe.name)
     setWizardName(clone.name)
     setPickerOpen(false)
     restartGame()
@@ -635,7 +646,10 @@ export default function GameEngine() {
 
             {inCampaign ? (
               <>
-                <div>Campaign: {run.wizardName}</div>
+                <div>
+                  Campaign: {run.wizardName}
+                  {enemyName ? ` vs ${enemyName}` : ''}
+                </div>
                 <button onClick={() => navigate('/')}>Leave campaign</button>
               </>
             ) : (
@@ -650,7 +664,10 @@ export default function GameEngine() {
                   Load Map
                 </button>
 
-                <button className='generate-map-btn' onClick={handleRestartClick}>
+                <button
+                  className='generate-map-btn'
+                  onClick={handleRestartClick}
+                >
                   Generate Map
                 </button>
 
@@ -682,6 +699,9 @@ export default function GameEngine() {
           <CampaignShop
             run={run}
             result={lastResult}
+            nextEnemy={enemyForLevel(run.index + 1, {
+              seed: `${run.id}:${run.index}`,
+            })}
             onContinue={handleShopContinue}
           />
         )}
