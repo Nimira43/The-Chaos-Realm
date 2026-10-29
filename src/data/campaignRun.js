@@ -14,6 +14,34 @@ export const LEVEL_POOL = Array.from(
   (_, i) => `Level${String(i + 1).padStart(2, '0')}`,
 )
 
+export const MAIN_CAMPAIGN_STAGES = [
+  { from: 1, to: 40, shuffle: true },
+  { from: 41, to: 49, shuffle: true },
+  { from: 50, to: 50, shuffle: false },
+]
+
+export const levelName = (n) => `Level${String(n).padStart(2, '0')}`
+
+export async function buildMainCampaign(stages = MAIN_CAMPAIGN_STAGES) {
+  const levels = []
+  const missing = []
+
+  for (const stage of stages) {
+    const names = []
+    for (let n = stage.from; n <= stage.to; n++) names.push(levelName(n))
+
+    const checks = await Promise.all(
+      names.map((name) => isPlayableLevel(name)),
+    )
+    const playable = names.filter((_, i) => checks[i])
+    missing.push(...names.filter((_, i) => !checks[i]))
+
+    levels.push(...(stage.shuffle ? shuffle(playable) : playable))
+  }
+
+  return { levels, missing }
+}
+
 function shuffle(list) {
   const copy = [...list]
   for (let i = copy.length - 1; i > 0; i--) {
@@ -100,7 +128,7 @@ export function listResumableRuns() {
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-export function createRun({ clone, levels, mode = 'campaign3' }) {
+export function createRun({ clone, levels, mode = 'campaign3', missing = [] }) {
   return {
     id: `run_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
     version: FORMAT_VERSION,
@@ -108,6 +136,7 @@ export function createRun({ clone, levels, mode = 'campaign3' }) {
     wizardName: clone.name,
     clone,
     levels,
+    missing,
     index: 0,
     won: 0,
     earned: 0,

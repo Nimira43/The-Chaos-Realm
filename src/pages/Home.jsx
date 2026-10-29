@@ -36,9 +36,14 @@ export default function Home() {
         ]
       : []),
     {
+      to: '/game?campaign=main',
+      title: 'Main Campaign',
+      sub: 'Fifty levels, a shop between each, and a wizard who grows with you',
+    },
+    {
       to: '/game?campaign=new',
       title: '3 Level Campaign',
-      sub: 'Pick a wizard, play three levels, visit the shop',
+      sub: 'Test run: pick a wizard, play three levels, visit the shop',
     },
     ...MENU,
   ]

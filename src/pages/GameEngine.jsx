@@ -37,6 +37,7 @@ import {
   getBank,
   getRun,
   pickPlayableLevels,
+  buildMainCampaign,
   saveRun,
   winLevel,
 } from '../data/campaignRun.js'
@@ -168,7 +169,8 @@ export default function GameEngine() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const runParam = searchParams.get('run')
-  const startingCampaign = searchParams.get('campaign') === 'new'
+  const campaignKind = searchParams.get('campaign')
+  const startingCampaign = campaignKind === 'main' || campaignKind === 'new'
 
   const [run, setRun] = useState(null)
   const [phase, setPhase] = useState('play')
@@ -230,14 +232,36 @@ export default function GameEngine() {
   async function startCampaign(clone) {
     setPickerOpen(false)
     setPhase('loading')
-    const levels = await pickPlayableLevels(TEST_CAMPAIGN_LEVELS)
-    if (levels.length < TEST_CAMPAIGN_LEVELS) {
-      setCampaignError(
-        'Could not find enough playable levels in /created-maps.',
-      )
-      return
+    const main = campaignKind === 'main'
+    let levels
+    let missing = []
+    if (main) {
+      const built = await buildMainCampaign()
+      levels = built.levels
+      missing = built.missing
+      if (missing.length)
+        console.warn(
+          'Main Campaign: skipped unplayable levels:',
+          missing.join(', '),
+        )
+      if (levels.length === 0) {
+        setCampaignError(
+          'Could not find any playable levels in /created-maps.',
+        )
+        return
+      }
+    } else {
+      levels = await pickPlayableLevels(TEST_CAMPAIGN_LEVELS)
+      if (levels.length < TEST_CAMPAIGN_LEVELS) {
+        setCampaignError(
+          'Could not find enough playable levels in /created-maps.',
+        )
+        return
+      }
     }
-    const newRun = saveRun(createRun({ clone, levels }))
+    const newRun = saveRun(
+      createRun({ clone, levels, missing, mode: main ? 'main' : 'campaign3' }),
+    )
     setRun(newRun)
     setWizardName(clone.name)
     navigate(`/game?run=${newRun.id}`, { replace: true })
@@ -427,8 +451,10 @@ export default function GameEngine() {
           {inCampaign && (
             <div className='turn-note'>
               Level {Math.min(run.index + 1, run.levels.length)} of{' '}
-              {run.levels.length} · {run.levels[run.index]} · Bank{' '}
-              {getBank(run)}
+              {run.levels.length}
+              {run.missing?.length
+                ? ` (${run.missing.length} missing)`
+                : ''} · {run.levels[run.index]} · Bank {getBank(run)}
             </div>
           )}
           {isAnimating && !gameOver && (

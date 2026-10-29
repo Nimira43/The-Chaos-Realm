@@ -19,14 +19,12 @@ const TABS = ['Spellbook', 'Stats']
 export function CampaignShop({ run, result, nextEnemy, onContinue }) {
   const catalogue = useMemo(() => getSpellCatalogue(), [])
   const owned = run.clone
-
   const [draft, setDraft] = useState(() => ({
     stats: { ...owned.stats },
     spellLevels: { ...owned.spellLevels },
   }))
   const [tab, setTab] = useState('Spellbook')
   const [search, setSearch] = useState('')
-
   const bank = getBank(run)
   const delta = shopDelta(owned, draft, catalogue)
   const left = bank - delta.total
@@ -80,8 +78,11 @@ export function CampaignShop({ run, result, nextEnemy, onContinue }) {
             <h2>Level {run.won} complete!</h2>
             <p>
               {result?.earned > 0 ? `You earned ${result.earned} points. ` : ''}
-              Spend them in the shop, then on to level {nextLevel} of{' '}
-              {run.levels.length}.
+              Spend them in the shop, then on to{' '}
+              {nextLevel === run.levels.length
+                ? 'the final level'
+                : `level ${nextLevel} of ${run.levels.length}`}
+              .
             </p>
             {nextEnemy && (
               <p className='shop-next-enemy'>
@@ -242,7 +243,9 @@ export function CampaignComplete({ run }) {
   return (
     <div className='modal'>
       <div className='modal-content game-over-content victory'>
-        <h2>Congratulations!</h2>
+        <h2>
+          {run.mode === 'main' ? 'The Realm is conquered!' : 'Congratulations!'}
+        </h2>
         <p>
           {run.wizardName} fought through all {run.levels.length} levels and
           made it to the portal every time.
