@@ -60,7 +60,10 @@ function findDoors(terrainLayer, states) {
   return doors
 }
 
+let keysReservedForWizard = false
+
 function isWantedItem(cell, item) {
+  if (keysReservedForWizard && item.type === 'key') return false
   if (isConsumedOnPickup(item)) return true
   return canCarryItem(cell.stats.carry_limit, cell.inventory, item)
 }
@@ -478,6 +481,10 @@ export function runEnemyCreaturesAI(
   itemLayer = null,
   portalPosition = null,
 ) {
+  keysReservedForWizard =
+    !!portalPosition &&
+    objectLayer.some((row) => row.some((cell) => cell?.type === 'enemyWizard'))
+
   let state = {
     terrainLayer,
     objectLayer,

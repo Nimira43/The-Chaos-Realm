@@ -107,6 +107,7 @@ export function runEnemyWizardAI(
         landing.objectLayer,
         effectLayer,
         first.itemLayer,
+        portalPosition,
       )
     : {
         objectLayer: landing.objectLayer,

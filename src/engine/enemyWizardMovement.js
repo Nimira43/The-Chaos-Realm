@@ -17,7 +17,11 @@ import {
   isConsumedOnPickup,
 } from './items.js'
 import { ITEM_ACTION_AP_COST } from './useItemActions.js'
-import { canTakeOffFrom, canLandOn } from './useMountActions.js'
+import {
+  canTakeOffFrom,
+  canLandOn,
+  findDismountTile,
+} from './useMountActions.js'
 import {
   canRide,
   canFly,
@@ -29,7 +33,9 @@ import {
   withMoverAp,
   withFlying,
   mountRider,
+  dismountRider,
   RIDE_AP_COST,
+  DISMOUNT_AP_COST,
   FLY_TOGGLE_AP_COST,
 } from './mounts.js'
 import {
@@ -39,7 +45,18 @@ import {
   walkPath,
 } from './enemyAIShared.js'
 import { scanThreat } from './enemyScans.js'
-import { findWalkInLandings, isOnWalkInGround } from './enemyPortalRoute.js'
+import {
+  findWalkInLandings,
+  isOnWalkInGround,
+  findRouteDoors,
+} from './enemyPortalRoute.js'
+import {
+  countKeys,
+  groundStatsFor,
+  hasAirRoute,
+  currentSetupFits,
+  findFittingAdjacentMount,
+} from './enemyMountPlan.js'
 import { getThreatTier } from './enemyWizardSpells.js'
 
 export const LOOT_SEARCH_RANGE = 15
@@ -58,15 +75,49 @@ function findTerrainTiles(terrainLayer, states) {
   return tiles
 }
 
-function findAdjacentDoorInState(terrainLayer, x, y, state) {
+function findAdjacentDoorInState(terrainLayer, x, y, state, allow = null) {
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       const nx = wrap(x + dx, terrainLayer[0].length)
       const ny = wrap(y + dy, terrainLayer.length)
-      if (terrainLayer[ny][nx] === state) return { x: nx, y: ny }
+      if (terrainLayer[ny][nx] !== state) continue
+      if (allow && !allow({ x: nx, y: ny })) continue
+      return { x: nx, y: ny }
     }
   }
   return null
+}
+
+function routeDoorSet(
+  terrainLayer,
+  objectLayer,
+  itemLayer,
+  cell,
+  portalPosition,
+) {
+  if (!portalPosition) return null
+  const route = findRouteDoors(
+    terrainLayer,
+    groundStatsFor(cell),
+    { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+    portalPosition,
+  )
+  if (route) {
+    return { keys: new Set(route.map((d) => `${d.x},${d.y}`)), doors: route }
+  }
+
+  const needsWayOut =
+    isMounted(cell) &&
+    canFly(cell.mount.stats) &&
+    !canTakeOffFrom(terrainLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]) &&
+    hasAirRoute(
+      terrainLayer,
+      objectLayer,
+      itemLayer,
+      cell.mount.stats,
+      portalPosition,
+    )
+  return needsWayOut ? null : { keys: new Set(), doors: [] }
 }
 
 function isWantedItem(item) {
@@ -74,7 +125,7 @@ function isWantedItem(item) {
   return canCarryItem(ENEMY_WIZARD.carry_limit, ENEMY_WIZARD.inventory, item)
 }
 
-function findLootGoals(itemLayer, landable = null) {
+function findLootGoals(itemLayer, landable = null, range = LOOT_SEARCH_RANGE) {
   const goals = []
 
   for (let y = 0; y < itemLayer.length; y++) {
@@ -90,7 +141,7 @@ function findLootGoals(itemLayer, landable = null) {
           y,
           MAP_WIDTH,
           MAP_HEIGHT,
-        ) > LOOT_SEARCH_RANGE
+        ) > range
       )
         continue
       if (
@@ -173,7 +224,7 @@ function collect(item) {
   }
 }
 
-function performItemActions(terrainLayer, itemLayer, flying) {
+function performItemActions(terrainLayer, itemLayer, flying, allowDoor = null) {
   let workingTerrain = terrainLayer
   let workingItems = itemLayer
 
@@ -198,19 +249,25 @@ function performItemActions(terrainLayer, itemLayer, flying) {
     } else if (
       !flying &&
       hasKey(ENEMY_WIZARD.inventory) &&
-      findAdjacentDoorInState(workingTerrain, x, y, 'doorLocked')
+      findAdjacentDoorInState(workingTerrain, x, y, 'doorLocked', allowDoor)
     ) {
       setDoor(
-        findAdjacentDoorInState(workingTerrain, x, y, 'doorLocked'),
+        findAdjacentDoorInState(workingTerrain, x, y, 'doorLocked', allowDoor),
         'doorUnlocked',
       )
       ENEMY_WIZARD.inventory = removeFirstKey(ENEMY_WIZARD.inventory)
     } else if (
       !flying &&
-      findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked')
+      findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked', allowDoor)
     ) {
       setDoor(
-        findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked'),
+        findAdjacentDoorInState(
+          workingTerrain,
+          x,
+          y,
+          'doorUnlocked',
+          allowDoor,
+        ),
         'doorOpen',
       )
     } else {
@@ -223,20 +280,22 @@ function performItemActions(terrainLayer, itemLayer, flying) {
   return { terrainLayer: workingTerrain, itemLayer: workingItems }
 }
 
-function countKeys(inventory) {
-  return (inventory || []).filter((i) => i.type === 'key').length
-}
-
 function findKeyAndDoorPath(
   pathArgs,
   terrainLayer,
   itemLayer,
   within = Infinity,
+  route = null,
 ) {
-  const doorStates = hasKey(ENEMY_WIZARD.inventory)
-    ? ['doorLocked', 'doorUnlocked']
-    : ['doorUnlocked']
-  const doorGoals = findTerrainTiles(terrainLayer, doorStates)
+  const held = countKeys(ENEMY_WIZARD.inventory)
+  const doorStates =
+    held > 0 ? ['doorLocked', 'doorUnlocked'] : ['doorUnlocked']
+
+  let doorTiles = findTerrainTiles(terrainLayer, doorStates)
+  if (route)
+    doorTiles = doorTiles.filter((d) => route.keys.has(`${d.x},${d.y}`))
+
+  const doorGoals = doorTiles
     .filter(
       (door) =>
         wrappedChebyshevDistance(
@@ -250,17 +309,124 @@ function findKeyAndDoorPath(
     )
     .flatMap((door) => getAdjacentTiles(door.x, door.y))
 
-  if (doorGoals.length > 0) {
-    const path = findPathToNearestGoal({ ...pathArgs, goals: doorGoals })
-    if (path.length > 0) return path
+  const doorPath =
+    doorGoals.length > 0
+      ? findPathToNearestGoal({
+          ...pathArgs,
+          goals: doorGoals,
+          forbidLava: true,
+        })
+      : []
+
+  const keyGoals = findLootGoals(
+    itemLayer,
+    null,
+    route ? Infinity : LOOT_SEARCH_RANGE,
+  ).filter((g) => (itemLayer[g.y][g.x] || []).some((i) => i.type === 'key'))
+  const keyPath =
+    keyGoals.length > 0
+      ? findPathToNearestGoal({
+          ...pathArgs,
+          goals: keyGoals,
+          forbidLava: true,
+        })
+      : []
+
+  const lockedOnRoute = route ? route.doors.filter((d) => d.locked).length : 0
+  const wantMoreKeys = route && held < lockedOnRoute
+  if (
+    wantMoreKeys &&
+    keyPath.length > 0 &&
+    (doorPath.length === 0 || keyPath.length < doorPath.length)
+  )
+    return keyPath
+
+  return doorPath.length > 0 ? doorPath : keyPath
+}
+
+function isSwappable(cell) {
+  return (
+    cell?.type === 'creature' &&
+    cell.owner === 'enemy' &&
+    !isCurrentlyFlying(cell)
+  )
+}
+
+function withoutOwnCreatures(objectLayer) {
+  return objectLayer.map((row) =>
+    row.map((cell) => (isSwappable(cell) ? null : cell)),
+  )
+}
+
+function walkPathSwapping({ path, ap, terrainLayer, objectLayer, onStep }) {
+  let layer = objectLayer
+  let remaining = ap
+  let moved = false
+  let lastPosition = null
+  const frames = []
+
+  for (const step of path) {
+    if (remaining <= 0) break
+    const occupant = layer[step.y][step.x]
+
+    if (isSwappable(occupant)) {
+      const from = { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y }
+      const cost = getMovementCost(
+        terrainLayer[step.y][step.x],
+        onStep.entity(),
+      )
+      if (cost > remaining) break
+      if (
+        getMovementCost(terrainLayer[from.y][from.x], occupant.stats) >=
+        IMPASSABLE_THRESHOLD
+      )
+        break
+
+      const cleared = layer.map((row) => [...row])
+      cleared[step.y][step.x] = null
+      remaining -= cost
+      layer = onStep.move(cleared, step, remaining)
+      layer[from.y][from.x] = { ...occupant, x: from.x, y: from.y }
+      moved = true
+      lastPosition = step
+      frames.push(layer)
+      continue
+    }
+
+    const result = walkPath({
+      path: [step],
+      ap: remaining,
+      terrainLayer,
+      objectLayer: layer,
+      onStep,
+    })
+    layer = result.objectLayer
+    remaining = result.ap
+    frames.push(...result.frames)
+    if (result.moved) {
+      moved = true
+      lastPosition = result.lastPosition
+    }
+    if (result.selfDefeated)
+      return {
+        objectLayer: layer,
+        ap: remaining,
+        moved,
+        lastPosition,
+        selfDefeated: true,
+        frames,
+      }
+    if (!result.moved) break
   }
 
-  const keyGoals = findLootGoals(itemLayer).filter((g) =>
-    (itemLayer[g.y][g.x] || []).some((i) => i.type === 'key'),
-  )
-  if (keyGoals.length === 0) return []
-
-  return findPathToNearestGoal({ ...pathArgs, goals: keyGoals })
+  return {
+    objectLayer: layer,
+    ap: remaining,
+    moved,
+    lastPosition,
+    selfDefeated: false,
+    frames,
+  }
 }
 
 function chooseTravel({
@@ -283,7 +449,7 @@ function chooseTravel({
 
   const pathArgs = {
     terrainLayer,
-    objectLayer,
+    objectLayer: withoutOwnCreatures(objectLayer),
     effectLayer,
     start: { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
     entity: stats,
@@ -291,7 +457,12 @@ function chooseTravel({
   }
 
   const attempt = (goals, extra = {}) => {
-    const path = findPathToNearestGoal({ ...pathArgs, goals, ...extra })
+    const path = findPathToNearestGoal({
+      ...pathArgs,
+      goals,
+      forbidLava: true,
+      ...extra,
+    })
     if (path.length > 0) return { path }
 
     if (!isMounted(cell) && canRide(ENEMY_WIZARD)) {
@@ -301,6 +472,7 @@ function chooseTravel({
           ...pathArgs,
           entity: mountStats,
           goals,
+          forbidLava: true,
           ...extra,
         })
         if (viaMount.length > 0) return { path: [], rideMount: m.pos }
@@ -342,7 +514,19 @@ function chooseTravel({
     if (toPortal.path.length > 0 || toPortal.rideMount) return toPortal
 
     if (!flying) {
-      const viaDoors = findKeyAndDoorPath(pathArgs, terrainLayer, itemLayer)
+      const viaDoors = findKeyAndDoorPath(
+        pathArgs,
+        terrainLayer,
+        itemLayer,
+        Infinity,
+        routeDoorSet(
+          terrainLayer,
+          objectLayer,
+          itemLayer,
+          cell,
+          portalPosition,
+        ),
+      )
       if (viaDoors.length > 0) return { path: viaDoors }
     }
   }
@@ -451,7 +635,19 @@ export function moveEnemyWizard(
     }
 
     const flying = false
-    const result = performItemActions(workingTerrain, workingItems, flying)
+    const route = routeDoorSet(
+      workingTerrain,
+      currentLayer,
+      workingItems,
+      wizardCell,
+      portalPosition,
+    )
+    const result = performItemActions(
+      workingTerrain,
+      workingItems,
+      flying,
+      route ? (door) => route.keys.has(`${door.x},${door.y}`) : null,
+    )
     workingTerrain = result.terrainLayer
     workingItems = result.itemLayer
   }
@@ -468,6 +664,51 @@ export function moveEnemyWizard(
 
   for (let leg = 0; leg < MAX_WIZARD_MOVE_LEGS; leg++) {
     runItemActions()
+
+    if (
+      portalPosition &&
+      canRide(ENEMY_WIZARD) &&
+      !isCurrentlyFlying(currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])
+    ) {
+      const planCtx = {
+        terrainLayer: workingTerrain,
+        objectLayer: currentLayer,
+        itemLayer: workingItems,
+        portal: portalPosition,
+      }
+      const fit = !currentSetupFits(planCtx)
+        ? findFittingAdjacentMount(planCtx)
+        : null
+      if (fit) {
+        const here = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+        const swapCost = isMounted(here)
+          ? DISMOUNT_AP_COST + RIDE_AP_COST
+          : RIDE_AP_COST
+        const tile = isMounted(here)
+          ? findDismountTile(
+              workingTerrain,
+              currentLayer,
+              effectLayer,
+              ENEMY_WIZARD.x,
+              ENEMY_WIZARD.y,
+              ENEMY_WIZARD,
+            )
+          : null
+        if (ENEMY_WIZARD.ap >= swapCost && (!isMounted(here) || tile)) {
+          if (isMounted(here)) {
+            currentLayer = dismountRider(
+              currentLayer,
+              { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+              tile,
+            )
+            ENEMY_WIZARD.ap -= DISMOUNT_AP_COST
+            frames.push(currentLayer)
+          }
+          rideMountAt(fit.pos)
+          continue
+        }
+      }
+    }
 
     if (
       !isMounted(currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]) &&
@@ -549,9 +790,43 @@ export function moveEnemyWizard(
       wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
     }
 
+    const airRoute =
+      !portalPosition ||
+      (isMounted(wizardCell) &&
+        canFly(wizardCell.mount.stats) &&
+        hasAirRoute(
+          workingTerrain,
+          currentLayer,
+          workingItems,
+          wizardCell.mount.stats,
+          portalPosition,
+        ))
+
+    if (
+      portalPosition &&
+      !airRoute &&
+      !besidePortal &&
+      isCurrentlyFlying(wizardCell) &&
+      wizardCell.mount.ap >= FLY_TOGGLE_AP_COST + 1 &&
+      canLandOn(
+        workingTerrain[ENEMY_WIZARD.y][ENEMY_WIZARD.x],
+        wizardCell.mount.stats,
+        workingItems[ENEMY_WIZARD.y][ENEMY_WIZARD.x],
+      )
+    ) {
+      currentLayer = currentLayer.map((row) => [...row])
+      currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x] = withMoverAp(
+        withFlying(wizardCell, false),
+        wizardCell.mount.ap - FLY_TOGGLE_AP_COST,
+      )
+      frames.push(currentLayer)
+      wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+    }
+
     if (
       !besidePortal &&
       !inWalkRegion &&
+      airRoute &&
       isMounted(wizardCell) &&
       canFly(wizardCell.mount.stats) &&
       !wizardCell.mount.flying &&
@@ -597,7 +872,7 @@ export function moveEnemyWizard(
 
     if (plan.path.length === 0) break
 
-    const walkResult = walkPath({
+    const walkResult = walkPathSwapping({
       path: plan.path,
       ap: getMoverAp(wizardCell, ENEMY_WIZARD.ap),
       terrainLayer: workingTerrain,

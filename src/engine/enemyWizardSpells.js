@@ -8,6 +8,11 @@ import { canTakeOffFrom } from './useMountActions.js'
 import { isSealedIn } from './enemyEscape.js'
 import { pickArmySpell, isFlyingMount } from './enemyArmy.js'
 import {
+  needsDifferentMount,
+  findFittingAdjacentMount,
+  mountFits,
+} from './enemyMountPlan.js'
+import {
   scanThreat,
   countTerrainAround,
   listPlayerUnitsInRange,
@@ -315,10 +320,42 @@ function hasAdjacentFlyingMount(S) {
   })
 }
 
+function chooseRouteMount(S) {
+  const ctx = {
+    terrainLayer: S.terrain,
+    objectLayer: S.objects,
+    itemLayer: S.items,
+    portal: S.portal,
+  }
+  if (!needsDifferentMount(ctx) || findFittingAdjacentMount(ctx)) return null
+
+  const free = countFreeSummonTiles(S)
+  let best = null
+  for (const spell of ENEMY_SPELLBOOK) {
+    if (spell.category !== 'creature' || spell.currentSpellLevel <= 0) continue
+    const cost = spell.manaCost * spell.currentSpellLevel
+    if (ENEMY_WIZARD.current_mana < cost) continue
+    if (
+      Math.min(spell.currentSpellLevel, free) <
+      Math.ceil(spell.currentSpellLevel / 2)
+    )
+      continue
+    const stats = CREATURES.find((c) => c.name === spell.name)
+    if (!stats?.mount || !mountFits(ctx, stats)) continue
+    if (!best || stats.combat > best.stats.combat) best = { spell, stats }
+  }
+  return best
+}
+
 function chooseSummon(S) {
   const wiz = ENEMY_WIZARD
 
   if (countOwnMatching(S.objects, () => true) >= MAX_ARMY_SIZE) return null
+
+  if (S.portal) {
+    const ride = chooseRouteMount(S)
+    if (ride) return { kind: 'summon', spell: ride.spell, aimPos: null }
+  }
 
   const mounted = !!S.objects[wiz.y][wiz.x]?.mount
 
@@ -445,8 +482,8 @@ export function castEnemyWizardSpells(
   objectLayer,
   effectLayer,
   itemLayer = null,
+  portalPosition = null,
 ) {
-  // Spells are cast from the ground only. (enemyAI.js lands him first when it can.)
   if (isCurrentlyFlying(objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
     return {
       objectLayer,
@@ -463,6 +500,7 @@ export function castEnemyWizardSpells(
     objects: objectLayer,
     effects: effectLayer,
     items: itemLayer,
+    portal: portalPosition,
     zapEffects: [],
     frames: [],
     casts: 0,

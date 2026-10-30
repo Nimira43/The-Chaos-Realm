@@ -3,9 +3,9 @@ import {
   MAP_HEIGHT,
   IMPASSABLE_THRESHOLD,
   getMovementCost,
-} from "./terrain.js"
-import { wrap } from "./utils.js"
-import { canLandOn } from "./useMountActions.js"
+} from './terrain.js'
+import { wrap } from './utils.js'
+import { canLandOn } from './useMountActions.js'
 
 const NEIGHBOURS = [
   [1, 0],
@@ -18,7 +18,7 @@ const NEIGHBOURS = [
   [-1, -1],
 ]
 
-const CLOSED_DOORS = ["doorLocked", "doorUnlocked"]
+const CLOSED_DOORS = ['doorLocked', 'doorUnlocked']
 
 function labelPieces(terrainLayer, groundStats) {
   const label = Array.from({ length: MAP_HEIGHT }, () =>
@@ -55,7 +55,8 @@ function labelPieces(terrainLayer, groundStats) {
 }
 
 function isWalkable(terrain, groundStats) {
-  if (terrain === "lava" || CLOSED_DOORS.includes(terrain)) return false
+  if (terrain === 'lava' && !groundStats?.lava_type) return false
+  if (CLOSED_DOORS.includes(terrain)) return false
   return getMovementCost(terrain, groundStats) < IMPASSABLE_THRESHOLD
 }
 
@@ -64,7 +65,7 @@ function findDoors(terrainLayer) {
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       if (CLOSED_DOORS.includes(terrainLayer[y][x]))
-        doors.push({ x, y, locked: terrainLayer[y][x] === "doorLocked" })
+        doors.push({ x, y, locked: terrainLayer[y][x] === 'doorLocked' })
     }
   }
   return doors
@@ -85,7 +86,7 @@ function keysInPiece(itemLayer, label, id) {
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       if (label[y][x] !== id) continue
-      n += (itemLayer[y][x] || []).filter((i) => i.type === "key").length
+      n += (itemLayer[y][x] || []).filter((i) => i.type === 'key').length
     }
   }
   return n
@@ -182,4 +183,47 @@ export function isOnWalkInGround(
     itemLayer,
     keysHeld,
   )
+}
+
+export function findRouteDoors(terrainLayer, groundStats, from, portal) {
+  const { label } = labelPieces(terrainLayer, groundStats)
+  const startId = label[from.y][from.x]
+  const portalId = label[portal.y][portal.x]
+  if (startId === -1 || portalId === -1) return null
+  if (startId === portalId) return []
+
+  const doors = findDoors(terrainLayer)
+  const beside = doors.map((d) => [...piecesBeside(label, d.x, d.y)])
+
+  const best = new Map([[startId, 0]])
+  const prev = new Map([[startId, null]])
+  const done = new Set()
+
+  for (;;) {
+    let id = null
+    for (const [pieceId, cost] of best) {
+      if (done.has(pieceId)) continue
+      if (id === null || cost < best.get(id)) id = pieceId
+    }
+    if (id === null || id === portalId) break
+    done.add(id)
+
+    doors.forEach((door, d) => {
+      if (!beside[d].includes(id)) return
+      const cost = best.get(id) + (door.locked ? 1 : 0.01)
+      for (const other of beside[d]) {
+        if (done.has(other)) continue
+        if (!best.has(other) || cost < best.get(other)) {
+          best.set(other, cost)
+          prev.set(other, { from: id, door })
+        }
+      }
+    })
+  }
+
+  if (!prev.has(portalId)) return null
+  const route = []
+  for (let id = portalId; prev.get(id); id = prev.get(id).from)
+    route.unshift(prev.get(id).door)
+  return route
 }
