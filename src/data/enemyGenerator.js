@@ -17,6 +17,7 @@ import {
   KIT_AVOIDED,
   KIT_FAVOURED,
   KIT_SLACK,
+  TRAVELLER_KIT,
   enemyBudget,
   maxSpellCost,
   spellLevelCap,
@@ -153,6 +154,40 @@ function buySpells({ points, level, archetype, catalogue, rng }) {
   return { levels, left }
 }
 
+function cheapest(list) {
+  return [...list].sort((a, b) => a.manaCost - b.manaCost)[0]
+}
+
+function pickForSchool(options, archetype) {
+  if (options.length === 0) return null
+  const favoured = options.filter((s) => archetype.favoured.includes(s.name))
+  if (favoured.length) return cheapest(favoured)
+  const fine = options.filter((s) => !archetype.avoided.includes(s.name))
+  return cheapest(fine.length ? fine : options)
+}
+
+function chooseTravellersKit({ unlocked, archetype, points }) {
+  if (!TRAVELLER_KIT.enabled) return []
+  const byName = (name) => unlocked.find((s) => s.name === name)
+  const inList = (names) => unlocked.filter((s) => names.includes(s.name))
+
+  const wanted = [
+    pickForSchool(inList(TRAVELLER_KIT.fliers), archetype),
+    pickForSchool(inList(TRAVELLER_KIT.breakers), archetype),
+    ...TRAVELLER_KIT.rides.map(byName),
+  ].filter(Boolean)
+
+  const kit = []
+  let cost = 0
+  for (const spell of wanted) {
+    const price = spell.manaCost * TRAVELLER_KIT.levels
+    if (cost + price > points * TRAVELLER_KIT.maxShare) continue
+    kit.push(spell)
+    cost += price
+  }
+  return kit
+}
+
 export function generateEnemy(level, seed = '') {
   const lvl = Math.max(1, Math.round(level) || 1)
   const rng = makeRng(`${seed}|${lvl}`)
@@ -173,13 +208,31 @@ export function generateEnemy(level, seed = '') {
     Math.max(0, budget - statSpend),
     stats.max_mana,
   )
-  const bought = buySpells({
+  const unlocked = catalogue.filter((s) => s.manaCost <= maxSpellCost(lvl))
+  const travel = chooseTravellersKit({
+    unlocked,
+    archetype,
     points: spellPoints,
+  })
+  const travelCost = travel.reduce(
+    (sum, s) => sum + s.manaCost * TRAVELLER_KIT.levels,
+    0,
+  )
+
+  const bought = buySpells({
+    points: spellPoints - travelCost,
     level: lvl,
     archetype,
     catalogue,
     rng,
   })
+
+  for (const spell of travel) {
+    const have = bought.levels[spell.name] || 0
+    const owed = Math.max(0, TRAVELLER_KIT.levels - have)
+    bought.levels[spell.name] = have + owed
+    bought.left += (TRAVELLER_KIT.levels - owed) * spell.manaCost
+  }
 
   const manaGain = extraMana + bought.left
   stats.max_mana += manaGain

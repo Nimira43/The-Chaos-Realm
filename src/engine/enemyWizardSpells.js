@@ -335,11 +335,7 @@ function chooseRouteMount(S) {
     if (spell.category !== 'creature' || spell.currentSpellLevel <= 0) continue
     const cost = spell.manaCost * spell.currentSpellLevel
     if (ENEMY_WIZARD.current_mana < cost) continue
-    if (
-      Math.min(spell.currentSpellLevel, free) <
-      Math.ceil(spell.currentSpellLevel / 2)
-    )
-      continue
+    if (free < 1) continue
     const stats = CREATURES.find((c) => c.name === spell.name)
     if (!stats?.mount || !mountFits(ctx, stats)) continue
     if (!best || stats.combat > best.stats.combat) best = { spell, stats }

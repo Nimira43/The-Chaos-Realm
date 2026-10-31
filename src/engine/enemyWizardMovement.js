@@ -258,16 +258,10 @@ function performItemActions(terrainLayer, itemLayer, flying, allowDoor = null) {
       ENEMY_WIZARD.inventory = removeFirstKey(ENEMY_WIZARD.inventory)
     } else if (
       !flying &&
-      findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked', allowDoor)
+      findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked')
     ) {
       setDoor(
-        findAdjacentDoorInState(
-          workingTerrain,
-          x,
-          y,
-          'doorUnlocked',
-          allowDoor,
-        ),
+        findAdjacentDoorInState(workingTerrain, x, y, 'doorUnlocked'),
         'doorOpen',
       )
     } else {
@@ -341,7 +335,21 @@ function findKeyAndDoorPath(
   )
     return keyPath
 
-  return doorPath.length > 0 ? doorPath : keyPath
+  if (doorPath.length > 0) return doorPath
+  if (keyPath.length > 0) return keyPath
+
+  if (wantMoreKeys && keyGoals.length > 0) {
+    const free = findTerrainTiles(terrainLayer, ['doorUnlocked']).flatMap((d) =>
+      getAdjacentTiles(d.x, d.y),
+    )
+    if (free.length > 0)
+      return findPathToNearestGoal({
+        ...pathArgs,
+        goals: free,
+        forbidLava: true,
+      })
+  }
+  return []
 }
 
 function isSwappable(cell) {

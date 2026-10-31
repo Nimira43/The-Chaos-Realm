@@ -44,3 +44,12 @@ export const KIT_AVOIDED = 0.15
 export const KIT_SLACK = 1.0
 export const BUY_FAVOURED = 4
 export const BUY_AVOIDED = 0.25
+
+export const TRAVELLER_KIT = {
+  enabled: true,
+  levels: 1,
+  maxShare: 0.4,
+  fliers: ['Pegasus', 'Giant Eagle', 'Gryphon'],
+  rides: ['Sea Wolf', 'Cindermaw'],
+  breakers: ['Magic Fire', 'Gooey Blob', 'Tangle Vine']
+}

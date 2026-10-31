@@ -43,6 +43,15 @@ function labelPieces(terrainLayer, groundStats) {
             !isWalkable(terrainLayer[ny][nx], groundStats)
           )
             continue
+          if (
+            dx !== 0 &&
+            dy !== 0 &&
+            (getMovementCost(terrainLayer[cur.y][nx], groundStats) >=
+              IMPASSABLE_THRESHOLD ||
+              getMovementCost(terrainLayer[ny][cur.x], groundStats) >=
+                IMPASSABLE_THRESHOLD)
+          )
+            continue
           label[ny][nx] = count
           queue.push({ x: nx, y: ny })
         }

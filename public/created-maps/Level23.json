@@ -260,7 +260,7 @@
     "mountain",
     "floor",
     "floor",
-    "floor",
+    "doorLocked",
     "floor",
     "floor",
     "floor",
@@ -303,7 +303,7 @@
     "mountain",
     "mountain",
     "mountain",
-    "rough"
+    "key"
   ],
   [
     "rough",
