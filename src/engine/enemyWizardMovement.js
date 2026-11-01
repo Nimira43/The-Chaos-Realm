@@ -44,7 +44,7 @@ import {
   findNearestPlayerTarget,
   walkPath,
 } from './enemyAIShared.js'
-import { scanThreat } from './enemyScans.js'
+import { buildDanger, canHitTarget } from './enemyDanger.js'
 import {
   findWalkInLandings,
   isOnWalkInGround,
@@ -57,11 +57,12 @@ import {
   currentSetupFits,
   findFittingAdjacentMount,
 } from './enemyMountPlan.js'
-import { getThreatTier } from './enemyWizardSpells.js'
 
 export const LOOT_SEARCH_RANGE = 15
 
 const MAX_WIZARD_MOVE_LEGS = 4
+
+const RETREAT_RADIUS = 8
 
 const SEARCH_LIMIT = 3500
 
@@ -443,7 +444,7 @@ function chooseTravel({
   effectLayer,
   itemLayer,
   portalPosition,
-  holding,
+  danger,
 }) {
   const cell = objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
   const stats = getMoverStats(cell, ENEMY_WIZARD)
@@ -464,7 +465,21 @@ function chooseTravel({
     maxExplored: SEARCH_LIMIT,
   }
 
+  const avoidLayer = danger.markUnsafe(pathArgs.objectLayer, flying, {
+    x: ENEMY_WIZARD.x,
+    y: ENEMY_WIZARD.y,
+  })
+
   const attempt = (goals, extra = {}) => {
+    const around = findPathToNearestGoal({
+      ...pathArgs,
+      objectLayer: avoidLayer,
+      goals,
+      forbidLava: true,
+      ...extra,
+    })
+    if (around.length > 0) return { path: around }
+
     const path = findPathToNearestGoal({
       ...pathArgs,
       goals,
@@ -539,22 +554,60 @@ function chooseTravel({
     }
   }
 
-  if (holding || alreadyAtPortal) return { path: [] }
+  if (alreadyAtPortal) return { path: [] }
+
+  const safeTile = (t) => danger.isSafe(t.x, t.y, flying)
+
+  if (!safeTile(ENEMY_WIZARD)) {
+    const refuge = []
+    for (let dy = -RETREAT_RADIUS; dy <= RETREAT_RADIUS; dy++) {
+      for (let dx = -RETREAT_RADIUS; dx <= RETREAT_RADIUS; dx++) {
+        const x = wrap(ENEMY_WIZARD.x + dx, MAP_WIDTH)
+        const y = wrap(ENEMY_WIZARD.y + dy, MAP_HEIGHT)
+        if (objectLayer[y][x] || !safeTile({ x, y })) continue
+        if (getMovementCost(terrainLayer[y][x], stats) >= IMPASSABLE_THRESHOLD)
+          continue
+        if (
+          flying &&
+          !canLandOn(terrainLayer[y][x], stats, itemLayer?.[y]?.[x])
+        )
+          continue
+        refuge.push({ x, y })
+      }
+    }
+    if (refuge.length > 0) {
+      const away = findPathToNearestGoal({
+        ...pathArgs,
+        goals: refuge,
+        forbidLava: true,
+      })
+      if (away.length > 0) return { path: away, retreat: true }
+    }
+    return { path: [] }
+  }
 
   const { target, dist } = findNearestPlayerTarget(
     objectLayer,
     ENEMY_WIZARD.x,
     ENEMY_WIZARD.y,
   )
+  const approachTiles = () =>
+    canHitTarget(terrainLayer, objectLayer, flying, target)
+      ? getAdjacentTiles(target.x, target.y).filter(safeTile)
+      : []
+
   if (dist <= SIGHT_RANGE) {
-    const toPlayer = attempt(getAdjacentTiles(target.x, target.y))
-    if (toPlayer.path.length > 0 || toPlayer.rideMount) return toPlayer
+    const goals = approachTiles()
+    if (goals.length > 0) {
+      const toPlayer = attempt(goals)
+      if (toPlayer.path.length > 0 || toPlayer.rideMount) return toPlayer
+    }
   }
 
   const lootGoals = findLootGoals(
     itemLayer,
     flying ? { terrainLayer, stats } : null,
-  )
+  ).filter(safeTile)
   if (lootGoals.length > 0) {
     const toLoot = attempt(lootGoals, { forbidLava: true })
     if (toLoot.path.length > 0 || toLoot.rideMount) return toLoot
@@ -571,27 +624,14 @@ function chooseTravel({
   }
 
   if (target && dist > SIGHT_RANGE) {
-    const advance = attempt(getAdjacentTiles(target.x, target.y))
-    if (advance.path.length > 0 || advance.rideMount) return advance
+    const goals = approachTiles()
+    if (goals.length > 0) {
+      const advance = attempt(goals)
+      if (advance.path.length > 0 || advance.rideMount) return advance
+    }
   }
 
   return { path: [] }
-}
-
-function holdingThreat(objectLayer) {
-  const { total, units } = scanThreat(
-    objectLayer,
-    ENEMY_WIZARD.x,
-    ENEMY_WIZARD.y,
-  )
-  if (!isCurrentlyFlying(objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]))
-    return total
-
-  return units.reduce((sum, u) => {
-    const cell = objectLayer[u.y][u.x]
-    const airborne = !!(cell?.flying || cell?.mount?.flying)
-    return airborne ? sum + u.combat : sum
-  }, 0)
 }
 
 export function moveEnemyWizard(
@@ -607,6 +647,7 @@ export function moveEnemyWizard(
     ENEMY_WIZARD.y,
   )
   const seekingPlayer = dist <= SIGHT_RANGE
+  const danger = buildDanger(objectLayer, terrainLayer)
 
   let currentLayer = objectLayer
   let workingTerrain = terrainLayer
@@ -798,9 +839,13 @@ export function moveEnemyWizard(
       wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
     }
 
-    const airRoute =
-      !portalPosition ||
-      (isMounted(wizardCell) &&
+    const nearest = findNearestPlayerTarget(
+      currentLayer,
+      ENEMY_WIZARD.x,
+      ENEMY_WIZARD.y,
+    )
+    const airRoute = portalPosition
+      ? isMounted(wizardCell) &&
         canFly(wizardCell.mount.stats) &&
         hasAirRoute(
           workingTerrain,
@@ -808,10 +853,11 @@ export function moveEnemyWizard(
           workingItems,
           wizardCell.mount.stats,
           portalPosition,
-        ))
+        )
+      : nearest.dist > SIGHT_RANGE ||
+        canHitTarget(workingTerrain, currentLayer, true, nearest.target)
 
     if (
-      portalPosition &&
       !airRoute &&
       !besidePortal &&
       isCurrentlyFlying(wizardCell) &&
@@ -869,7 +915,7 @@ export function moveEnemyWizard(
           effectLayer,
           itemLayer: workingItems,
           portalPosition,
-          holding: getThreatTier(holdingThreat(currentLayer)) !== 'calm',
+          danger,
         })
 
     if (plan.rideMount) {
