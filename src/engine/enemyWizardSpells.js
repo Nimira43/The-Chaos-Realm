@@ -13,6 +13,12 @@ import {
   mountFits,
 } from './enemyMountPlan.js'
 import {
+  planBreach,
+  markBreach,
+  clearBreachMarks,
+  ageBreachMarks,
+} from './enemyBreach.js'
+import {
   scanThreat,
   countTerrainAround,
   listPlayerUnitsInRange,
@@ -335,12 +341,26 @@ function chooseRouteMount(S) {
     if (spell.category !== 'creature' || spell.currentSpellLevel <= 0) continue
     const cost = spell.manaCost * spell.currentSpellLevel
     if (ENEMY_WIZARD.current_mana < cost) continue
+    // One free tile is enough: he only needs a single ride.
     if (free < 1) continue
     const stats = CREATURES.find((c) => c.name === spell.name)
     if (!stats?.mount || !mountFits(ctx, stats)) continue
     if (!best || stats.combat > best.stats.combat) best = { spell, stats }
   }
   return best
+}
+
+function chooseBreach(S) {
+  if (!S.portal) return null
+  const plan = planBreach({
+    terrainLayer: S.terrain,
+    objectLayer: S.objects,
+    itemLayer: S.items,
+    effectLayer: S.effects,
+    portal: S.portal,
+  })
+  if (!plan || plan.pending || !plan.atSpot) return null
+  return { kind: 'breach', spell: plan.spell, aimPos: plan.aim }
 }
 
 function chooseSummon(S) {
@@ -480,6 +500,9 @@ export function castEnemyWizardSpells(
   itemLayer = null,
   portalPosition = null,
 ) {
+  if (!portalPosition) clearBreachMarks()
+  else ageBreachMarks()
+
   if (isCurrentlyFlying(objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x])) {
     return {
       objectLayer,
@@ -518,6 +541,7 @@ export function castEnemyWizardSpells(
     if (!action && tier !== 'calm' && zaps < MAX_ZAPS_PER_TURN)
       action = chooseZap(S, tier)
     if (!action) action = chooseEscape(S)
+    if (!action) action = chooseBreach(S)
     if (!action) action = chooseSummon(S)
     if (!action) break
 
@@ -525,8 +549,15 @@ export function castEnemyWizardSpells(
       `[enemy wizard] ${action.kind}: ${action.spell.name} (threat ${threat.total}, ${tier})`,
     )
 
+    const before = S.effects
     executeCast(S, action)
     if (action.kind === 'zap') zaps++
+    if (action.kind === 'breach') {
+      for (let y = 0; y < S.effects.length; y++)
+        for (let x = 0; x < S.effects[y].length; x++)
+          if (S.effects[y][x] && S.effects[y][x] !== before[y][x])
+            markBreach(x, y, S.effects[y][x].type)
+    }
   }
 
   return {

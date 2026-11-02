@@ -1,26 +1,9 @@
-import {
-  STAT_RULES,
-  baselineStats,
-  getSpellCatalogue,
-  statCost,
-} from './wizardRules.js'
+import { STAT_RULES, baselineStats, getSpellCatalogue, statCost } from './wizardRules.js'
 import { ARCHETYPES } from './enemyArchetypes.js'
 import { ENEMY_FIRST_NAMES } from './enemyNames.js'
 import {
-  CATEGORY_WEIGHT,
-  ENEMY_RAMP_LEVELS,
-  ENEMY_STAT_CAPS,
-  MANA_PER_SPELL_POINT,
-  POTION_LEVEL_CAP,
-  BUY_AVOIDED,
-  BUY_FAVOURED,
-  KIT_AVOIDED,
-  KIT_FAVOURED,
-  KIT_SLACK,
-  TRAVELLER_KIT,
-  enemyBudget,
-  maxSpellCost,
-  spellLevelCap,
+  CATEGORY_WEIGHT, ENEMY_RAMP_LEVELS, ENEMY_STAT_CAPS, MANA_PER_SPELL_POINT, POTION_LEVEL_CAP,
+  BUY_AVOIDED, BUY_FAVOURED, KIT_AVOIDED, KIT_FAVOURED, KIT_SLACK, TRAVELLER_KIT, enemyBudget, maxSpellCost, spellLevelCap
 } from './enemyRules.js'
 
 function hashString(str) {
@@ -77,11 +60,8 @@ function climbStats(level, archetype) {
 }
 
 function splitMoney(money, baseMana) {
-  if (MANA_PER_SPELL_POINT * money <= baseMana)
-    return { spellPoints: money, extraMana: 0 }
-  const spellPoints = Math.floor(
-    (money + baseMana) / (1 + MANA_PER_SPELL_POINT),
-  )
+  if (MANA_PER_SPELL_POINT * money <= baseMana) return { spellPoints: money, extraMana: 0 }
+  const spellPoints = Math.floor((money + baseMana) / (1 + MANA_PER_SPELL_POINT))
   return { spellPoints, extraMana: money - spellPoints }
 }
 
@@ -90,13 +70,9 @@ function chooseKit({ points, level, archetype, unlocked, capFor, rng }) {
   const avoided = new Set(archetype.avoided)
   const dearest = maxSpellCost(level)
 
-  const weightOf = (s) => {
+  const weightOf = s => {
     const category = CATEGORY_WEIGHT[s.category] ?? 0.2
-    const affinity = favoured.has(s.name)
-      ? KIT_FAVOURED
-      : avoided.has(s.name)
-        ? KIT_AVOIDED
-        : 1
+    const affinity = favoured.has(s.name) ? KIT_FAVOURED : avoided.has(s.name) ? KIT_AVOIDED : 1
     return category * affinity * (0.4 + s.manaCost / dearest)
   }
 
@@ -111,20 +87,16 @@ function chooseKit({ points, level, archetype, unlocked, capFor, rng }) {
     capacity += capFor(spell) * spell.manaCost
   }
 
-  if (!kit.some((s) => s.category === 'creature')) {
-    const creatures = unlocked.filter((s) => s.category === 'creature')
-    if (creatures.length)
-      kit.push(pickWeighted(creatures, creatures.map(weightOf), rng))
+  if (!kit.some(s => s.category === 'creature')) {
+    const creatures = unlocked.filter(s => s.category === 'creature')
+    if (creatures.length) kit.push(pickWeighted(creatures, creatures.map(weightOf), rng))
   }
   return kit
 }
 
 function buySpells({ points, level, archetype, catalogue, rng }) {
-  const unlocked = catalogue.filter((s) => s.manaCost <= maxSpellCost(level))
-  const capFor = (s) =>
-    s.category === 'potion'
-      ? Math.min(POTION_LEVEL_CAP, spellLevelCap(level))
-      : spellLevelCap(level)
+  const unlocked = catalogue.filter(s => s.manaCost <= maxSpellCost(level))
+  const capFor = s => (s.category === 'potion' ? Math.min(POTION_LEVEL_CAP, spellLevelCap(level)) : spellLevelCap(level))
   const kit = chooseKit({ points, level, archetype, unlocked, capFor, rng })
   const favoured = new Set(archetype.favoured)
   const avoided = new Set(archetype.avoided)
@@ -133,17 +105,11 @@ function buySpells({ points, level, archetype, catalogue, rng }) {
   let left = points
 
   for (;;) {
-    const options = kit.filter(
-      (s) => (levels[s.name] || 0) < capFor(s) && s.manaCost <= left,
-    )
+    const options = kit.filter(s => (levels[s.name] || 0) < capFor(s) && s.manaCost <= left)
     if (options.length === 0) break
 
-    const weights = options.map((s) => {
-      const affinity = favoured.has(s.name)
-        ? BUY_FAVOURED
-        : avoided.has(s.name)
-          ? BUY_AVOIDED
-          : 1
+    const weights = options.map(s => {
+      const affinity = favoured.has(s.name) ? BUY_FAVOURED : avoided.has(s.name) ? BUY_AVOIDED : 1
       return affinity / Math.pow(1 + (levels[s.name] || 0), 1.5)
     })
     const spell = pickWeighted(options, weights, rng)
@@ -160,21 +126,22 @@ function cheapest(list) {
 
 function pickForSchool(options, archetype) {
   if (options.length === 0) return null
-  const favoured = options.filter((s) => archetype.favoured.includes(s.name))
+  const favoured = options.filter(s => archetype.favoured.includes(s.name))
   if (favoured.length) return cheapest(favoured)
-  const fine = options.filter((s) => !archetype.avoided.includes(s.name))
+  const fine = options.filter(s => !archetype.avoided.includes(s.name))
   return cheapest(fine.length ? fine : options)
 }
 
 function chooseTravellersKit({ unlocked, archetype, points }) {
   if (!TRAVELLER_KIT.enabled) return []
-  const byName = (name) => unlocked.find((s) => s.name === name)
-  const inList = (names) => unlocked.filter((s) => names.includes(s.name))
+  const byName = name => unlocked.find(s => s.name === name)
+  const inList = names => unlocked.filter(s => names.includes(s.name))
 
   const wanted = [
     pickForSchool(inList(TRAVELLER_KIT.fliers), archetype),
-    pickForSchool(inList(TRAVELLER_KIT.breakers), archetype),
-    ...TRAVELLER_KIT.rides.map(byName),
+    byName(TRAVELLER_KIT.preferredBreaker) ||
+      pickForSchool(inList(TRAVELLER_KIT.breakers), archetype),
+    ...TRAVELLER_KIT.rides.map(byName)
   ].filter(Boolean)
 
   const kit = []
@@ -194,38 +161,20 @@ export function generateEnemy(level, seed = '') {
   const catalogue = getSpellCatalogue()
 
   const archetype = pickOne(ARCHETYPES, rng)
-  const name =
-    `${pickOne(ENEMY_FIRST_NAMES, rng)} the ${archetype.title}`.slice(0, 40)
+  const name = `${pickOne(ENEMY_FIRST_NAMES, rng)} the ${archetype.title}`.slice(0, 40)
 
   const budget = enemyBudget(lvl)
   const stats = climbStats(lvl, archetype)
 
   let statSpend = 0
-  for (const rule of STAT_RULES)
-    statSpend += statCost(rule.key, stats[rule.key])
+  for (const rule of STAT_RULES) statSpend += statCost(rule.key, stats[rule.key])
 
-  const { spellPoints, extraMana } = splitMoney(
-    Math.max(0, budget - statSpend),
-    stats.max_mana,
-  )
-  const unlocked = catalogue.filter((s) => s.manaCost <= maxSpellCost(lvl))
-  const travel = chooseTravellersKit({
-    unlocked,
-    archetype,
-    points: spellPoints,
-  })
-  const travelCost = travel.reduce(
-    (sum, s) => sum + s.manaCost * TRAVELLER_KIT.levels,
-    0,
-  )
+  const { spellPoints, extraMana } = splitMoney(Math.max(0, budget - statSpend), stats.max_mana)
+  const unlocked = catalogue.filter(s => s.manaCost <= maxSpellCost(lvl))
+  const travel = chooseTravellersKit({ unlocked, archetype, points: spellPoints })
+  const travelCost = travel.reduce((sum, s) => sum + s.manaCost * TRAVELLER_KIT.levels, 0)
 
-  const bought = buySpells({
-    points: spellPoints - travelCost,
-    level: lvl,
-    archetype,
-    catalogue,
-    rng,
-  })
+  const bought = buySpells({ points: spellPoints - travelCost, level: lvl, archetype, catalogue, rng })
 
   for (const spell of travel) {
     const have = bought.levels[spell.name] || 0
@@ -249,7 +198,7 @@ export function generateEnemy(level, seed = '') {
     budget,
     spent: statSpend + manaGain + spellSpend,
     stats,
-    spellLevels: bought.levels,
+    spellLevels: bought.levels
   }
 }
 

@@ -254,6 +254,7 @@ export default function useTurnSystem({
     workingLayer = creatureResult.objectLayer
     workingTerrain = creatureResult.terrainLayer
     workingItemLayer = creatureResult.itemLayer
+    workingEffectLayer = creatureResult.effectLayer ?? workingEffectLayer
     frames = frames.concat(creatureResult.frames)
 
     if (!newStatus && creatureResult.defeatedTargets.includes('player')) {

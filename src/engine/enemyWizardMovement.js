@@ -46,6 +46,11 @@ import {
 } from './enemyAIShared.js'
 import { buildDanger, canHitTarget } from './enemyDanger.js'
 import {
+  planBreach,
+  clearLandingRequests,
+  requestLandingClear,
+} from './enemyBreach.js'
+import {
   findWalkInLandings,
   isOnWalkInGround,
   findRouteDoors,
@@ -505,6 +510,23 @@ function chooseTravel({
     return { path: [] }
   }
 
+  const tryBreach = () => {
+    const breach = planBreach({
+      terrainLayer,
+      objectLayer,
+      itemLayer,
+      effectLayer,
+      portal: portalPosition,
+    })
+    if (!breach || breach.pending) return null
+    if (breach.atSpot) return { path: [] }
+    const safeSpots = breach.spots.filter((s) =>
+      danger.isSafe(s.x, s.y, flying),
+    )
+    const toSpot = attempt(safeSpots.length > 0 ? safeSpots : breach.spots)
+    return toSpot.path.length > 0 ? toSpot : null
+  }
+
   if (portalPosition && !alreadyAtPortal && flying) {
     const landings = getAdjacentTiles(
       portalPosition.x,
@@ -518,6 +540,17 @@ function chooseTravel({
     if (landings.length > 0) {
       const toLanding = attempt(landings)
       if (toLanding.path.length > 0) return toLanding
+    } else {
+      const crowded = getAdjacentTiles(
+        portalPosition.x,
+        portalPosition.y,
+      ).filter(
+        (t) =>
+          objectLayer[t.y][t.x]?.type === 'creature' &&
+          objectLayer[t.y][t.x].owner === 'enemy' &&
+          canLandOn(terrainLayer[t.y][t.x], stats, itemLayer?.[t.y]?.[t.x]),
+      )
+      requestLandingClear(crowded)
     }
 
     const walkIns = findWalkInLandings(
@@ -532,9 +565,15 @@ function chooseTravel({
       const toWalkIn = attempt(walkIns)
       if (toWalkIn.path.length > 0) return toWalkIn
     }
+
+    const breachTrip = tryBreach()
+    if (breachTrip) return breachTrip
   } else if (portalPosition && !alreadyAtPortal) {
     const toPortal = attempt([portalPosition])
     if (toPortal.path.length > 0 || toPortal.rideMount) return toPortal
+
+    const breachTrip = tryBreach()
+    if (breachTrip) return breachTrip
 
     if (!flying) {
       const viaDoors = findKeyAndDoorPath(
@@ -648,6 +687,7 @@ export function moveEnemyWizard(
   )
   const seekingPlayer = dist <= SIGHT_RANGE
   const danger = buildDanger(objectLayer, terrainLayer)
+  clearLandingRequests()
 
   let currentLayer = objectLayer
   let workingTerrain = terrainLayer
@@ -769,6 +809,15 @@ export function moveEnemyWizard(
     }
 
     let wizardCell = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+
+    if (
+      portalPosition &&
+      ENEMY_WIZARD.x === portalPosition.x &&
+      ENEMY_WIZARD.y === portalPosition.y &&
+      !isCurrentlyFlying(wizardCell)
+    )
+      break
+
     const besidePortal =
       portalPosition &&
       wrappedChebyshevDistance(
@@ -807,8 +856,10 @@ export function moveEnemyWizard(
     const portalHasLanding =
       portalPosition &&
       groundStats &&
-      getAdjacentTiles(portalPosition.x, portalPosition.y).some((t) =>
-        canLandOn(workingTerrain[t.y][t.x], wizardCell.mount.stats, null),
+      getAdjacentTiles(portalPosition.x, portalPosition.y).some(
+        (t) =>
+          !currentLayer[t.y][t.x] &&
+          canLandOn(workingTerrain[t.y][t.x], wizardCell.mount.stats, null),
       )
     if (portalPosition && groundStats && !besidePortal && !portalHasLanding) {
       inWalkRegion = isOnWalkInGround(
@@ -844,18 +895,36 @@ export function moveEnemyWizard(
       ENEMY_WIZARD.x,
       ENEMY_WIZARD.y,
     )
-    const airRoute = portalPosition
-      ? isMounted(wizardCell) &&
-        canFly(wizardCell.mount.stats) &&
-        hasAirRoute(
-          workingTerrain,
-          currentLayer,
-          workingItems,
-          wizardCell.mount.stats,
-          portalPosition,
-        )
-      : nearest.dist > SIGHT_RANGE ||
-        canHitTarget(workingTerrain, currentLayer, true, nearest.target)
+
+    const breachTrip = portalPosition
+      ? planBreach({
+          terrainLayer: workingTerrain,
+          objectLayer: currentLayer,
+          itemLayer: workingItems,
+          effectLayer,
+          portal: portalPosition,
+        })
+      : null
+    const breachByAir =
+      !!breachTrip &&
+      !breachTrip.pending &&
+      !breachTrip.atSpot &&
+      !!breachTrip.byAir
+
+    const airRoute =
+      breachByAir ||
+      (portalPosition
+        ? isMounted(wizardCell) &&
+          canFly(wizardCell.mount.stats) &&
+          hasAirRoute(
+            workingTerrain,
+            currentLayer,
+            workingItems,
+            wizardCell.mount.stats,
+            portalPosition,
+          )
+        : nearest.dist > SIGHT_RANGE ||
+          canHitTarget(workingTerrain, currentLayer, true, nearest.target))
 
     if (
       !airRoute &&

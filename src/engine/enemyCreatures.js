@@ -3,9 +3,12 @@ import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { wrap, wrappedChebyshevDistance } from './utils.js'
 import {
   resolveAttack,
+  resolveWallEffectAttack,
   getAttackBlockReason,
   ATTACK_AP_COST,
+  TANGLE_VINE_DEFENCE,
 } from './combat.js'
+import { listBreachMarks, isLandingClearRequested } from './enemyBreach.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 import {
   canCarryItem,
@@ -113,6 +116,7 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     terrainLayer,
     objectLayer,
     itemLayer,
+    effectLayer,
     frames,
     defeatedTarget,
     moved: x !== startX || y !== startY,
@@ -210,12 +214,7 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
         terrainLayer[door.y][door.x] = 'doorUnlocked'
         setCell({ ...cell, inventory: removeFirstKey(cell.inventory) })
       } else if (findAdjacentDoorInState(terrainLayer, x, y, 'doorUnlocked')) {
-        const door = findAdjacentDoorInState(
-          terrainLayer,
-          x,
-          y,
-          'doorUnlocked',
-        )
+        const door = findAdjacentDoorInState(terrainLayer, x, y, 'doorUnlocked')
         terrainLayer = terrainLayer.map((row) => [...row])
         terrainLayer[door.y][door.x] = 'doorOpen'
       } else {
@@ -267,7 +266,50 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     return true
   }
 
+  const canCut = () => {
+    const cell = cellNow()
+    return !!cell && cell.stats.combat + 3.5 - TANGLE_VINE_DEFENCE >= 2
+  }
+
+  const markedEffects = () =>
+    portalPosition && canCut()
+      ? listBreachMarks(effectLayer).filter((m) => {
+          const type = effectLayer[m.y][m.x].type
+          
+          if (type === 'vine') return true
+          return (
+            type === 'blob' &&
+            ['wall', 'doorLocked', 'doorUnlocked'].includes(
+              terrainLayer[m.y][m.x],
+            )
+          )
+        })
+      : []
+
+  const breakEffects = () => {
+    let struck = false
+    while (cellNow() && apNow() >= ATTACK_AP_COST) {
+      const next = markedEffects().find(
+        (m) => chebyshevDist(x, y, m.x, m.y) <= 1,
+      )
+      if (!next) break
+      const hit = resolveWallEffectAttack({
+        effectLayer,
+        terrainLayer,
+        attackerCombat: cellNow().stats.combat,
+        pos: next,
+      })
+      effectLayer = hit.effectLayer
+      terrainLayer = hit.terrainLayer
+      setMoverAp(apNow() - ATTACK_AP_COST)
+      frames.push(objectLayer)
+      struck = true
+    }
+    return struck
+  }
+
   const struckFirst = tryAttack()
+  const brokeFirst = !struckFirst && breakEffects()
 
   const planMove = () => {
     const cell = cellNow()
@@ -295,6 +337,22 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
         }),
     )
 
+    if (portalPosition && isLandingClearRequested(x, y)) {
+      const room = []
+      for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+          const gx = wrap(x + dx, MAP_WIDTH)
+          const gy = wrap(y + dy, MAP_HEIGHT)
+          if (objectLayer[gy][gx] || isLandingClearRequested(gx, gy)) continue
+          if (chebyshevDist(gx, gy, portalPosition.x, portalPosition.y) <= 1)
+            continue
+          room.push({ x: gx, y: gy })
+        }
+      }
+      const path = findPathToNearestGoal({ ...pathArgs, goals: room })
+      if (path.length > 0) return { path, reason: 'clear-portal' }
+    }
+
     if (portalPosition && onPortal(x, y)) {
       const off = getAdjacentTiles(x, y).filter((t) => !onPortal(t.x, t.y))
       const path = findPathToNearestGoal({ ...pathArgs, goals: off })
@@ -320,6 +378,15 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
         goals: getAdjacentTiles(t.x, t.y),
       })
       if (path.length > 0) return { path, reason: 'fight', target: t }
+    }
+
+    const toCut = markedEffects()
+    if (toCut.length > 0) {
+      const path = findPathToNearestGoal({
+        ...pathArgs,
+        goals: toCut.flatMap((m) => getAdjacentTiles(m.x, m.y)),
+      })
+      if (path.length > 0) return { path, reason: 'breach' }
     }
 
     if (useOptions) {
@@ -404,7 +471,8 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     frames.push(objectLayer)
   }
 
-  let plan = struckFirst ? { path: [], reason: 'none' } : planMove()
+  let plan =
+    struckFirst || brokeFirst ? { path: [], reason: 'none' } : planMove()
 
   let moved = false
 
@@ -469,6 +537,7 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
 
     doActions()
     if (!struckFirst) tryAttack()
+    breakEffects()
   }
 
   return result({ moved })
@@ -522,6 +591,7 @@ export function runEnemyCreaturesAI(
       terrainLayer: turn.terrainLayer,
       objectLayer: turn.objectLayer,
       itemLayer: turn.itemLayer,
+      effectLayer: turn.effectLayer,
     }
     frames.push(...turn.frames)
     if (turn.defeatedTarget) defeatedTargets.push(turn.defeatedTarget)
@@ -533,6 +603,7 @@ export function runEnemyCreaturesAI(
     objectLayer: state.objectLayer,
     terrainLayer: state.terrainLayer,
     itemLayer: state.itemLayer,
+    effectLayer: state.effectLayer,
     defeatedTargets,
     frames,
   }

@@ -39,6 +39,7 @@ export const CATEGORY_WEIGHT = {
 }
 
 export const POTION_LEVEL_CAP = 2
+
 export const KIT_FAVOURED = 6
 export const KIT_AVOIDED = 0.15
 export const KIT_SLACK = 1.0
@@ -51,5 +52,6 @@ export const TRAVELLER_KIT = {
   maxShare: 0.4,
   fliers: ['Pegasus', 'Giant Eagle', 'Gryphon'],
   rides: ['Sea Wolf', 'Cindermaw'],
-  breakers: ['Magic Fire', 'Gooey Blob', 'Tangle Vine']
+  breakers: ['Magic Fire', 'Gooey Blob', 'Tangle Vine'],
+  preferredBreaker: 'Tangle Vine'
 }
