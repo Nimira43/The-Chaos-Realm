@@ -42,7 +42,29 @@ export function runEnemyWizardAI(
   portalPosition,
   effectLayer,
   itemLayer,
+  plannedPortal = null,
 ) {
+  if (!portalPosition && plannedPortal) {
+    const original = terrainLayer[plannedPortal.y][plannedPortal.x]
+    const stamped = terrainLayer.map((row) => [...row])
+    stamped[plannedPortal.y][plannedPortal.x] = 'portal'
+    const result = runEnemyWizardAI(
+      stamped,
+      objectLayer,
+      plannedPortal,
+      effectLayer,
+      itemLayer,
+    )
+    if (
+      result.terrainLayer?.[plannedPortal.y]?.[plannedPortal.x] === 'portal'
+    ) {
+      const restored = result.terrainLayer.map((row) => [...row])
+      restored[plannedPortal.y][plannedPortal.x] = original
+      result.terrainLayer = restored
+    }
+    return result
+  }
+
   const heldBack = Math.min(RIDE_AP_COST, ENEMY_WIZARD.ap)
   ENEMY_WIZARD.ap -= heldBack
 

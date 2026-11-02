@@ -1,3 +1,4 @@
+import { getQuestWant, getQuestReserve } from './enemyQuest.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { CREATURES } from '../data/creatures.js'
@@ -276,6 +277,7 @@ function hasPendingEscapeEffect(S) {
 
 function chooseEscape(S) {
   const wiz = ENEMY_WIZARD
+  if (S.portal && getQuestReserve() > 0) return null
   const cell = S.objects[wiz.y][wiz.x]
 
   if (isCurrentlyFlying(cell)) return null
@@ -369,6 +371,17 @@ function chooseSummon(S) {
   if (countOwnMatching(S.objects, () => true) >= MAX_ARMY_SIZE) return null
 
   if (S.portal) {
+    const wanted = getQuestWant()
+    if (wanted && countFreeSummonTiles(S) >= 1) {
+      const spell = ENEMY_SPELLBOOK.find(
+        (sp) =>
+          sp.category === 'creature' &&
+          sp.name === wanted &&
+          sp.currentSpellLevel > 0 &&
+          ENEMY_WIZARD.current_mana >= sp.manaCost * sp.currentSpellLevel,
+      )
+      if (spell) return { kind: 'summon', spell, aimPos: null }
+    }
     const ride = chooseRouteMount(S)
     if (ride) return { kind: 'summon', spell: ride.spell, aimPos: null }
   }
@@ -378,7 +391,10 @@ function chooseSummon(S) {
   const pick = pickArmySpell({
     spellbook: ENEMY_SPELLBOOK,
     mana: wiz.current_mana,
-    freeTileCount: countFreeSummonTiles(S),
+    freeTileCount: Math.max(
+      0,
+      countFreeSummonTiles(S) - (S.portal && getQuestReserve() > 0 ? 1 : 0),
+    ),
     terrainCounts: S.terrainCounts,
     wizardMounted: mounted,
     countOwn: (pred) => countOwnMatching(S.objects, pred),

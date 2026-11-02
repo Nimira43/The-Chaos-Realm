@@ -46,6 +46,13 @@ import {
 } from './enemyAIShared.js'
 import { buildDanger, canHitTarget } from './enemyDanger.js'
 import {
+  planQuest,
+  rideModeOf,
+  setQuestWant,
+  clearQuestWant,
+  setQuestReserve,
+} from './enemyQuest.js'
+import {
   planBreach,
   clearLandingRequests,
   requestLandingClear,
@@ -450,6 +457,7 @@ function chooseTravel({
   itemLayer,
   portalPosition,
   danger,
+  quest = null,
 }) {
   const cell = objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
   const stats = getMoverStats(cell, ENEMY_WIZARD)
@@ -525,6 +533,14 @@ function chooseTravel({
     )
     const toSpot = attempt(safeSpots.length > 0 ? safeSpots : breach.spots)
     return toSpot.path.length > 0 ? toSpot : null
+  }
+
+  if (quest && quest.end && portalPosition && !alreadyAtPortal) {
+    const atEnd =
+      ENEMY_WIZARD.x === quest.end.x && ENEMY_WIZARD.y === quest.end.y
+    if (atEnd) return { path: [] }
+    const leg = attempt([quest.end])
+    if (leg.path.length > 0) return leg
   }
 
   if (portalPosition && !alreadyAtPortal && flying) {
@@ -673,6 +689,10 @@ function chooseTravel({
   return { path: [] }
 }
 
+let questSticky = false
+let callStarts = []
+let lastEnd = null
+
 export function moveEnemyWizard(
   terrainLayer,
   objectLayer,
@@ -688,6 +708,24 @@ export function moveEnemyWizard(
   const seekingPlayer = dist <= SIGHT_RANGE
   const danger = buildDanger(objectLayer, terrainLayer)
   clearLandingRequests()
+  clearQuestWant()
+  setQuestReserve(0)
+  if (
+    lastEnd &&
+    (lastEnd.x !== ENEMY_WIZARD.x || lastEnd.y !== ENEMY_WIZARD.y)
+  ) {
+    callStarts = []
+    questSticky = false
+  }
+  callStarts.push(`${ENEMY_WIZARD.x},${ENEMY_WIZARD.y}`)
+  if (callStarts.length > 4) callStarts.shift()
+  if (
+    portalPosition &&
+    callStarts.length >= 3 &&
+    callStarts.slice(-3).every((p) => p === callStarts[callStarts.length - 1])
+  )
+    questSticky = true
+  let questDoors = new Set()
 
   let currentLayer = objectLayer
   let workingTerrain = terrainLayer
@@ -735,7 +773,12 @@ export function moveEnemyWizard(
       workingTerrain,
       workingItems,
       flying,
-      route ? (door) => route.keys.has(`${door.x},${door.y}`) : null,
+      route || questDoors.size > 0
+        ? (door) => {
+            const k = `${door.x},${door.y}`
+            return !!route?.keys.has(k) || questDoors.has(k)
+          }
+        : null,
     )
     workingTerrain = result.terrainLayer
     workingItems = result.itemLayer
@@ -799,7 +842,111 @@ export function moveEnemyWizard(
       }
     }
 
+    let quest = null
+    if (portalPosition && canRide(ENEMY_WIZARD)) {
+      const here0 = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+      const qctx = {
+        terrainLayer: workingTerrain,
+        objectLayer: currentLayer,
+        itemLayer: workingItems,
+        portal: portalPosition,
+      }
+      if (
+        questSticky ||
+        (!currentSetupFits(qctx) && !findFittingAdjacentMount(qctx))
+      ) {
+        quest = planQuest({
+          ...qctx,
+          keysHeld: countKeys(ENEMY_WIZARD.inventory),
+        })
+        questDoors = quest ? quest.doors : new Set()
+        if (quest) {
+          let hold = 0
+          for (const m of quest.rides) {
+            const sp = ENEMY_SPELLBOOK.find(
+              (x) => x.name === quest.kit[m].name,
+            )
+            const adjacentNow = m === rideModeOf(here0?.mount?.stats)
+            if (sp && sp.currentSpellLevel > 0 && !adjacentNow)
+              hold += sp.manaCost * sp.currentSpellLevel
+          }
+          setQuestReserve(hold)
+        }
+      }
+    }
+
+    if (quest) {
+      const here = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+      const cur = isMounted(here) ? rideModeOf(here.mount.stats) : 'foot'
+      const want = quest.mode
+      const swapOk = !isCurrentlyFlying(here)
+      if (swapOk && cur !== want && !(want === 'foot' && cur === 'fly')) {
+        let adj = null
+        if (want !== 'foot') {
+          for (const t of getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y)) {
+            const c = currentLayer[t.y][t.x]
+            if (
+              c?.type === 'creature' &&
+              c.owner === 'enemy' &&
+              !c.mount &&
+              isMountCreature(c.stats) &&
+              rideModeOf(c.stats) === want
+            ) {
+              adj = t
+              break
+            }
+          }
+        }
+        if (want !== 'foot' && !adj) {
+          // Not at hand: ask for it to be summoned, and wait for the cast.
+          if (quest.kit[want]) setQuestWant(quest.kit[want].name)
+          break
+        }
+        const swapCost = isMounted(here)
+          ? DISMOUNT_AP_COST + (adj ? RIDE_AP_COST : 0)
+          : RIDE_AP_COST
+        const tile = isMounted(here)
+          ? findDismountTile(
+              workingTerrain,
+              currentLayer,
+              effectLayer,
+              ENEMY_WIZARD.x,
+              ENEMY_WIZARD.y,
+              ENEMY_WIZARD,
+            )
+          : null
+        if (ENEMY_WIZARD.ap >= swapCost && (!isMounted(here) || tile)) {
+          if (isMounted(here)) {
+            currentLayer = dismountRider(
+              currentLayer,
+              { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y },
+              tile,
+            )
+            ENEMY_WIZARD.ap -= DISMOUNT_AP_COST
+            frames.push(currentLayer)
+          }
+          if (adj) {
+            const again = getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y).find(
+              (t) => {
+                const c = currentLayer[t.y][t.x]
+                return (
+                  c?.type === 'creature' &&
+                  c.owner === 'enemy' &&
+                  !c.mount &&
+                  isMountCreature(c.stats) &&
+                  rideModeOf(c.stats) === want
+                )
+              },
+            )
+            if (again) rideMountAt(again)
+          }
+          continue
+        }
+      }
+    }
+
     if (
+      !quest &&
       !isMounted(currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]) &&
       canRide(ENEMY_WIZARD) &&
       ENEMY_WIZARD.ap >= RIDE_AP_COST
@@ -911,20 +1058,21 @@ export function moveEnemyWizard(
       !breachTrip.atSpot &&
       !!breachTrip.byAir
 
-    const airRoute =
-      breachByAir ||
-      (portalPosition
-        ? isMounted(wizardCell) &&
-          canFly(wizardCell.mount.stats) &&
-          hasAirRoute(
-            workingTerrain,
-            currentLayer,
-            workingItems,
-            wizardCell.mount.stats,
-            portalPosition,
-          )
-        : nearest.dist > SIGHT_RANGE ||
-          canHitTarget(workingTerrain, currentLayer, true, nearest.target))
+    const airRoute = quest
+      ? quest.mode === 'fly'
+      : breachByAir ||
+        (portalPosition
+          ? isMounted(wizardCell) &&
+            canFly(wizardCell.mount.stats) &&
+            hasAirRoute(
+              workingTerrain,
+              currentLayer,
+              workingItems,
+              wizardCell.mount.stats,
+              portalPosition,
+            )
+          : nearest.dist > SIGHT_RANGE ||
+            canHitTarget(workingTerrain, currentLayer, true, nearest.target))
 
     if (
       !airRoute &&
@@ -985,6 +1133,7 @@ export function moveEnemyWizard(
           itemLayer: workingItems,
           portalPosition,
           danger,
+          quest,
         })
 
     if (plan.rideMount) {
@@ -1085,6 +1234,8 @@ export function moveEnemyWizard(
       }
     }
   }
+
+  lastEnd = { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y }
 
   return {
     objectLayer: currentLayer,

@@ -1,3 +1,5 @@
+import { planQuest } from './enemyQuest.js'
+import { countKeys } from './enemyMountPlan.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { CREATURES } from '../data/creatures.js'
@@ -37,7 +39,7 @@ const LOOK_AHEAD = 24
 const WALL_COST = 25
 const LOCKED_DOOR_COST = 3
 const BLOCKS_DIAGONAL = ['wall', 'mountain', 'doorLocked', 'doorUnlocked']
-const BREAKABLE = ['wall']
+const BREAKABLE = ['wall', 'doorLocked']
 
 let committed = null
 
@@ -251,7 +253,11 @@ function makePlan(ctx) {
 
   const spell = pickBreachSpell()
   if (!spell) return null
-  if (!isSealed(ctx)) return null
+  if (
+    !isSealed(ctx) &&
+    planQuest({ ...ctx, keysHeld: countKeys(ENEMY_WIZARD.inventory) })
+  )
+    return null
 
   const here = objectLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
   const airStats =
@@ -280,7 +286,6 @@ function makePlan(ctx) {
   }
 
   const reach = reachableGround(terrainLayer)
-  
   const pickSpots = (candidates) => {
     const onFoot = candidates.filter((c) => reach.has(`${c.x},${c.y}`))
     if (onFoot.length > 0) return { spots: onFoot, byAir: false }
