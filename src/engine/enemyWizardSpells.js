@@ -1,10 +1,17 @@
-import { getQuestWant, getQuestReserve } from './enemyQuest.js'
+import {
+  getQuestWant,
+  getQuestReserve,
+  getQuestKeep,
+  getQuestOn,
+  clearQuestWant,
+} from './enemyQuest.js'
 import { ENEMY_WIZARD } from '../data/enemyWizard.js'
 import { ENEMY_SPELLBOOK } from '../data/enemySpellbook.js'
 import { CREATURES } from '../data/creatures.js'
 import { castSpell, RANGED_SPELL_BASE_RANGE } from './spellCaster.js'
 import { applyMagicDamage } from './combat.js'
 import { getMaxAp, canFly, isCurrentlyFlying } from './mounts.js'
+import { MAP_WIDTH, MAP_HEIGHT } from './terrain.js'
 import { canTakeOffFrom } from './useMountActions.js'
 import { isSealedIn } from './enemyEscape.js'
 import { pickArmySpell, isFlyingMount } from './enemyArmy.js'
@@ -18,6 +25,7 @@ import {
   markBreach,
   clearBreachMarks,
   ageBreachMarks,
+  isBreachMark,
 } from './enemyBreach.js'
 import {
   scanThreat,
@@ -270,9 +278,36 @@ function hasPendingEscapeEffect(S) {
       const e = S.effects[y][x]
       if (e && (e.type === 'fire' || e.type === 'blob') && e.owner === 'enemy')
         return true
+      if (
+        e &&
+        e.type === 'vine' &&
+        e.owner === 'enemy' &&
+        isBreachMark(S.effects, x, y)
+      )
+        return true
     }
   }
   return false
+}
+
+function pickEscapeVineAim(S, vine) {
+  const level = vine.currentSpellLevel
+  const range = RANGED_SPELL_BASE_RANGE + level
+  const here = S.terrain[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
+  let best = null
+  for (let dy = -range; dy <= range; dy++) {
+    for (let dx = -range; dx <= range; dx++) {
+      const d = Math.max(Math.abs(dx), Math.abs(dy))
+      if (d <= level || d > range) continue
+      const x = (ENEMY_WIZARD.x + dx + MAP_WIDTH) % MAP_WIDTH
+      const y = (ENEMY_WIZARD.y + dy + MAP_HEIGHT) % MAP_HEIGHT
+      if (S.terrain[y][x] !== here) continue
+      if (S.objects[y][x]) continue
+      if (!checkTileValidForVineCast(S.terrain, S.effects, x, y)) continue
+      if (!best || d < best.d) best = { x, y, d }
+    }
+  }
+  return best ? { x: best.x, y: best.y } : null
 }
 
 function chooseEscape(S) {
@@ -312,6 +347,12 @@ function chooseEscape(S) {
     return { kind: 'escape', spell: blob, aimPos: null }
   if (canFire) return { kind: 'escape', spell: fire, aimPos: null }
   if (canBlob) return { kind: 'escape', spell: blob, aimPos: null }
+
+  const vine = usableSpell('Tangle Vine')
+  if (vine) {
+    const aim = pickEscapeVineAim(S, vine)
+    if (aim) return { kind: 'escape', spell: vine, aimPos: aim }
+  }
 
   return null
 }
@@ -354,6 +395,7 @@ function chooseRouteMount(S) {
 
 function chooseBreach(S) {
   if (!S.portal) return null
+  if (getQuestOn()) return null
   const plan = planBreach({
     terrainLayer: S.terrain,
     objectLayer: S.objects,
@@ -382,14 +424,16 @@ function chooseSummon(S) {
       )
       if (spell) return { kind: 'summon', spell, aimPos: null }
     }
-    const ride = chooseRouteMount(S)
+    const ride = getQuestOn() ? null : chooseRouteMount(S)
     if (ride) return { kind: 'summon', spell: ride.spell, aimPos: null }
   }
 
   const mounted = !!S.objects[wiz.y][wiz.x]?.mount
 
   const pick = pickArmySpell({
-    spellbook: ENEMY_SPELLBOOK,
+    spellbook: S.portal
+      ? ENEMY_SPELLBOOK.filter((sp) => !getQuestKeep().includes(sp.name))
+      : ENEMY_SPELLBOOK,
     mana: wiz.current_mana,
     freeTileCount: Math.max(
       0,
@@ -567,8 +611,13 @@ export function castEnemyWizardSpells(
 
     const before = S.effects
     executeCast(S, action)
+    if (action.kind === 'summon' && action.spell.name === getQuestWant())
+      clearQuestWant()
     if (action.kind === 'zap') zaps++
-    if (action.kind === 'breach') {
+    if (
+      action.kind === 'breach' ||
+      (action.kind === 'escape' && action.spell.name === 'Tangle Vine')
+    ) {
       for (let y = 0; y < S.effects.length; y++)
         for (let x = 0; x < S.effects[y].length; x++)
           if (S.effects[y][x] && S.effects[y][x] !== before[y][x])

@@ -8,7 +8,7 @@ import {
   IMPASSABLE_THRESHOLD,
 } from './terrain.js'
 import { canLandOn, canTakeOffFrom } from './useMountActions.js'
-import { canFly, isMountCreature } from './mounts.js'
+import { canFly, isMountCreature, isCurrentlyFlying } from './mounts.js'
 import { getAdjacentTiles } from './pathfinding.js'
 
 const DIRS = [
@@ -86,6 +86,8 @@ export function buildKit(objectLayer) {
   return kit
 }
 
+const searchCache = new Map()
+
 export function planQuest({
   terrainLayer,
   objectLayer,
@@ -113,176 +115,199 @@ export function planQuest({
     })
   const flier = kit.fly ? { ...kit.fly.stats, isFlyingNow: false } : null
 
-  const reached = new Uint8Array(W * H)
-  const parent = new Int32Array(W * H).fill(-1)
-  const pMode = new Array(W * H).fill(null)
-  const pKind = new Array(W * H).fill(null)
-  const opened = new Set()
-  const gotKeys = new Set()
-  let keys = keysHeld
-
   const terrainAt = (x, y) => terrainLayer[y][x]
-
-  const passable = (x, y, m) => {
-    const t = terrainAt(x, y)
-    if (t === 'portal') return true
-    if (t === 'lava' && !m.stats.lava_type) return false
-    if (isDoorTile(t)) return opened.has(idxOf(x, y))
-    return getMovementCost(t, m.stats) < IMPASSABLE_THRESHOLD
-  }
-
-  const SUMMON_BLOCKED = [
-    'wall',
-    'water',
-    'mountain',
-    'lava',
-    'doorLocked',
-    'doorUnlocked',
-  ]
-  const canStartRide = (i) => {
-    const x = i % W
-    const y = (i / W) | 0
-    if (i === idxOf(start.x, start.y)) return true
-    const t = terrainAt(x, y)
-    if (t === 'lava') return false
-    if (isDoorTile(t)) {
-      if (!opened.has(i)) return false
-    } else if (getMovementCost(t, foot) >= IMPASSABLE_THRESHOLD) return false
-    return DIRS.some(([dx, dy]) => {
-      const nt = terrainAt(wrapX(x + dx), wrapY(y + dy))
-      return !SUMMON_BLOCKED.includes(nt)
-    })
-  }
-
   const s0 = idxOf(start.x, start.y)
-  reached[s0] = 1
-  pMode[s0] = 'start'
 
-  let changed = true
-  let guard = 0
-  while (changed && guard++ < 60) {
-    changed = false
+  const airborne =
+    !!flier &&
+    isCurrentlyFlying(objectLayer[start.y]?.[start.x]) &&
+    !canLandOn(
+      terrainAt(start.x, start.y),
+      flier,
+      itemLayer?.[start.y]?.[start.x],
+    )
 
-    for (const m of modes) {
-      const queue = []
-      for (let i = 0; i < W * H; i++)
-        if (reached[i] && (m.mode === 'foot' || canStartRide(i))) queue.push(i)
-      for (let qi = 0; qi < queue.length; qi++) {
-        const ci = queue[qi]
-        const cx = ci % W
-        const cy = (ci / W) | 0
-        for (const [dx, dy] of DIRS) {
-          const nx = wrapX(cx + dx)
-          const ny = wrapY(cy + dy)
-          const ni = idxOf(nx, ny)
-          if (reached[ni]) continue
-          if (!passable(nx, ny, m)) continue
-          if (dx && dy) {
-            const ta = terrainAt(nx, cy)
-            const tb = terrainAt(cx, ny)
-            const blockA =
-              getMovementCost(ta, m.stats) >= IMPASSABLE_THRESHOLD &&
-              !opened.has(idxOf(nx, cy))
-            const blockB =
-              getMovementCost(tb, m.stats) >= IMPASSABLE_THRESHOLD &&
-              !opened.has(idxOf(cx, ny))
-            if (blockA || blockB) continue
-          }
-          reached[ni] = 1
-          parent[ni] = ci
-          pMode[ni] = m.mode
-          pKind[ni] = 'step'
-          queue.push(ni)
-          changed = true
-        }
-      }
+  const closure = (greedy, prefill = [], light = false) => {
+    const reached = new Uint8Array(W * H)
+    const parent = new Int32Array(W * H).fill(-1)
+    const pMode = new Array(W * H).fill(null)
+    const pKind = new Array(W * H).fill(null)
+    const opened = new Set(prefill)
+    const gotKeys = new Set()
+    let keys = keysHeld
+
+    const passable = (x, y, m) => {
+      const t = terrainAt(x, y)
+      if (t === 'portal') return true
+      if (t === 'lava' && !m.stats.lava_type) return false
+      if (isDoorTile(t)) return opened.has(idxOf(x, y))
+      return getMovementCost(t, m.stats) < IMPASSABLE_THRESHOLD
     }
 
-    if (flier) {
-      const origins = []
-      for (let i = 0; i < W * H; i++) {
-        if (!reached[i]) continue
-        const x = i % W
-        const y = (i / W) | 0
-        if (
-          canTakeOffFrom(terrainAt(x, y)) &&
-          !isDoorTile(terrainAt(x, y)) &&
-          canStartRide(i)
-        )
-          origins.push(i)
-      }
-      if (origins.length > 0) {
-        for (let y = 0; y < H; y++) {
-          for (let x = 0; x < W; x++) {
-            const i = idxOf(x, y)
-            if (reached[i]) continue
-            if (!canLandOn(terrainAt(x, y), flier, itemLayer?.[y]?.[x]))
-              continue
-            let best = -1
-            let bestD = 1e9
-            for (const o of origins) {
-              const ox = o % W
-              const oy = (o / W) | 0
-              const ddx = Math.min(Math.abs(ox - x), W - Math.abs(ox - x))
-              const ddy = Math.min(Math.abs(oy - y), H - Math.abs(oy - y))
-              const d = Math.max(ddx, ddy)
-              if (d < bestD) {
-                bestD = d
-                best = o
-              }
+    const SUMMON_BLOCKED = [
+      'wall',
+      'water',
+      'mountain',
+      'lava',
+      'doorLocked',
+      'doorUnlocked',
+    ]
+    const canStartRide = (i) => {
+      const x = i % W
+      const y = (i / W) | 0
+      if (i === s0) return true
+      const t = terrainAt(x, y)
+      if (t === 'lava') return false
+      if (isDoorTile(t)) {
+        if (!opened.has(i)) return false
+      } else if (getMovementCost(t, foot) >= IMPASSABLE_THRESHOLD) return false
+      return DIRS.some(([dx, dy]) => {
+        const nt = terrainAt(wrapX(x + dx), wrapY(y + dy))
+        return !SUMMON_BLOCKED.includes(nt)
+      })
+    }
+
+    reached[s0] = 1
+    pMode[s0] = 'start'
+
+    let changed = true
+    let guard = 0
+    while (changed && guard++ < 60) {
+      changed = false
+
+      for (const m of modes) {
+        const queue = []
+        for (let i = 0; i < W * H; i++) {
+          if (!reached[i]) continue
+          if (airborne && i === s0) continue
+          if (m.mode === 'foot' || canStartRide(i)) queue.push(i)
+        }
+        for (let qi = 0; qi < queue.length; qi++) {
+          const ci = queue[qi]
+          const cx = ci % W
+          const cy = (ci / W) | 0
+          for (const [dx, dy] of DIRS) {
+            const nx = wrapX(cx + dx)
+            const ny = wrapY(cy + dy)
+            const ni = idxOf(nx, ny)
+            if (reached[ni]) continue
+            if (!passable(nx, ny, m)) continue
+            if (dx && dy) {
+              const ta = terrainAt(nx, cy)
+              const tb = terrainAt(cx, ny)
+              const blockA =
+                getMovementCost(ta, m.stats) >= IMPASSABLE_THRESHOLD &&
+                !opened.has(idxOf(nx, cy))
+              const blockB =
+                getMovementCost(tb, m.stats) >= IMPASSABLE_THRESHOLD &&
+                !opened.has(idxOf(cx, ny))
+              if (blockA || blockB) continue
             }
-            reached[i] = 1
-            parent[i] = best
-            pMode[i] = 'fly'
-            pKind[i] = 'hop'
+            reached[ni] = 1
+            parent[ni] = ci
+            pMode[ni] = m.mode
+            pKind[ni] = 'step'
+            queue.push(ni)
             changed = true
           }
         }
       }
-    }
 
-    for (let i = 0; i < W * H; i++) {
-      if (!reached[i]) continue
-      const x = i % W
-      const y = (i / W) | 0
-      if (hasKey(itemLayer?.[y]?.[x]) && !gotKeys.has(i)) {
-        gotKeys.add(i)
-        keys++
-        changed = true
-      }
-    }
-
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const i = idxOf(x, y)
-        if (!isDoorTile(terrainAt(x, y)) || opened.has(i)) continue
-        let from = -1
-        for (const [dx, dy] of DIRS) {
-          const ni = idxOf(wrapX(x + dx), wrapY(y + dy))
-          if (reached[ni]) {
-            from = ni
-            break
+      if (flier) {
+        const origins = []
+        for (let i = 0; i < W * H; i++) {
+          if (!reached[i]) continue
+          const x = i % W
+          const y = (i / W) | 0
+          if (airborne && i === s0) {
+            origins.push(i)
+            continue
+          }
+          if (
+            canTakeOffFrom(terrainAt(x, y)) &&
+            !isDoorTile(terrainAt(x, y)) &&
+            canStartRide(i)
+          )
+            origins.push(i)
+        }
+        if (origins.length > 0) {
+          for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+              const i = idxOf(x, y)
+              if (reached[i]) continue
+              if (!canLandOn(terrainAt(x, y), flier, itemLayer?.[y]?.[x]))
+                continue
+              let best = -1
+              let bestD = 1e9
+              if (light) {
+                best = origins[0]
+                bestD = -1
+              }
+              for (const o of origins) {
+                if (light) break
+                const ox = o % W
+                const oy = (o / W) | 0
+                const ddx = Math.min(Math.abs(ox - x), W - Math.abs(ox - x))
+                const ddy = Math.min(Math.abs(oy - y), H - Math.abs(oy - y))
+                const d = Math.max(ddx, ddy)
+                if (d < bestD) {
+                  bestD = d
+                  best = o
+                }
+              }
+              reached[i] = 1
+              parent[i] = best
+              pMode[i] = 'fly'
+              pKind[i] = 'hop'
+              changed = true
+            }
           }
         }
-        if (from < 0) continue
-        if (isDoor(terrainAt(x, y))) {
-          if (keys <= 0) continue
-          keys--
+      }
+
+      for (let i = 0; i < W * H; i++) {
+        if (!reached[i]) continue
+        const x = i % W
+        const y = (i / W) | 0
+        if (airborne && i === s0) continue
+        if (hasKey(itemLayer?.[y]?.[x]) && !gotKeys.has(i)) {
+          gotKeys.add(i)
+          keys++
+          changed = true
         }
-        opened.add(i)
-        reached[i] = 1
-        parent[i] = from
-        pMode[i] = pMode[from] === 'start' ? 'foot' : pMode[from]
-        pKind[i] = 'door'
-        changed = true
+      }
+
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = idxOf(x, y)
+          if (!isDoorTile(terrainAt(x, y)) || opened.has(i)) continue
+          let from = -1
+          for (const [dx, dy] of DIRS) {
+            const ni = idxOf(wrapX(x + dx), wrapY(y + dy))
+            if (reached[ni]) {
+              from = ni
+              break
+            }
+          }
+          if (from < 0) continue
+          if (isDoor(terrainAt(x, y))) {
+            if (!greedy || keys <= 0) continue
+            keys--
+          }
+          opened.add(i)
+          reached[i] = 1
+          parent[i] = from
+          pMode[i] = pMode[from] === 'start' ? 'foot' : pMode[from]
+          pKind[i] = 'door'
+          changed = true
+        }
       }
     }
+    return { reached, parent, pMode, pKind, opened, gotKeys }
   }
 
-  const goalIdx = idxOf(portal.x, portal.y)
-
-  const chainTo = (target) => {
-    if (!reached[target]) return null
+  const chainTo = (C, target) => {
+    if (!C.reached[target]) return null
     const chain = []
     let cur = target
     let guard2 = 0
@@ -290,10 +315,10 @@ export function planQuest({
       chain.push({
         x: cur % W,
         y: (cur / W) | 0,
-        mode: pMode[cur],
-        kind: pKind[cur],
+        mode: C.pMode[cur],
+        kind: C.pKind[cur],
       })
-      cur = parent[cur]
+      cur = C.parent[cur]
     }
     if (cur !== s0) return null
     return chain.reverse()
@@ -316,27 +341,131 @@ export function planQuest({
     return true
   }
 
-  let targetChain = null
-  const portalChain = chainTo(goalIdx)
-  if (portalChain && usable(portalChain)) {
-    const need = doorsIn(portalChain).length
-    if (need <= keysHeld) targetChain = { chain: portalChain, kind: 'portal' }
+  const goalIdx = idxOf(portal.x, portal.y)
+  const G = closure(true)
+  const portalChain = chainTo(G, goalIdx)
+
+  const searchDoors = () => {
+    let sig = `${keysHeld}|`
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const t = terrainAt(x, y)
+        if (t === 'doorLocked' || t === 'doorUnlocked')
+          sig += `${t[4]}${idxOf(x, y)},`
+        if (hasKey(itemLayer?.[y]?.[x])) sig += `k${idxOf(x, y)},`
+      }
+    sig += `|${goalIdx}|${Object.keys(kit).join('')}`
+    if (searchCache.has(sig)) return searchCache.get(sig)
+
+    const lockedTiles = []
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++)
+        if (isDoor(terrainAt(x, y))) lockedTiles.push(idxOf(x, y))
+    let budget = 160
+    const seen = new Set()
+    let baseFree = 0
+    const dfs = (P, C, depth) => {
+      if (C.reached[goalIdx]) return []
+      if (depth >= 10 || budget <= 0) return null
+      const avail = keysHeld + C.gotKeys.size - baseFree - P.length
+      if (avail < 1) return null
+      const cands = []
+      for (const di of lockedTiles) {
+        if (P.includes(di)) continue
+        const dx0 = di % W
+        const dy0 = (di / W) | 0
+        let touching = false
+        for (const [dx, dy] of DIRS)
+          if (C.reached[idxOf(wrapX(dx0 + dx), wrapY(dy0 + dy))]) {
+            touching = true
+            break
+          }
+        if (!touching) continue
+        const P2 = [...P, di].sort((a, b) => a - b)
+        const key = P2.join(',')
+        if (seen.has(key)) continue
+        seen.add(key)
+        if (budget-- <= 0) break
+        const C2 = closure(false, P2, true)
+        const newKeys = C2.gotKeys.size - C.gotKeys.size
+        let gain = 0
+        for (let i = 0; i < W * H; i++)
+          if (C2.reached[i] && !C.reached[i]) gain++
+        if (!C2.reached[goalIdx] && newKeys === 0 && gain <= 1) continue
+        cands.push({
+          di,
+          P2,
+          C2,
+          score: (C2.reached[goalIdx] ? 1000 : 0) + newKeys * 10 + gain / 50,
+        })
+      }
+      cands.sort((a, b) => b.score - a.score)
+      for (const c of cands) {
+        const r = dfs(c.P2, c.C2, depth + 1)
+        if (r) return [c.di, ...r]
+      }
+      return null
+    }
+    const base = closure(false, [], true)
+    baseFree = base.gotKeys.size
+    const result = dfs([], base, 0)
+    if (searchCache.size > 200) searchCache.clear()
+    searchCache.set(sig, result)
+    return result
   }
-  if (!targetChain && portalChain) {
+
+  let targetChain = null
+  let doorTarget = null
+  const L = closure(false)
+
+  if (L.reached[goalIdx]) {
+    const c = chainTo(L, goalIdx)
+    if (c && usable(c)) targetChain = { chain: c, kind: 'portal' }
+  }
+
+  if (!targetChain) {
+    const order = keysHeld >= 1 ? searchDoors() : null
+    if (order && order.length > 0) {
+      const di = order[0]
+      let from = null
+      for (const [dx, dy] of DIRS) {
+        const ni = idxOf(wrapX((di % W) + dx), wrapY(((di / W) | 0) + dy))
+        if (!L.reached[ni] || ni === di || (airborne && ni === s0)) continue
+        const c = chainTo(L, ni)
+        if (!c || !usable(c)) continue
+        if (!from || c.length < from.length) from = c
+      }
+      if (from) {
+        targetChain = { chain: from, kind: 'key' }
+        doorTarget = { x: di % W, y: (di / W) | 0 }
+      }
+    }
+  }
+
+  if (!targetChain) {
     let bestKey = null
-    for (const ki of gotKeys) {
-      const c = chainTo(ki)
+    for (const ki of L.gotKeys) {
+      const c = chainTo(L, ki)
       if (!c || !usable(c)) continue
-      if (doorsIn(c).length > keysHeld) continue
       const score = c.length + c.filter((s) => s.kind === 'hop').length * 3
       if (!bestKey || score < bestKey.score) bestKey = { chain: c, score }
     }
     if (bestKey) targetChain = { chain: bestKey.chain, kind: 'key' }
   }
-  if (!targetChain) return null
+
+  if (!targetChain && portalChain && usable(portalChain)) {
+    const need = doorsIn(portalChain).length
+    if (need <= keysHeld) targetChain = { chain: portalChain, kind: 'portal' }
+  }
+  if (!targetChain) {
+    return null
+  }
 
   const chain = targetChain.chain
-  const doorSet = new Set(doorsIn(portalChain).map((d) => `${d.x},${d.y}`))
+  const doorSet = new Set()
+  if (targetChain.kind === 'portal')
+    for (const d of doorsIn(targetChain.chain)) doorSet.add(`${d.x},${d.y}`)
+  else if (doorTarget) doorSet.add(`${doorTarget.x},${doorTarget.y}`)
 
   const first = chain[0]
   if (!first)
@@ -345,6 +474,7 @@ export function planQuest({
       mode: 'foot',
       steps: [],
       rides: [],
+      scarce: [],
       doors: doorSet,
       kit,
     }
@@ -353,7 +483,7 @@ export function planQuest({
   for (const c of chain) {
     const sameMode = (c.kind === 'hop' ? 'fly' : c.mode) === mode
     if (!sameMode) break
-    if (c.kind === 'door' && isDoor(terrainAt(c.x, c.y))) break
+    if (c.kind === 'door') break
     steps.push({ x: c.x, y: c.y })
     if (c.kind === 'hop') break
   }
@@ -364,8 +494,14 @@ export function planQuest({
     if (m && m !== 'foot' && m !== 'start' && kit[m]) ridesNeeded.add(m)
   }
 
+  const scarce = [...ridesNeeded]
+    .filter((m) => kit[m].uses <= 2)
+    .map((m) => kit[m].name)
+
   return {
     kind: targetChain.kind,
+    atDoor: first.kind === 'door' ? { x: first.x, y: first.y } : null,
+    scarce,
     rides: [...ridesNeeded],
     mode,
     hop: first.kind === 'hop',
@@ -381,6 +517,18 @@ export const setQuestReserve = (n) => {
   reserve = n
 }
 export const getQuestReserve = () => reserve
+
+let questOn = false
+export const setQuestOn = (v) => {
+  questOn = !!v
+}
+export const getQuestOn = () => questOn
+
+let keepRides = []
+export const setQuestKeep = (names) => {
+  keepRides = names || []
+}
+export const getQuestKeep = () => keepRides
 
 let wantedRide = null
 export const setQuestWant = (name) => {

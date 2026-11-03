@@ -47,6 +47,8 @@ import {
 import { buildDanger, canHitTarget } from './enemyDanger.js'
 import {
   planQuest,
+  setQuestKeep,
+  setQuestOn,
   rideModeOf,
   setQuestWant,
   clearQuestWant,
@@ -56,6 +58,7 @@ import {
   planBreach,
   clearLandingRequests,
   requestLandingClear,
+  holdRide,
 } from './enemyBreach.js'
 import {
   findWalkInLandings,
@@ -131,6 +134,12 @@ function routeDoorSet(
       portalPosition,
     )
   return needsWayOut ? null : { keys: new Set(), doors: [] }
+}
+
+function hasLockedDoor(terrainLayer) {
+  for (const row of terrainLayer)
+    for (const t of row) if (t === 'doorLocked') return true
+  return false
 }
 
 function isWantedItem(item) {
@@ -535,12 +544,23 @@ function chooseTravel({
     return toSpot.path.length > 0 ? toSpot : null
   }
 
+  if (quest && !quest.end && quest.kind === 'key' && quest.doors.size > 0)
+    return { path: [] }
+
   if (quest && quest.end && portalPosition && !alreadyAtPortal) {
     const atEnd =
       ENEMY_WIZARD.x === quest.end.x && ENEMY_WIZARD.y === quest.end.y
     if (atEnd) return { path: [] }
     const leg = attempt([quest.end])
     if (leg.path.length > 0) return leg
+
+    const hemmedIn = getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y).filter(
+      (t) =>
+        objectLayer[t.y][t.x]?.type === 'creature' &&
+        objectLayer[t.y][t.x].owner === 'enemy' &&
+        !objectLayer[t.y][t.x].mount,
+    )
+    if (hemmedIn.length > 0) requestLandingClear(hemmedIn)
   }
 
   if (portalPosition && !alreadyAtPortal && flying) {
@@ -692,6 +712,8 @@ function chooseTravel({
 let questSticky = false
 let callStarts = []
 let lastEnd = null
+let startHist = []
+let questOff = 0
 
 export function moveEnemyWizard(
   terrainLayer,
@@ -710,12 +732,27 @@ export function moveEnemyWizard(
   clearLandingRequests()
   clearQuestWant()
   setQuestReserve(0)
+  setQuestKeep([])
+  setQuestOn(false)
   if (
     lastEnd &&
     (lastEnd.x !== ENEMY_WIZARD.x || lastEnd.y !== ENEMY_WIZARD.y)
   ) {
     callStarts = []
     questSticky = false
+    startHist = []
+    questOff = 0
+  }
+  startHist.push(`${ENEMY_WIZARD.x},${ENEMY_WIZARD.y}`)
+  if (startHist.length > 8) startHist.shift()
+  if (questOff > 0) questOff--
+  else if (
+    portalPosition &&
+    startHist.length >= 8 &&
+    new Set(startHist).size <= 4
+  ) {
+    questOff = 12
+    startHist = []
   }
   callStarts.push(`${ENEMY_WIZARD.x},${ENEMY_WIZARD.y}`)
   if (callStarts.length > 4) callStarts.shift()
@@ -726,6 +763,7 @@ export function moveEnemyWizard(
   )
     questSticky = true
   let questDoors = new Set()
+  let questActive = false
 
   let currentLayer = objectLayer
   let workingTerrain = terrainLayer
@@ -773,12 +811,14 @@ export function moveEnemyWizard(
       workingTerrain,
       workingItems,
       flying,
-      route || questDoors.size > 0
-        ? (door) => {
-            const k = `${door.x},${door.y}`
-            return !!route?.keys.has(k) || questDoors.has(k)
-          }
-        : null,
+      questActive
+        ? (door) => questDoors.has(`${door.x},${door.y}`)
+        : route || questDoors.size > 0
+          ? (door) => {
+              const k = `${door.x},${door.y}`
+              return !!route?.keys.has(k) || questDoors.has(k)
+            }
+          : null,
     )
     workingTerrain = result.terrainLayer
     workingItems = result.itemLayer
@@ -852,7 +892,7 @@ export function moveEnemyWizard(
         portal: portalPosition,
       }
       if (
-        questSticky ||
+        (questOff === 0 && (questSticky || hasLockedDoor(workingTerrain))) ||
         (!currentSetupFits(qctx) && !findFittingAdjacentMount(qctx))
       ) {
         quest = planQuest({
@@ -860,6 +900,7 @@ export function moveEnemyWizard(
           keysHeld: countKeys(ENEMY_WIZARD.inventory),
         })
         questDoors = quest ? quest.doors : new Set()
+        questActive = !!quest
         if (quest) {
           let hold = 0
           for (const m of quest.rides) {
@@ -871,8 +912,35 @@ export function moveEnemyWizard(
               hold += sp.manaCost * sp.currentSpellLevel
           }
           setQuestReserve(hold)
+          setQuestKeep(quest.scarce)
+          setQuestOn(true)
         }
       }
+    }
+
+    if (
+      quest &&
+      (quest.doors.size > 0 || quest.atDoor) &&
+      quest.steps.length === 0
+    ) {
+      const before = workingTerrain
+      runItemActions()
+      let opened = false
+      if (
+        quest.atDoor &&
+        workingTerrain[quest.atDoor.y][quest.atDoor.x] !==
+          before[quest.atDoor.y][quest.atDoor.x]
+      )
+        opened = true
+      for (const k of quest.doors) {
+        const [dx, dy] = k.split(',').map(Number)
+        if (
+          before[dy][dx] === 'doorLocked' &&
+          workingTerrain[dy][dx] !== 'doorLocked'
+        )
+          opened = true
+      }
+      if (opened) continue
     }
 
     if (quest) {
@@ -880,7 +948,7 @@ export function moveEnemyWizard(
       const cur = isMounted(here) ? rideModeOf(here.mount.stats) : 'foot'
       const want = quest.mode
       const swapOk = !isCurrentlyFlying(here)
-      if (swapOk && cur !== want && !(want === 'foot' && cur === 'fly')) {
+      if (swapOk && cur !== want && !(want === 'foot' && cur !== 'foot')) {
         let adj = null
         if (want !== 'foot') {
           for (const t of getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y)) {
@@ -898,8 +966,15 @@ export function moveEnemyWizard(
           }
         }
         if (want !== 'foot' && !adj) {
-          // Not at hand: ask for it to be summoned, and wait for the cast.
           if (quest.kit[want]) setQuestWant(quest.kit[want].name)
+          requestLandingClear(
+            getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y).filter(
+              (t) =>
+                currentLayer[t.y][t.x]?.type === 'creature' &&
+                currentLayer[t.y][t.x].owner === 'enemy' &&
+                !currentLayer[t.y][t.x].mount,
+            ),
+          )
           break
         }
         const swapCost = isMounted(here)
@@ -915,6 +990,20 @@ export function moveEnemyWizard(
               ENEMY_WIZARD,
             )
           : null
+        if (adj) holdRide(adj)
+        if (isMounted(here) && !tile) {
+          const crowd = getAdjacentTiles(ENEMY_WIZARD.x, ENEMY_WIZARD.y).filter(
+            (t) =>
+              !(adj && t.x === adj.x && t.y === adj.y) &&
+              currentLayer[t.y][t.x]?.type === 'creature' &&
+              currentLayer[t.y][t.x].owner === 'enemy' &&
+              !currentLayer[t.y][t.x].mount,
+          )
+          if (crowd.length > 0) {
+            requestLandingClear(crowd)
+            break
+          }
+        }
         if (ENEMY_WIZARD.ap >= swapCost && (!isMounted(here) || tile)) {
           if (isMounted(here)) {
             currentLayer = dismountRider(

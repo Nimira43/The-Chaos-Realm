@@ -92,9 +92,19 @@ export function listBreachMarks(effectLayer) {
 }
 
 const landingRequests = new Set()
+const rideHolds = new Set()
+
+export function holdRide(t) {
+  rideHolds.add(`${t.x},${t.y}`)
+}
+
+export function isRideHeld(x, y) {
+  return rideHolds.has(`${x},${y}`)
+}
 
 export function clearLandingRequests() {
   landingRequests.clear()
+  rideHolds.clear()
 }
 
 export function requestLandingClear(tiles) {

@@ -8,7 +8,11 @@ import {
   ATTACK_AP_COST,
   TANGLE_VINE_DEFENCE,
 } from './combat.js'
-import { listBreachMarks, isLandingClearRequested } from './enemyBreach.js'
+import {
+  listBreachMarks,
+  isLandingClearRequested,
+  isRideHeld,
+} from './enemyBreach.js'
 import { findPathToNearestGoal, getAdjacentTiles } from './pathfinding.js'
 import {
   canCarryItem,
@@ -277,9 +281,10 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
   }
 
   const markedEffects = () =>
-    portalPosition && canCut()
+    canCut()
       ? listBreachMarks(effectLayer).filter((m) => {
           const type = effectLayer[m.y][m.x].type
+
           if (type === 'vine') return true
           return (
             type === 'blob' &&
@@ -352,14 +357,17 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     const statsFor = (t) =>
       airStats && blockFor(t) === 'target-airborne' ? airStats : moverStats
 
-    if (portalPosition && isLandingClearRequested(x, y)) {
+    if (isLandingClearRequested(x, y)) {
       const room = []
       for (let dy = -3; dy <= 3; dy++) {
         for (let dx = -3; dx <= 3; dx++) {
           const gx = wrap(x + dx, MAP_WIDTH)
           const gy = wrap(y + dy, MAP_HEIGHT)
           if (objectLayer[gy][gx] || isLandingClearRequested(gx, gy)) continue
-          if (chebyshevDist(gx, gy, portalPosition.x, portalPosition.y) <= 1)
+          if (
+            portalPosition &&
+            chebyshevDist(gx, gy, portalPosition.x, portalPosition.y) <= 1
+          )
             continue
           room.push({ x: gx, y: gy })
         }
@@ -387,6 +395,16 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     }
 
     const inSight = hittable.filter((t) => t.dist <= SIGHT_RANGE)
+
+    const toCut = markedEffects()
+    if (toCut.length > 0 && !inSight.some((t) => t.dist <= 2)) {
+      const path = findPathToNearestGoal({
+        ...pathArgs,
+        goals: toCut.flatMap((m) => getAdjacentTiles(m.x, m.y)),
+      })
+      if (path.length > 0) return { path, reason: 'breach' }
+    }
+
     for (const t of inSight) {
       const path = findPathToNearestGoal({
         ...pathArgs,
@@ -396,7 +414,6 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
       if (path.length > 0) return { path, reason: 'fight', target: t }
     }
 
-    const toCut = markedEffects()
     if (toCut.length > 0) {
       const path = findPathToNearestGoal({
         ...pathArgs,
@@ -567,9 +584,9 @@ export function runEnemyCreaturesAI(
   itemLayer = null,
   portalPosition = null,
 ) {
-  keysReservedForWizard =
-    !!portalPosition &&
-    objectLayer.some((row) => row.some((cell) => cell?.type === 'enemyWizard'))
+  keysReservedForWizard = objectLayer.some((row) =>
+    row.some((cell) => cell?.type === 'enemyWizard'),
+  )
 
   let state = {
     terrainLayer,
@@ -601,6 +618,7 @@ export function runEnemyCreaturesAI(
     if (finishedAt.has(`${x},${y}`)) return
     const cell = state.objectLayer[y][x]
     if (!cell || cell.type !== 'creature' || cell.owner !== 'enemy') return
+    if (isRideHeld(x, y)) return
 
     const turn = runCreatureTurn(state, x, y, portalPosition)
     state = {
