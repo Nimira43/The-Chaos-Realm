@@ -214,7 +214,12 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
         terrainLayer[door.y][door.x] = 'doorUnlocked'
         setCell({ ...cell, inventory: removeFirstKey(cell.inventory) })
       } else if (findAdjacentDoorInState(terrainLayer, x, y, 'doorUnlocked')) {
-        const door = findAdjacentDoorInState(terrainLayer, x, y, 'doorUnlocked')
+        const door = findAdjacentDoorInState(
+          terrainLayer,
+          x,
+          y,
+          'doorUnlocked',
+        )
         terrainLayer = terrainLayer.map((row) => [...row])
         terrainLayer[door.y][door.x] = 'doorOpen'
       } else {
@@ -275,7 +280,6 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     portalPosition && canCut()
       ? listBreachMarks(effectLayer).filter((m) => {
           const type = effectLayer[m.y][m.x].type
-          
           if (type === 'vine') return true
           return (
             type === 'blob' &&
@@ -327,15 +331,26 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     }
 
     const targets = listPlayerTargets(objectLayer, x, y)
-    const hittable = targets.filter(
-      (t) =>
-        !getAttackBlockReason({
-          objectLayer,
-          terrainLayer,
-          attackerPos: { x, y },
-          defenderPos: { x: t.x, y: t.y },
-        }),
-    )
+    const blockFor = (t) =>
+      getAttackBlockReason({
+        objectLayer,
+        terrainLayer,
+        attackerPos: { x, y },
+        defenderPos: { x: t.x, y: t.y },
+      })
+
+    const canLiftOff =
+      !flying &&
+      canFly(moverStats) &&
+      apNow() >= FLY_TOGGLE_AP_COST + 2 &&
+      canTakeOffFrom(terrainLayer[y][x])
+    const airStats = canLiftOff ? { ...moverStats, isFlyingNow: true } : null
+    const hittable = targets.filter((t) => {
+      const reason = blockFor(t)
+      return !reason || (canLiftOff && reason === 'target-airborne')
+    })
+    const statsFor = (t) =>
+      airStats && blockFor(t) === 'target-airborne' ? airStats : moverStats
 
     if (portalPosition && isLandingClearRequested(x, y)) {
       const room = []
@@ -375,6 +390,7 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     for (const t of inSight) {
       const path = findPathToNearestGoal({
         ...pathArgs,
+        entity: statsFor(t),
         goals: getAdjacentTiles(t.x, t.y),
       })
       if (path.length > 0) return { path, reason: 'fight', target: t }
@@ -430,6 +446,7 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
     for (const t of hittable.filter((t) => t.dist > SIGHT_RANGE)) {
       const path = findPathToNearestGoal({
         ...pathArgs,
+        entity: statsFor(t),
         goals: getAdjacentTiles(t.x, t.y),
       })
       if (path.length > 0) return { path, reason: 'advance' }
