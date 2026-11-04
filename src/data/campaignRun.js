@@ -3,7 +3,6 @@ import {
   STAT_RULES,
   getSpellCatalogue,
 } from './wizardRules.js'
-
 const STORAGE_KEY = 'chaosRealm.campaignRuns'
 const FORMAT_VERSION = 1
 const MAX_STORED_RUNS = 30
@@ -14,10 +13,21 @@ export const LEVEL_POOL = Array.from(
   (_, i) => `Level${String(i + 1).padStart(2, '0')}`,
 )
 
+// ---------------------------------------------------------------------------
+// The Main Campaign: 50 levels in three tiers, played in this order.
+//   Low     Level01 - Level20, shuffled together, played first
+//   Medium  Level21 - Level35, shuffled together, played next
+//   High    Level36 - Level50, shuffled together, played last
+// The file names are only names. How hard a level is for the enemy wizard comes
+// from where it falls in the run (the Nth level played gets the Nth wizard), so
+// a Low level can turn up at any point inside the Low tier and still be fair.
+// A level whose file is missing or unplayable is skipped, so the campaign is
+// as long as the files that exist `missing` says which ones were left out.
+
 export const MAIN_CAMPAIGN_STAGES = [
-  { from: 1, to: 40, shuffle: true },
-  { from: 41, to: 49, shuffle: true },
-  { from: 50, to: 50, shuffle: false },
+  { name: 'Low', from: 1, to: 20, shuffle: true },
+  { name: 'Medium', from: 21, to: 35, shuffle: true },
+  { name: 'High', from: 36, to: 50, shuffle: true },
 ]
 
 export const levelName = (n) => `Level${String(n).padStart(2, '0')}`

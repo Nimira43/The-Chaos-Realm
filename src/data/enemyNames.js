@@ -60,7 +60,7 @@ export const ENEMY_FIRST_NAMES = [
   'Eldric Vane',
   'Calverax',
   'Seraph Null',
-  'Eadric ',
+  'Eadric',
   'Gravenmoor',
   'Thornhelm',
   'Aldran',
