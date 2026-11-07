@@ -11,20 +11,23 @@ import {
   getSpellCatalogue,
   priceBlueprint,
 } from '../data/wizardRules.js'
-import { getBank, shopDelta } from '../data/campaignRun.js'
+import { getBank, isSaveNameTaken, shopDelta } from '../data/campaignRun.js'
 import './enemy.css'
+import './gameModes.css'
 
 const TABS = ['Spellbook', 'Stats']
 
 export function CampaignShop({ run, result, nextEnemy, onContinue }) {
   const catalogue = useMemo(() => getSpellCatalogue(), [])
   const owned = run.clone
+
   const [draft, setDraft] = useState(() => ({
     stats: { ...owned.stats },
     spellLevels: { ...owned.spellLevels },
   }))
   const [tab, setTab] = useState('Spellbook')
   const [search, setSearch] = useState('')
+
   const bank = getBank(run)
   const delta = shopDelta(owned, draft, catalogue)
   const left = bank - delta.total
@@ -234,6 +237,90 @@ export function CampaignShop({ run, result, nextEnemy, onContinue }) {
             Start level {nextLevel} ›
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+export function NameRunDialog({ defaultName, onConfirm, onBack }) {
+  const [name, setName] = useState(defaultName)
+  const trimmed = name.trim()
+  const error = !trimmed
+    ? 'Give the run a name.'
+    : isSaveNameTaken(trimmed)
+      ? 'You already have a save with that name.'
+      : ''
+
+  function submit(e) {
+    e.preventDefault()
+    if (!error) onConfirm(trimmed)
+  }
+
+  return (
+    <div className='modal'>
+      <form
+        className='modal-content gm-name-dialog'
+        onSubmit={submit}
+        aria-label='Name this run'
+      >
+        <h2>Name this run</h2>
+        <p>It will be listed under this name when you choose Continue.</p>
+        <input
+          autoFocus
+          maxLength={40}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onFocus={(e) => e.target.select()}
+          aria-label='Save name'
+        />
+        <div className='gm-name-error'>{error || '\u00a0'}</div>
+        <div className='modal-actions'>
+          <button type='button' onClick={onBack}>
+            Back
+          </button>
+          <button type='submit' disabled={!!error}>
+            Start
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export function LootResult({ run, earned, outOfAp, onReturn }) {
+  return (
+    <div className='modal'>
+      <div className='modal-content game-over-content victory'>
+        <h2>{outOfAp ? 'Out of action points' : 'Loot banked!'}</h2>
+        <p>
+          {earned > 0
+            ? `${run.wizardName} brought home ${earned} point${earned === 1 ? '' : 's'}.`
+            : `${run.wizardName} came home empty-handed.`}
+        </p>
+
+        <div className='campaign-stats'>
+          <div className='campaign-stat'>
+            <strong>{earned}</strong>
+            <span>Looted</span>
+          </div>
+          <div className='campaign-stat'>
+            <strong>{getBank(run)}</strong>
+            <span>Points to spend</span>
+          </div>
+        </div>
+
+        <button
+          className='btn btn-primary'
+          style={{ width: '100%' }}
+          onClick={onReturn}
+        >
+          Back to the campaign
+        </button>
+        <Link to='/game-modes' style={{ textDecoration: 'none' }}>
+          <button className='btn btn-ghost' style={{ width: '100%' }}>
+            Back to the menu
+          </button>
+        </Link>
       </div>
     </div>
   )

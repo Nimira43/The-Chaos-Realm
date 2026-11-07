@@ -1,3 +1,4 @@
+/* Start button on the home page */
 .home-start {
   font-size: 30px;
   letter-spacing: 6px;
@@ -11,6 +12,7 @@
   box-shadow: 0 8px 30px var(--ember-glow);
 }
 
+/* Game Modes page: same video and overlay as the home page, a menu on top */
 .gm-content {
   position: relative;
   z-index: 2;
@@ -44,7 +46,9 @@
   text-decoration: none;
   transition: var(--transition);
 }
-.gm-back:hover { color: var(--main); }
+.gm-back:hover {
+  color: var(--main);
+}
 
 .gm-scroll {
   flex: 1 1 auto;
@@ -53,7 +57,9 @@
   padding: 4px 6px 4px 0;
 }
 
-.gm-group { margin-bottom: 26px; }
+.gm-group {
+  margin-bottom: 26px;
+}
 .gm-heading {
   margin: 0 0 10px;
   font-size: 18px;
@@ -89,11 +95,18 @@ a.gm-card:hover {
   background: rgba(41, 36, 31, 0.9);
   box-shadow: 0 10px 28px var(--ember-soft);
 }
-a.gm-card:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+a.gm-card:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
 
 .gm-highlight {
   border-color: var(--main);
-  background: linear-gradient(to bottom, rgba(255, 69, 0, 0.16), rgba(23, 21, 19, 0.85));
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 69, 0, 0.16),
+    rgba(23, 21, 19, 0.85)
+  );
 }
 
 .gm-card-title {
@@ -120,11 +133,290 @@ a.gm-card:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; 
   border: 1px solid var(--border-strong);
   border-radius: 999px;
 }
-.gm-tag-test { color: var(--ember); }
+.gm-tag-test {
+  color: var(--ember);
+}
 
 .gm-soon {
   opacity: 0.5;
   cursor: not-allowed;
   border-style: dashed;
   border-color: var(--border);
+}
+
+/* Cards that open a panel are buttons; make them look like the link cards */
+button.gm-card {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.gm-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--main);
+  background: rgba(41, 36, 31, 0.9);
+  box-shadow: 0 10px 28px var(--ember-soft);
+}
+button.gm-card:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
+
+/* Panels opened from the menu (saves, Random, Select) */
+.modal-content.gm-panel {
+  width: min(560px, 94vw);
+  max-height: 88vh;
+  overflow: hidden;
+}
+.modal-content.gm-panel-wide {
+  width: min(780px, 94vw);
+}
+
+.gm-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gm-panel-head h2 {
+  margin: 0;
+}
+.modal-content button.gm-panel-close {
+  padding: 2px 12px;
+  font-size: 26px;
+  line-height: 1.1;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+.gm-panel-intro {
+  margin: 0;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+.gm-empty,
+.gm-muted {
+  color: var(--text-faint);
+}
+.gm-empty {
+  padding: 18px 4px;
+}
+
+.gm-saves {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.gm-save {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.gm-save-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  color: var(--text);
+  text-decoration: none;
+  background: var(--panel-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+a.gm-save-main:hover {
+  border-color: var(--main);
+  background: var(--panel-hover);
+}
+.gm-save-off .gm-save-main {
+  opacity: 0.55;
+  border-style: dashed;
+  border-color: var(--border);
+}
+.gm-save-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  overflow-wrap: anywhere;
+}
+.gm-save-sub {
+  font-size: 15px;
+  color: var(--text-dim);
+}
+.gm-save-reason {
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--ember);
+  text-transform: uppercase;
+}
+.modal-content button.gm-save-delete {
+  flex: 0 0 auto;
+  font-size: 14px;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+.modal-content button.gm-save-delete:hover,
+.modal-content button.gm-save-delete.sure {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: #fff;
+}
+
+.gm-tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.modal-content button.gm-tier {
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+}
+.modal-content button.gm-tier strong {
+  font-size: 20px;
+}
+.modal-content button.gm-tier span {
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+.modal-content button.gm-tier.on {
+  background: linear-gradient(to bottom, var(--main), var(--main-dark));
+  border-color: var(--ember);
+}
+.modal-content button.gm-tier.on span {
+  color: var(--text);
+}
+.modal-content button.gm-tier:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gm-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 18px;
+}
+
+.gm-select-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: 46vh;
+  padding-right: 4px;
+}
+.gm-select-tier {
+  margin: 0 0 6px;
+  font-size: 15px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.gm-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+}
+.modal-content button.gm-tile {
+  position: relative;
+  padding: 12px 0;
+  font-size: 20px;
+}
+.modal-content button.gm-tile.on {
+  background: linear-gradient(to bottom, var(--main), var(--main-dark));
+  border-color: var(--ember);
+}
+.gm-tile-order {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 22px;
+  padding: 0 5px;
+  font-size: 13px;
+  line-height: 22px;
+  text-align: center;
+  color: #000;
+  background: var(--light);
+  border-radius: 999px;
+}
+
+.gm-order {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  max-height: 84px;
+  overflow-y: auto;
+}
+.gm-order-label {
+  color: var(--text-dim);
+  margin-right: 4px;
+}
+.gm-chip {
+  padding: 2px 10px;
+  font-size: 15px;
+  background: var(--panel-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+
+.gm-panel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.modal-content button.gm-clear {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-dim);
+}
+.modal-content button.gm-clear:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.gm-go {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--text);
+  background: linear-gradient(to bottom, var(--main), var(--main-dark));
+  border: 1px solid var(--ember);
+  border-radius: var(--radius);
+  box-shadow: 0 0 14px var(--ember-soft);
+}
+a.gm-go:hover {
+  background: linear-gradient(to bottom, #ff5a1a, var(--main));
+}
+.gm-go-off {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* The "name this run" box */
+.modal-content.gm-name-dialog {
+  width: min(420px, 92vw);
+}
+.gm-name-error {
+  min-height: 1.2em;
+  font-size: 15px;
+  color: var(--bad);
 }

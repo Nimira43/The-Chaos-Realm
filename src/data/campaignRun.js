@@ -3,26 +3,16 @@ import {
   STAT_RULES,
   getSpellCatalogue,
 } from './wizardRules.js'
+
 const STORAGE_KEY = 'chaosRealm.campaignRuns'
 const FORMAT_VERSION = 1
-const MAX_STORED_RUNS = 30
+const MAX_STORED_RUNS = 60
 
 export const TEST_CAMPAIGN_LEVELS = 3
 export const LEVEL_POOL = Array.from(
   { length: 50 },
   (_, i) => `Level${String(i + 1).padStart(2, '0')}`,
 )
-
-// ---------------------------------------------------------------------------
-// The Main Campaign: 50 levels in three tiers, played in this order.
-//   Low     Level01 - Level20, shuffled together, played first
-//   Medium  Level21 - Level35, shuffled together, played next
-//   High    Level36 - Level50, shuffled together, played last
-// The file names are only names. How hard a level is for the enemy wizard comes
-// from where it falls in the run (the Nth level played gets the Nth wizard), so
-// a Low level can turn up at any point inside the Low tier and still be fair.
-// A level whose file is missing or unplayable is skipped, so the campaign is
-// as long as the files that exist `missing` says which ones were left out.
 
 export const MAIN_CAMPAIGN_STAGES = [
   { name: 'Low', from: 1, to: 20, shuffle: true },
@@ -86,6 +76,35 @@ export async function pickPlayableLevels(count, pool = LEVEL_POOL) {
   return chosen
 }
 
+export async function listPlayableLevels(pool = LEVEL_POOL) {
+  const checks = await Promise.all(pool.map((name) => isPlayableLevel(name)))
+  return pool.filter((_, i) => checks[i])
+}
+
+export const TIERS = MAIN_CAMPAIGN_STAGES.map((stage) => ({
+  ...stage,
+  levels: Array.from({ length: stage.to - stage.from + 1 }, (_, i) =>
+    levelName(stage.from + i),
+  ),
+}))
+
+export async function buildRandomLevels(count, tierName) {
+  const tier = TIERS.find((t) => t.name === tierName)
+  if (!tier) return []
+  return pickPlayableLevels(count, tier.levels)
+}
+
+export async function buildSelectedLevels(picks) {
+  const unique = [...new Set(picks)].filter((name) =>
+    LEVEL_POOL.includes(name),
+  )
+  const checks = await Promise.all(unique.map((name) => isPlayableLevel(name)))
+  return {
+    levels: unique.filter((_, i) => checks[i]),
+    missing: unique.filter((_, i) => !checks[i]),
+  }
+}
+
 function readAll() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
@@ -132,17 +151,49 @@ export function deleteRun(id) {
   writeAll(readAll().filter((r) => r.id !== id))
 }
 
+export function listAllRuns() {
+  return readAll().sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+export function isSaveNameTaken(name) {
+  const wanted = String(name).trim().toLowerCase()
+  return readAll().some(
+    (r) =>
+      String(r.saveName || '')
+        .trim()
+        .toLowerCase() === wanted,
+  )
+}
+
 export function listResumableRuns() {
   return readAll()
     .filter((r) => r.status === 'playing' || r.status === 'shopping')
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-export function createRun({ clone, levels, mode = 'campaign3', missing = [] }) {
+export const MODE_LABELS = {
+  main: 'Main Campaign',
+  campaign3: '3 Level Test',
+  random: 'Random Mode',
+  select: 'Select Mode',
+}
+
+export const runTitle = (run) =>
+  run.saveName || `${run.wizardName} · ${MODE_LABELS[run.mode] || 'Campaign'}`
+
+export function createRun({
+  clone,
+  levels,
+  mode = 'campaign3',
+  missing = [],
+  saveName = '',
+}) {
   return {
     id: `run_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
     version: FORMAT_VERSION,
     mode,
+    saveName: String(saveName).trim(),
+    level_1_completed: false,
     wizardName: clone.name,
     clone,
     levels,
@@ -168,8 +219,22 @@ export function winLevel(run, points) {
     clone: { ...run.clone, score: run.clone.score + gained },
     earned: run.earned + gained,
     won,
+    level_1_completed: true,
     index: finished ? run.index : run.index + 1,
     status: finished ? 'complete' : 'shopping',
+  }
+}
+
+export const lootUnlocked = (run) => !!run.level_1_completed || run.won > 0
+export const canLoot = (run) => lootUnlocked(run) && run.status !== 'complete'
+
+export function bankLoot(run, points) {
+  const gained = Math.max(0, Math.round(points) || 0)
+  return {
+    ...run,
+    level_1_completed: true,
+    clone: { ...run.clone, score: run.clone.score + gained },
+    earned: run.earned + gained,
   }
 }
 

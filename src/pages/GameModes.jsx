@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listResumableRuns } from '../data/campaignRun.js'
+import { listAllRuns, listResumableRuns } from '../data/campaignRun.js'
+import { RandomPanel, SavesPanel, SelectPanel } from '../ui/ModePanels.jsx'
 import '../ui/gameModes.css'
 
-function buildGroups(resumable) {
+function buildGroups(resumable, saveCount) {
   const campaigns = []
 
-  if (resumable) {
+  if (saveCount > 0) {
     campaigns.push({
-      to: `/game?run=${resumable.id}`,
-      title: 'Continue Campaign',
-      sub: `${resumable.wizardName} · level ${resumable.index + 1} of ${resumable.levels.length}`,
-      highlight: true,
+      panel: 'continue',
+      title: 'Continue',
+      sub: resumable
+        ? `${saveCount} save${saveCount === 1 ? '' : 's'} · latest: ${resumable.saveName || resumable.wizardName}`
+        : `${saveCount} save${saveCount === 1 ? '' : 's'}, all finished`,
+      highlight: !!resumable,
     })
   }
 
@@ -22,19 +25,19 @@ function buildGroups(resumable) {
       sub: 'Fifty levels, a shop between each, and a wizard who grows with you',
     },
     {
+      panel: 'random',
       title: 'Random Mode',
-      sub: 'A run through levels drawn at random',
-      soon: true,
+      sub: 'Pick a tier and a number the levels are drawn at random',
     },
     {
+      panel: 'select',
       title: 'Select Mode',
-      sub: 'Choose the levels you want to fight through',
-      soon: true,
+      sub: 'Choose the levels you want to fight through, in your order',
     },
     {
+      panel: 'loot',
       title: 'Loot Mode',
-      sub: 'Gather treasure, and nothing else matters',
-      soon: true,
+      sub: 'Gather treasure for one of your saves, and nothing else matters',
     },
     {
       to: '/game?campaign=new',
@@ -71,7 +74,8 @@ function buildGroups(resumable) {
 
 export default function GameModes() {
   const [videoFailed, setVideoFailed] = useState(false)
-  const groups = buildGroups(listResumableRuns()[0])
+  const [panel, setPanel] = useState(null) // continue | random | select | loot
+  const groups = buildGroups(listResumableRuns()[0], listAllRuns().length)
 
   return (
     <div className='home-container gm-page'>
@@ -120,6 +124,18 @@ export default function GameModes() {
                     </>
                   )
 
+                  if (item.panel) {
+                    return (
+                      <button
+                        key={item.title}
+                        className={`gm-card ${item.highlight ? 'gm-highlight' : ''}`}
+                        onClick={() => setPanel(item.panel)}
+                      >
+                        {body}
+                      </button>
+                    )
+                  }
+
                   return item.soon ? (
                     <div
                       key={item.title}
@@ -143,6 +159,12 @@ export default function GameModes() {
           ))}
         </div>
       </div>
+
+      {(panel === 'continue' || panel === 'loot') && (
+        <SavesPanel kind={panel} onClose={() => setPanel(null)} />
+      )}
+      {panel === 'random' && <RandomPanel onClose={() => setPanel(null)} />}
+      {panel === 'select' && <SelectPanel onClose={() => setPanel(null)} />}
     </div>
   )
 }

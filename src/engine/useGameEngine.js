@@ -9,6 +9,7 @@ import useItemActions, { getActionAvailability } from './useItemActions.js'
 import useMountActions, {
   getMountActionAvailability,
 } from './useMountActions.js'
+import { makeLootLoader } from './lootMap.js'
 
 export default function useGameEngine() {
   const [terrainLayer, setTerrainLayer] = useState(() =>
@@ -119,6 +120,27 @@ export default function useGameEngine() {
     if (!res.ok) throw new Error(`Level ${name} not found`)
     loadHandcraftedMap(await res.json())
   }
+
+  const loadLootMap = () =>
+    makeLootLoader({
+      setTerrainLayer,
+      setObjectLayer,
+      setEffectLayer,
+      setItemLayer,
+      setPlayerPosition,
+      setCursor,
+      setEnemyPosition,
+      setSelected,
+      setAp,
+      setRound,
+      setPortalStart,
+      setPortalPosition,
+      setGameStatus,
+      setGameOverMessage,
+      setScore,
+      setIsAnimating,
+      turnTokenRef,
+    })()
 
   const castSpellForPlayer = useSpellcasting({
     terrainLayer,
@@ -260,5 +282,6 @@ export default function useGameEngine() {
     restartGame,
     loadMapFromFile,
     loadMapByName,
+    loadLootMap,
   }
 }

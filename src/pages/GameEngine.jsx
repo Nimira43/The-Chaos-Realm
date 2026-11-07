@@ -28,19 +28,30 @@ import {
   CampaignComplete,
   CampaignDefeat,
   CampaignShop,
+  LootResult,
+  NameRunDialog,
 } from '../ui/CampaignScreens.jsx'
 import {
+  MODE_LABELS,
   TEST_CAMPAIGN_LEVELS,
   applyPurchases,
+  bankLoot,
+  buildRandomLevels,
+  buildSelectedLevels,
+  canLoot,
   createRun,
   deleteRun,
   getBank,
   getRun,
+  isSaveNameTaken,
   pickPlayableLevels,
   buildMainCampaign,
+  runTitle,
   saveRun,
   winLevel,
 } from '../data/campaignRun.js'
+
+const CAMPAIGN_MODES = { main: 'main', new: 'campaign3', random: 'random', select: 'select' }
 
 function getHoverInfo(objectLayer, terrainLayer, cursor) {
   if (!terrainLayer.length || !objectLayer.length) return null
@@ -164,25 +175,32 @@ export default function GameEngine() {
     restartGame,
     loadMapFromFile,
     loadMapByName,
+    loadLootMap,
   } = useGameEngine()
 
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const runParam = searchParams.get('run')
-  const campaignKind = searchParams.get('campaign')
-  const startingCampaign = campaignKind === 'main' || campaignKind === 'new'
+  const campaignKind = searchParams.get('campaign')          
+  const startingCampaign = campaignKind in CAMPAIGN_MODES
+  const lootParam = searchParams.get('loot')                 
 
   const [run, setRun] = useState(null)
-  const [phase, setPhase] = useState('play')
+  const [phase, setPhase] = useState('play') 
   const [lastResult, setLastResult] = useState(null)
+  const [pendingClone, setPendingClone] = useState(null)  
+  const [lootResult, setLootResult] = useState(null)
+  const lootStartedRef = useRef(false)
+  const lootDoneRef = useRef(false)
   const [campaignError, setCampaignError] = useState(null)
   const levelHandledRef = useRef(false)
   const resumedRef = useRef(false)
 
   const inCampaign = !!run
+  const lootMode = phase === 'loot' || phase === 'lootDone'
   const gameOver = gameStatus !== 'playing'
   const actionsLocked =
-    gameOver || isAnimating || (inCampaign && phase !== 'play')
+    gameOver || isAnimating || (inCampaign && phase !== 'play' && phase !== 'loot')
 
   const bowInfo = getBowInfo(objectLayer)
   const throwInfo = getThrowInfo(objectLayer)
@@ -205,12 +223,12 @@ export default function GameEngine() {
   const hoverInfo = getHoverInfo(objectLayer, terrainLayer, cursor)
   const playerMount = objectLayer[PLAYER.y]?.[PLAYER.x]?.mount
 
-  const [pickerOpen, setPickerOpen] = useState(!runParam)
+  const [pickerOpen, setPickerOpen] = useState(!runParam && !lootParam)
   const [wizardName, setWizardName] = useState(null)
   const [enemyName, setEnemyName] = useState(null)
 
   useEffect(() => {
-    restartGame()
+    if (!lootParam) restartGame()
   }, [])
 
   async function beginLevel(r) {
@@ -229,43 +247,108 @@ export default function GameEngine() {
     }
   }
 
-  async function startCampaign(clone) {
+  async function startCampaign(clone, saveName) {
     setPickerOpen(false)
     setPhase('loading')
-    const main = campaignKind === 'main'
-    let levels
+    const mode = CAMPAIGN_MODES[campaignKind]
+    let levels = []
     let missing = []
-    if (main) {
+
+    if (mode === 'main') {
       const built = await buildMainCampaign()
       levels = built.levels
       missing = built.missing
-      if (missing.length)
-        console.warn(
-          'Main Campaign: skipped unplayable levels:',
-          missing.join(', '),
-        )
+      if (missing.length) console.warn('Main Campaign: skipped unplayable levels:', missing.join(', '))
       if (levels.length === 0) {
-        setCampaignError(
-          'Could not find any playable levels in /created-maps.',
-        )
+        setCampaignError('Could not find any playable levels in /created-maps.')
+        return
+      }
+    } else if (mode === 'random') {
+      const count = Math.min(50, Math.max(1, parseInt(searchParams.get('count'), 10) || 1))
+      levels = await buildRandomLevels(count, searchParams.get('tier'))
+      if (levels.length === 0) {
+        setCampaignError('Could not find any playable levels in that tier.')
+        return
+      }
+    } else if (mode === 'select') {
+      const picks = (searchParams.get('levels') || '').split(',').filter(Boolean)
+      const built = await buildSelectedLevels(picks)
+      levels = built.levels
+      missing = built.missing
+      if (levels.length === 0) {
+        setCampaignError('None of the levels you picked could be played.')
         return
       }
     } else {
       levels = await pickPlayableLevels(TEST_CAMPAIGN_LEVELS)
       if (levels.length < TEST_CAMPAIGN_LEVELS) {
-        setCampaignError(
-          'Could not find enough playable levels in /created-maps.',
-        )
+        setCampaignError('Could not find enough playable levels in /created-maps.')
         return
       }
     }
-    const newRun = saveRun(
-      createRun({ clone, levels, missing, mode: main ? 'main' : 'campaign3' }),
-    )
+
+    const newRun = saveRun(createRun({ clone, levels, missing, mode, saveName }))
     setRun(newRun)
     setWizardName(clone.name)
     navigate(`/game?run=${newRun.id}`, { replace: true })
     await beginLevel(newRun)
+  }
+
+  function suggestSaveName(clone) {
+    const base = `${clone.name}'s ${MODE_LABELS[CAMPAIGN_MODES[campaignKind]] || 'Run'}`
+    let name = base
+    for (let n = 2; isSaveNameTaken(name); n++) name = `${base} ${n}`
+    return name
+  }
+
+  useEffect(() => {
+    if (!lootParam || lootStartedRef.current) return
+    lootStartedRef.current = true
+
+    const saved = getRun(lootParam)
+    if (!saved || !canLoot(saved)) {
+      navigate('/game-modes', { replace: true })
+      return
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot, guarded transition; it syncs with saved runs / the engine, not a render loop
+    setRun(saved)
+    setWizardName(saved.wizardName)
+    setPickerOpen(false)
+    applyWizardToGame(saved.clone)
+    loadLootMap()
+    levelHandledRef.current = false
+    setPhase('loot')
+  }, [lootParam])
+
+  function finishLoot(outOfAp) {
+    if (lootDoneRef.current || !run) return
+    lootDoneRef.current = true
+    setSelectedSpell(null)
+    const updated = saveRun(bankLoot(run, score))
+    setRun(updated)
+    setLootResult({ earned: score, outOfAp })
+    setPhase('lootDone')
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot, guarded transition; it syncs with saved runs / the engine, not a render loop
+    if (phase === 'loot' && (ap <= 0 || gameStatus !== 'playing')) finishLoot(true)
+  }, [phase, ap, gameStatus])
+
+  function resumeAfterLoot() {
+    const r = run
+    resumedRef.current = true
+    lootStartedRef.current = true
+    setLootResult(null)
+    setLastResult(null)
+    navigate(`/game?run=${r.id}`, { replace: true })
+    if (r.status === 'shopping') {
+      applyWizardToGame(r.clone)
+      setPhase('shop')
+    } else {
+      beginLevel(r)
+    }
   }
 
   useEffect(() => {
@@ -278,6 +361,7 @@ export default function GameEngine() {
       return
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot, guarded transition; it syncs with saved runs / the engine, not a render loop
     setRun(saved)
     setWizardName(saved.wizardName)
     setPickerOpen(false)
@@ -296,6 +380,7 @@ export default function GameEngine() {
     if (gameStatus === 'won') {
       levelHandledRef.current = true
       const updated = saveRun(winLevel(run, score))
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot, guarded transition; it syncs with saved runs / the engine, not a render loop
       setRun(updated)
       setLastResult({ earned: score, message: gameOverMessage })
       setPhase(updated.status === 'complete' ? 'complete' : 'shop')
@@ -320,7 +405,8 @@ export default function GameEngine() {
 
   function handleWizardChosen(clone) {
     if (startingCampaign && !run) {
-      startCampaign(clone)
+      setPickerOpen(false)
+      setPendingClone(clone)   
       return
     }
     applyWizardToGame(clone)
@@ -345,7 +431,7 @@ export default function GameEngine() {
   )
 
   function handleCastClick(e) {
-    if (!selectedSpell || actionsLocked) return
+    if (!selectedSpell || actionsLocked || lootMode) return
     castSpellForPlayer(selectedSpell)
     setSelectedSpell(null)
     e.currentTarget.blur()
@@ -412,12 +498,14 @@ export default function GameEngine() {
             <span>Mana</span>
           </div>
 
-          <div className='spellbook-list'>
+          {lootMode && <div className='turn-note'>The spellbook is sealed in Loot Mode.</div>}
+
+          <div className='spellbook-list' style={lootMode ? { opacity: 0.35, pointerEvents: 'none' } : undefined}>
             {SPELLBOOK.map((spell, i) => (
               <div
                 key={i}
                 className={`spell-entry ${selectedSpell?.name === spell.name ? 'selected' : ''}`}
-                onClick={() => setSelectedSpell(spell)}
+                onClick={() => !lootMode && setSelectedSpell(spell)}
               >
                 <div className='spell-name'>{spell.name}</div>
                 <div className='spell-units'>{spell.currentSpellLevel}</div>
@@ -429,9 +517,9 @@ export default function GameEngine() {
           </div>
 
           <button
-            className={`cast-btn ${selectedSpell && !actionsLocked ? 'active' : 'disabled'}`}
+            className={`cast-btn ${selectedSpell && !actionsLocked && !lootMode ? 'active' : 'disabled'}`}
             onClick={handleCastClick}
-            disabled={!selectedSpell || actionsLocked}
+            disabled={!selectedSpell || actionsLocked || lootMode}
           >
             Cast Selected Spell
           </button>
@@ -445,25 +533,29 @@ export default function GameEngine() {
       <div id='right-panel'>
         <div id='right-middle'>
           <div id='turn-counter'>
-            Turn {round} / {MAX_ROUNDS}
+            {lootMode ? 'Loot Mode' : `Turn ${round} / ${MAX_ROUNDS}`}
           </div>
-          <div id='score-display'>Score: {score}</div>
-          {inCampaign && (
+          <div id='score-display'>{lootMode ? 'Looted' : 'Score'}: {score}</div>
+          {lootMode && run && (
+            <div className='turn-note'>
+              {runTitle(run)} · Bank {getBank(run)}
+            </div>
+          )}
+          {inCampaign && !lootMode && (
             <div className='turn-note'>
               Level {Math.min(run.index + 1, run.levels.length)} of{' '}
               {run.levels.length}
-              {run.missing?.length
-                ? ` (${run.missing.length} missing)`
-                : ''} · {run.levels[run.index]} · Bank {getBank(run)}
+              {run.missing?.length ? ` (${run.missing.length} missing)` : ''} · {run.levels[run.index]} · Bank{' '}
+              {getBank(run)}
             </div>
           )}
           {isAnimating && !gameOver && (
             <div className='turn-note'>Enemy turn…</div>
           )}
-          {!isAnimating && !portalPosition && !gameOver && (
+          {!lootMode && !isAnimating && !portalPosition && !gameOver && (
             <div className='turn-note'>Portal appears: Turn {PORTAL_TURN}</div>
           )}
-          {!isAnimating && portalPosition && !gameOver && (
+          {!lootMode && !isAnimating && portalPosition && !gameOver && (
             <div className='turn-note accent'>The portal has opened!</div>
           )}
         </div>
@@ -526,13 +618,26 @@ export default function GameEngine() {
             </div>
           )}
 
-          <button
-            id='end-turn-btn'
-            onClick={handleEndTurnClick}
-            disabled={actionsLocked}
-          >
-            {isAnimating ? 'Enemy Turn…' : 'End Turn'}
-          </button>
+          {lootMode ? (
+            <button
+              id='end-turn-btn'
+              onClick={(e) => {
+                finishLoot(false)
+                e.currentTarget.blur()
+              }}
+              disabled={phase !== 'loot'}
+            >
+              Bank {score} {score === 1 ? 'point' : 'points'}
+            </button>
+          ) : (
+            <button
+              id='end-turn-btn'
+              onClick={handleEndTurnClick}
+              disabled={actionsLocked}
+            >
+              {isAnimating ? 'Enemy Turn…' : 'End Turn'}
+            </button>
+          )}
         </div>
 
         {hoverInfo && (
@@ -670,12 +775,14 @@ export default function GameEngine() {
               <div>Item: {info.items.map((item) => item.name).join(', ')}</div>
             )}
 
-            {inCampaign ? (
+            {lootMode && run ? (
               <>
-                <div>
-                  Campaign: {run.wizardName}
-                  {enemyName ? ` vs ${enemyName}` : ''}
-                </div>
+                <div>Loot for: {run.wizardName}</div>
+                <button onClick={() => navigate('/game-modes')}>Leave without banking</button>
+              </>
+            ) : inCampaign ? (
+              <>
+                <div>Campaign: {run.wizardName}{enemyName ? ` vs ${enemyName}` : ''}</div>
                 <button onClick={() => navigate('/')}>Leave campaign</button>
               </>
             ) : (
@@ -690,10 +797,7 @@ export default function GameEngine() {
                   Load Map
                 </button>
 
-                <button
-                  className='generate-map-btn'
-                  onClick={handleRestartClick}
-                >
+                <button className='generate-map-btn' onClick={handleRestartClick}>
                   Generate Map
                 </button>
 
@@ -715,9 +819,33 @@ export default function GameEngine() {
           <WizardPicker
             canClose={wizardName !== null || startingCampaign}
             onClose={() =>
-              startingCampaign && !run ? navigate('/') : setPickerOpen(false)
+              startingCampaign && !run ? navigate('/game-modes') : setPickerOpen(false)
             }
             onConfirm={handleWizardChosen}
+          />
+        )}
+
+        {pendingClone && !run && (
+          <NameRunDialog
+            defaultName={suggestSaveName(pendingClone)}
+            onBack={() => {
+              setPendingClone(null)
+              setPickerOpen(true)
+            }}
+            onConfirm={(name) => {
+              const clone = pendingClone
+              setPendingClone(null)
+              startCampaign(clone, name)
+            }}
+          />
+        )}
+
+        {inCampaign && phase === 'lootDone' && lootResult && (
+          <LootResult
+            run={run}
+            earned={lootResult.earned}
+            outOfAp={lootResult.outOfAp}
+            onReturn={resumeAfterLoot}
           />
         )}
 
@@ -725,9 +853,7 @@ export default function GameEngine() {
           <CampaignShop
             run={run}
             result={lastResult}
-            nextEnemy={enemyForLevel(run.index + 1, {
-              seed: `${run.id}:${run.index}`,
-            })}
+            nextEnemy={enemyForLevel(run.index + 1, { seed: `${run.id}:${run.index}` })}
             onContinue={handleShopContinue}
           />
         )}
