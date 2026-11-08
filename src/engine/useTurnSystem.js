@@ -254,6 +254,7 @@ export default function useTurnSystem({
     )
     workingLayer = creatureResult.objectLayer
     workingTerrain = creatureResult.terrainLayer
+    workingEffectLayer = creatureResult.effectLayer
     workingItemLayer = creatureResult.itemLayer
     frames = frames.concat(creatureResult.frames)
 

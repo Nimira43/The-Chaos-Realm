@@ -5,6 +5,8 @@ import MapEditor from './pages/MapEditor'
 import WizardEditor from './pages/WizardEditor'
 import BackgroundMusicPlayer from './audio/BackgroundMusicPlayer'
 import GameModes from './pages/GameModes'
+import Bestiary from './pages/Bestiary'
+
 
 export default function App() {
   return (
@@ -16,6 +18,7 @@ export default function App() {
         <Route path='/game' element={<GameEngine />} />
         <Route path='/map-editor' element={<MapEditor />} />
         <Route path='/wizard-editor' element={<WizardEditor />} />
+        <Route path='/bestiary' element={<Bestiary />} />
       </Routes>
     </BrowserRouter>
   )

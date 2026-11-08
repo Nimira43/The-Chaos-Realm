@@ -69,6 +69,16 @@ function buildGroups(resumable, saveCount) {
         },
       ],
     },
+    {
+      heading: 'Lore',
+      items: [
+        {
+          to: '/bestiary',
+          title: 'Bestiary',
+          sub: 'Every creature of the Chaos Realm: their tales, their strengths, their stats',
+        },
+      ],
+    },
   ]
 }
 
