@@ -100,7 +100,7 @@ function findLootGoals(itemLayer, cell, x, y, landable) {
   return goals
 }
 
-function runCreatureTurn(state, startX, startY, portalPosition) {
+function runCreatureTurn(state, startX, startY, portalPosition, siege = null) {
   let { terrainLayer, objectLayer, itemLayer, effectLayer } = state
   const frames = []
   let defeatedTarget = null
@@ -394,6 +394,11 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
       }
     }
 
+    if (siege?.active)
+      hittable.sort(
+        (a, b) => (b.type === 'player') - (a.type === 'player') || a.dist - b.dist,
+      )
+
     const inSight = hittable.filter((t) => t.dist <= SIGHT_RANGE)
 
     const toCut = markedEffects()
@@ -466,6 +471,16 @@ function runCreatureTurn(state, startX, startY, portalPosition) {
         entity: statsFor(t),
         goals: getAdjacentTiles(t.x, t.y),
       })
+      if (path.length > 0) return { path, reason: 'advance' }
+    }
+
+    if (siege?.stage && siege.stage.size > 0) {
+      if (siege.stage.has(`${x},${y}`)) return { path: [], reason: 'none' }
+      const goals = [...siege.stage].map((k) => {
+        const [gx, gy] = k.split(',').map(Number)
+        return { x: gx, y: gy }
+      })
+      const path = findPathToNearestGoal({ ...pathArgs, goals, forbidLava: true })
       if (path.length > 0) return { path, reason: 'advance' }
     }
 
@@ -583,6 +598,7 @@ export function runEnemyCreaturesAI(
   effectLayer,
   itemLayer = null,
   portalPosition = null,
+  siege = null,
 ) {
   keysReservedForWizard = objectLayer.some((row) =>
     row.some((cell) => cell?.type === 'enemyWizard'),
@@ -620,7 +636,7 @@ export function runEnemyCreaturesAI(
     if (!cell || cell.type !== 'creature' || cell.owner !== 'enemy') return
     if (isRideHeld(x, y)) return
 
-    const turn = runCreatureTurn(state, x, y, portalPosition)
+    const turn = runCreatureTurn(state, x, y, portalPosition, siege)
     state = {
       ...state,
       terrainLayer: turn.terrainLayer,

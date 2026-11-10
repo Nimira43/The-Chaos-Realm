@@ -9,6 +9,7 @@ import {
 } from './terrain.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
 import { isCurrentlyFlying } from './mounts.js'
+import { updateSiege } from './enemySiege.js'
 
 export const MAX_ROUNDS = 30
 export const PORTAL_TURN = Math.round((MAX_ROUNDS * 2) / 3)
@@ -193,14 +194,24 @@ export default function useTurnSystem({
       }
     }
 
+    const siege =
+      enemyPosition && !newStatus
+        ? updateSiege({
+            terrainLayer: workingTerrain,
+            objectLayer: workingLayer,
+            portalTile: activePortalPosition ?? portalStart,
+            round: nextRound,
+          })
+        : null
+
     if (enemyPosition) {
       const wizardResult = runEnemyWizardAI(
         workingTerrain,
         workingLayer,
-        activePortalPosition,
+        siege?.goal ? null : activePortalPosition,
         workingEffectLayer,
         workingItemLayer,
-        portalStart,
+        siege?.goal ?? portalStart,
       )
       workingLayer = wizardResult.objectLayer
       workingEffectLayer = wizardResult.effectLayer
@@ -251,6 +262,7 @@ export default function useTurnSystem({
       workingEffectLayer,
       workingItemLayer,
       activePortalPosition,
+      siege,
     )
     workingLayer = creatureResult.objectLayer
     workingTerrain = creatureResult.terrainLayer
