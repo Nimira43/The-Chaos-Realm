@@ -26,6 +26,7 @@ import {
   clearBreachMarks,
   ageBreachMarks,
   isBreachMark,
+  isSiegeBreach,
 } from './enemyBreach.js'
 import {
   scanThreat,
@@ -395,7 +396,7 @@ function chooseRouteMount(S) {
 
 function chooseBreach(S) {
   if (!S.portal) return null
-  if (getQuestOn()) return null
+  if (getQuestOn() && !isSiegeBreach()) return null
   const plan = planBreach({
     terrainLayer: S.terrain,
     objectLayer: S.objects,

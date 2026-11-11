@@ -59,6 +59,7 @@ import {
   clearLandingRequests,
   requestLandingClear,
   holdRide,
+  isSiegeBreach,
 } from './enemyBreach.js'
 import {
   findWalkInLandings,
@@ -883,7 +884,7 @@ export function moveEnemyWizard(
     }
 
     let quest = null
-    if (portalPosition && canRide(ENEMY_WIZARD)) {
+    if (portalPosition && canRide(ENEMY_WIZARD) && !isSiegeBreach()) {
       const here0 = currentLayer[ENEMY_WIZARD.y][ENEMY_WIZARD.x]
       const qctx = {
         terrainLayer: workingTerrain,

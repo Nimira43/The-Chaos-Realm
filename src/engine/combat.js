@@ -4,7 +4,13 @@ import { scarWallEffectDestroyedTile } from './environmentEffects.js'
 export const ATTACK_AP_COST = 2
 export const FLOOR_SHIELD_FROM = 'fliers'
 
-const SHIELDING_TERRAIN = ['floor', 'doorLocked', 'doorUnlocked', 'doorOpen']
+const SHIELDING_TERRAIN = [
+  'floor',
+  'portal',
+  'doorLocked',
+  'doorUnlocked',
+  'doorOpen',
+]
 
 function isShieldedByFloor(
   terrainLayer,

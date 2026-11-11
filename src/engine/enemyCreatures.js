@@ -474,14 +474,23 @@ function runCreatureTurn(state, startX, startY, portalPosition, siege = null) {
       if (path.length > 0) return { path, reason: 'advance' }
     }
 
-    if (siege?.stage && siege.stage.size > 0) {
+    const stages = !canFly(moverStats)
+    if (stages && siege?.stage && siege.stage.size > 0) {
       if (siege.stage.has(`${x},${y}`)) return { path: [], reason: 'none' }
-      const goals = [...siege.stage].map((k) => {
-        const [gx, gy] = k.split(',').map(Number)
-        return { x: gx, y: gy }
-      })
-      const path = findPathToNearestGoal({ ...pathArgs, goals, forbidLava: true })
-      if (path.length > 0) return { path, reason: 'advance' }
+      const goals = [...siege.stage]
+        .map((k) => {
+          const [gx, gy] = k.split(',').map(Number)
+          return { x: gx, y: gy }
+        })
+        .filter((g) => !objectLayer[g.y][g.x])
+      if (goals.length > 0) {
+        const path = findPathToNearestGoal({
+          ...pathArgs,
+          goals,
+          forbidLava: true,
+        })
+        if (path.length > 0) return { path, reason: 'advance' }
+      }
     }
 
     let wanderTarget = cell.wanderTarget ?? null

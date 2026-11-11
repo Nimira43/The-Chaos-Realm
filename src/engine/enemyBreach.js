@@ -43,6 +43,14 @@ const BREAKABLE = ['wall', 'doorLocked']
 
 let committed = null
 
+let siegeBreach = false
+export function setSiegeBreach(on) {
+  siegeBreach = !!on
+}
+export function isSiegeBreach() {
+  return siegeBreach
+}
+
 const marks = new Map()
 const ages = new Map()
 const MAX_PENDING_TURNS = 8
@@ -135,6 +143,10 @@ export function pickBreachSpell() {
   return spellNamed('Gooey Blob') || spellNamed('Magic Fire') || vine
 }
 
+export function hasBreachSpell() {
+  return !!pickBreachSpell()
+}
+
 export function isSealed(ctx) {
   const from = { x: ENEMY_WIZARD.x, y: ENEMY_WIZARD.y }
   if (hasGroundRoute(ctx.terrainLayer, footStats(), from, ctx.portal))
@@ -151,7 +163,7 @@ function tileCost(terrain, canAir) {
   if (terrain === 'mountain') return canAir ? 4 : null
   if (terrain === 'wall') return WALL_COST
   if (terrain === 'doorLocked') return LOCKED_DOOR_COST
-  if (terrain === 'doorUnlocked') return 2
+  if (terrain === 'doorUnlocked') return siegeBreach ? WALL_COST : 2
   if (terrain === 'water' || terrain === 'lava') return 3
   return 1
 }
@@ -264,6 +276,7 @@ function makePlan(ctx) {
   const spell = pickBreachSpell()
   if (!spell) return null
   if (
+    !siegeBreach &&
     !isSealed(ctx) &&
     planQuest({ ...ctx, keysHeld: countKeys(ENEMY_WIZARD.inventory) })
   )

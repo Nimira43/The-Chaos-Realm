@@ -18,7 +18,13 @@ const ROLL_ALLOWANCE = 5
 const MAX_BLOWS = 3
 const BLOW_AP_COST = 2
 
-const SHIELDING_TERRAIN = ['floor', 'doorLocked', 'doorUnlocked', 'doorOpen']
+const SHIELDING_TERRAIN = [
+  'floor',
+  'portal',
+  'doorLocked',
+  'doorUnlocked',
+  'doorOpen',
+]
 const NEIGHBOURS = [
   [1, 0],
   [-1, 0],

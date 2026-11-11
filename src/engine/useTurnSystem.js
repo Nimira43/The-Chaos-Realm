@@ -9,7 +9,8 @@ import {
 } from './terrain.js'
 import { tickEnvironmentEffects } from './environmentEffects.js'
 import { isCurrentlyFlying } from './mounts.js'
-import { updateSiege } from './enemySiege.js'
+import { updateSiege, assistWizard } from './enemySiege.js'
+import { setSiegeBreach } from './enemyBreach.js'
 
 export const MAX_ROUNDS = 30
 export const PORTAL_TURN = Math.round((MAX_ROUNDS * 2) / 3)
@@ -194,15 +195,20 @@ export default function useTurnSystem({
       }
     }
 
+    // Siege: when the player is walled in or sitting on the portal, the
+    // enemy stops idling. `siege` is inert (goal: null) in every other game.
     const siege =
       enemyPosition && !newStatus
         ? updateSiege({
             terrainLayer: workingTerrain,
             objectLayer: workingLayer,
             portalTile: activePortalPosition ?? portalStart,
+            portalOpen: !!activePortalPosition,
             round: nextRound,
           })
         : null
+
+    setSiegeBreach(!!siege?.breach)
 
     if (enemyPosition) {
       const wizardResult = runEnemyWizardAI(
@@ -236,6 +242,20 @@ export default function useTurnSystem({
         console.log('The enemy wizard perished in the lava!')
       } else if (wizardResult.position) {
         setEnemyPosition(wizardResult.position)
+      }
+
+      // Siege fallback: if his own AI left him standing, the siege moves him.
+      if (!wizardResult.selfDefeated && siege?.assist) {
+        const helped = assistWizard({
+          terrainLayer: workingTerrain,
+          objectLayer: workingLayer,
+          assist: siege.assist,
+        })
+        if (helped) {
+          workingLayer = helped.objectLayer
+          frames = frames.concat(helped.frames)
+          setEnemyPosition(helped.position)
+        }
       }
 
       if (!newStatus && wizardResult.defeatedTarget === 'player') {
