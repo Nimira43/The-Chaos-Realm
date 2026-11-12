@@ -5,6 +5,8 @@ import {
   wrappedChebyshevDistance,
 } from '../engine/utils.js'
 import { CREATURES } from '../data/creatures.js'
+import { getMoverAp } from '../engine/mounts.js'
+import { drawCounter } from './counters.js'
 
 function getCreatureCode(name) {
   const creature = CREATURES.find((c) => c.name === name)
@@ -152,23 +154,6 @@ function drawKeyItemTile(ctx, screenX, screenY, tileSize) {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText('K', screenX + 2 + size / 2, screenY + 2 + size / 2)
-}
-
-function drawMountBadge(ctx, screenX, screenY, tileSize, letter, colour) {
-  const size = tileSize * 0.36
-  const inset = 4
-  ctx.fillStyle = colour
-  ctx.fillRect(screenX + inset, screenY + inset, size, size)
-
-  ctx.fillStyle = 'black'
-  ctx.font = `bold ${Math.max(10, size * 0.8)}px monospace`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(
-    letter,
-    screenX + inset + size / 2,
-    screenY + inset + size / 2 + 1,
-  )
 }
 
 function drawAppleTile(ctx, screenX, screenY, tileSize) {
@@ -441,66 +426,32 @@ export function drawViewport(
 
       const obj = objectLayer[worldY][worldX]
 
-      if (obj && obj.type === 'creature') {
-        ctx.fillStyle = obj.owner === 'enemy' ? '#ff0e0e' : 'blue'
-        ctx.fillRect(
-          vx * tileSize + 6,
-          vy * tileSize + 6,
-          tileSize - 12,
-          tileSize - 12,
-        )
+      if (obj && (obj.type === 'creature' || obj.type === 'enemyWizard')) {
+        const isWizard = obj.type === 'enemyWizard'
+        const hpSrc = isWizard ? obj.ref : obj
+        const hpMax = isWizard ? obj.ref.constitution : obj.stats?.constitution
+        const mount = obj.mount
+          ? obj.mount.flying
+            ? 'flying'
+            : 'riding'
+          : obj.flying
+            ? 'flying'
+            : null
 
-        const code = getCreatureCode(obj.name)
-
-        ctx.fillStyle = 'white'
-        ctx.font = 'bold 14px monospace'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(
-          code,
+        drawCounter(
+          ctx,
           vx * tileSize + tileSize / 2,
           vy * tileSize + tileSize / 2,
-        )
-      }
-
-      if (obj && obj.type === 'enemyWizard') {
-        ctx.fillStyle = '#ff0e0e'
-        ctx.fillRect(
-          vx * tileSize + 4,
-          vy * tileSize + 4,
-          tileSize - 8,
-          tileSize - 8,
-        )
-
-        ctx.fillStyle = 'white'
-        ctx.font = 'bold 14px monospace'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText(
-          'EW',
-          vx * tileSize + tileSize / 2,
-          vy * tileSize + tileSize / 2,
-        )
-      }
-
-      if (obj?.mount) {
-        const flying = !!obj.mount.flying
-        drawMountBadge(
-          ctx,
-          vx * tileSize,
-          vy * tileSize,
           tileSize,
-          flying ? 'F' : 'R',
-          flying ? '#87ceeb' : '#3cb043',
-        )
-      } else if (obj?.flying) {
-        drawMountBadge(
-          ctx,
-          vx * tileSize,
-          vy * tileSize,
-          tileSize,
-          'F',
-          '#87ceeb',
+          {
+            owner: obj.owner === 'enemy' || isWizard ? 'enemy' : 'player',
+            kind: isWizard ? 'wizard' : 'creature',
+            code: isWizard ? null : getCreatureCode(obj.name),
+            hp: hpSrc.current_health,
+            hpMax,
+            apLeft: !isWizard && obj.owner !== 'enemy' && getMoverAp(obj, obj.ap) > 0,
+            mount,
+          },
         )
       }
     }
@@ -532,21 +483,27 @@ export function drawViewport(
   const playerScreenX = (dx + radius) * tileSize
   const playerScreenY = (dy + radius) * tileSize
 
-  ctx.fillStyle = 'white'
-  ctx.fillRect(playerScreenX, playerScreenY, tileSize, tileSize)
-
   const playerCellNow = objectLayer[player.y]?.[player.x]
-  if (playerCellNow?.mount) {
-    const flying = !!playerCellNow.mount.flying
-    drawMountBadge(
-      ctx,
-      playerScreenX,
-      playerScreenY,
-      tileSize,
-      flying ? 'F' : 'R',
-      flying ? '#87ceeb' : '#3cb043',
-    )
-  }
+  const playerMountKind = playerCellNow?.mount
+    ? playerCellNow.mount.flying
+      ? 'flying'
+      : 'riding'
+    : null
+
+  drawCounter(
+    ctx,
+    playerScreenX + tileSize / 2,
+    playerScreenY + tileSize / 2,
+    tileSize,
+    {
+      owner: 'player',
+      kind: 'wizard',
+      hp: player.current_health,
+      hpMax: player.constitution,
+      apLeft: getMoverAp(playerCellNow, player.ap) > 0,
+      mount: playerMountKind,
+    },
+  )
 
   if (!selected) {
     const flash = Date.now() % 600 < 300
